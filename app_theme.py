@@ -10,6 +10,8 @@ vboxsizer = partial(wx.BoxSizer, wx.VERTICAL)
 WX_BORDER = 5
 WX_BUTTON_SIZE = (68, -1)
 
+DIALOG_BORDER = 30
+
 class ThemedStaticText(wx.TextCtrl):
 
     def __init__(self, *args, **kw):

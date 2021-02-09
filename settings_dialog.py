@@ -4,10 +4,11 @@ import wx.lib.scrolledpanel as scrolled
 
 from app_theme import (
     ThemedButton,
-    WX_BORDER,
     hboxsizer,
-    vboxsizer
+    vboxsizer,
+    DIALOG_BORDER
 )
+
 
 class SettingsDialog(wx.Dialog):
 
@@ -22,12 +23,12 @@ class SettingsDialog(wx.Dialog):
         vs = vboxsizer()
 
         hs = hboxsizer()
-        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, WX_BORDER)
-        vs.Add(hs, 1, wx.ALL|wx.EXPAND, WX_BORDER)
+        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 10)
+        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
 
         hs = hboxsizer()
-        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, WX_BORDER)
-        vs.Add(hs, 0, wx.ALL|wx.EXPAND, WX_BORDER)
+        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 10)
+        vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(vs)
 
@@ -41,23 +42,37 @@ class SetttingsPanel(scrolled.ScrolledPanel):
 
         self.max_connections = MaxConnectionsPanel(self, -1)
         self.timeout = TimeoutPanel(self, -1)
+        self.minsize_panel = MinWidthHeightPanel(self, -1)
+        self.thumb_panel = ThumbnailOnlyPanel(self, -1)
 
         vs = vboxsizer()
 
         hs = hboxsizer()
         hs.Add(self.max_connections, 1, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
         hs.Add(self.timeout, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.ALIGN_RIGHT, 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.minsize_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.ALIGN_RIGHT , 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.thumb_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.ALIGN_RIGHT , 0)
+        vs.AddSpacer(DIALOG_BORDER)
 
         self.SetSizer(vs)
         self.Fit()
 
         self.SetAutoLayout(1)
         self.SetupScrolling()
-
+        
 
 class MaxConnectionsPanel(wx.Panel):
 
@@ -71,6 +86,50 @@ class MaxConnectionsPanel(wx.Panel):
         hs = hboxsizer()
         hs.Add(self.slider, 1, wx.ALL|wx.EXPAND, 0)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Maximum Connections")
+        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        self.SetSizer(box)
+
+
+class ThumbnailOnlyPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.checkbox = wx.CheckBox(self, -1, "")
+        self.checkbox.SetValue(True)
+
+        hs = hboxsizer()
+        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Thumbnail Links only")
+        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        self.SetSizer(box)
+
+
+class MinWidthHeightPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.text_width = wx.TextCtrl(self,
+                                      -1, 
+                                      "200",
+                                      style=wx.TE_CENTER)
+        
+        self.text_height = wx.TextCtrl(self,
+                                        -1,
+                                        "200",
+                                        style=wx.TE_CENTER)
+
+        label = wx.StaticText(self, -1, "x")
+
+        hs = hboxsizer()
+        hs.Add(self.text_width, 1, wx.ALL|wx.EXPAND, 0)
+        hs.AddSpacer(10)
+        hs.Add(label, 0, wx.ALIGN_BOTTOM, 0)
+        hs.AddSpacer(10)
+        hs.Add(self.text_height, 1, wx.ALL|wx.EXPAND, 0)
+
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Minimum Resolution Size")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
 
