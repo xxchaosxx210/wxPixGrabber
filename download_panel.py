@@ -57,8 +57,8 @@ class DownloadPanel(wx.Panel):
                              name="settings_dialog")
         dlg.CenterOnParent()
 
-        res = dlg.ShowModal()
-        print(res)
+        if dlg.ShowModal() == wx.ID_OK:
+            dlg.save_settings()
         dlg.Destroy()
 
 
