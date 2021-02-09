@@ -44,6 +44,7 @@ class SetttingsPanel(scrolled.ScrolledPanel):
         self.timeout = TimeoutPanel(self, -1)
         self.minsize_panel = MinWidthHeightPanel(self, -1)
         self.thumb_panel = ThumbnailOnlyPanel(self, -1)
+        self.savepath = SaveFolderPanel(self, -1)
 
         vs = vboxsizer()
 
@@ -54,17 +55,22 @@ class SetttingsPanel(scrolled.ScrolledPanel):
 
         hs = hboxsizer()
         hs.Add(self.timeout, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.ALIGN_RIGHT, 0)
+        vs.Add(hs, 0, wx.ALIGN_CENTER, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
         hs.Add(self.minsize_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.ALIGN_RIGHT , 0)
+        vs.Add(hs, 0, wx.ALIGN_CENTER , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
         hs.Add(self.thumb_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.ALIGN_RIGHT , 0)
+        vs.Add(hs, 0, wx.ALIGN_CENTER , 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.savepath, 1, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         self.SetSizer(vs)
@@ -72,6 +78,37 @@ class SetttingsPanel(scrolled.ScrolledPanel):
 
         self.SetAutoLayout(1)
         self.SetupScrolling()
+
+
+class SaveFolderPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.text = wx.TextCtrl(self, -1, "")
+        btn_dir = wx.Button(self, -1, "Browse", size=(68, -1))
+
+        btn_dir.Bind(wx.EVT_BUTTON, self.on_dir_button, self)
+
+        hs = hboxsizer()
+        hs.Add(self.text, 1, wx.ALL|wx.EXPAND, 0)
+        hs.AddSpacer(10)
+        hs.Add(btn_dir, 0, wx.ALL|wx.EXPAND, 0)
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Save Path")
+        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        self.SetSizer(box)
+    
+    def on_dir_button(self, evt):
+        dir = wx.DirDialog(
+            self,
+            "Save Folder",
+            "",
+            style=wx.DD_DIR_MUST_EXIST,
+        )
+        dir.CenterOnParent()
+        if dir.ShowModal() == wx.ID_OK:
+            print(dir.GetPath())
+        dir.Destroy()
         
 
 class MaxConnectionsPanel(wx.Panel):
@@ -129,7 +166,7 @@ class MinWidthHeightPanel(wx.Panel):
         hs.AddSpacer(10)
         hs.Add(self.text_height, 1, wx.ALL|wx.EXPAND, 0)
 
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Minimum Resolution Size")
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Minimum Resolution Size (width, height)")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
 
