@@ -15,9 +15,9 @@ class MainWindow(wx.Frame):
         super().__init__(**kw)
 
         self.dldpanel = DownloadPanel(parent=self)
-        sizer = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
-        sizer.Add(self.dldpanel, 1, wx.EXPAND|wx.ALL, 0)
-        self.SetSizer(sizer)
+        vs = wx.BoxSizer(wx.VERTICAL)
+        vs.Add(self.dldpanel, 1, wx.EXPAND|wx.ALL, 0)
+        self.SetSizer(vs)
         self.SetSize(kw["size"])
 
 
