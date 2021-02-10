@@ -57,6 +57,7 @@ class MainWindow(wx.Frame):
                 self.dldpanel.progressbar.increment()
             elif msg.type == "finished" and msg.status == "cancelled":
                 self.update_status(f"Thread#{msg.id}", "has cancelled")
+                self.dldpanel.progressbar.increment()
                 
 
     def handler_callback(self, msg):

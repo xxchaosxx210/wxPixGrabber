@@ -146,6 +146,47 @@ class Grunt(threading.Thread):
         self.thread_index = thread_index
         self.urldata = urldata
         self.settings = settings
+        self.fileindex = 0
+    
+    def search(self, response):
+        """
+        if html parse look for image sources
+        if image then save
+        """
+        datalist = []
+        ext = parsing.is_valid_content_type(
+            response.url,
+            response.headers.get("Content-Type", ""),
+            self.settings["images_to_search"]
+        )
+
+        if parsing.html_ext == ext:
+            soup = parsing.parse_html(response.text)
+            if parsing.sort_soup(
+                                 response.url,
+                                 soup,
+                                 datalist, 
+                                 include_forms=self.settings["form_search"]["enabled"], 
+                                 images_only=True, 
+                                 thumbnails_only=False) > 0:
+                for urldata in datalist:
+                    if not Urls.url_exists(urldata.url):
+                        Urls.add_url(urldata.url)
+        elif ext in parsing.IMAGE_EXTS:
+            if not Urls.image_url_exists(response.url):
+                Urls.add_image_url(response.url)
+                if self.settings["generate_filenames"]["enabled"]:
+                    fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
+                    self.fileindex += 1
+                    filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
+                else:
+                    filename = f"test{self.thread_index}{ext}"
+                download_image(filename, response, self.settings)
+            return []
+        else:
+            if not Urls.url_exists(response.url):
+                Urls.add_url(response.url)
+        return datalist
     
     def run(self):
         # partial function to avoid repetitive typing
@@ -154,62 +195,24 @@ class Grunt(threading.Thread):
         if not Threads.cancel.is_set():
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # request the url
-            r = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
-            if r:
-                ext = parsing.is_valid_content_type(self.urldata.url, r.headers.get("Content-Type"), self.settings["images_to_search"])
-                if ".html" == ext:
-                    imgdata_list = []
-                    # parse the document and search for images only
-                    soup = parsing.parse_html(r.text)
-                    if parsing.sort_soup(self.urldata.url, 
-                                         soup, 
-                                         imgdata_list,
-                                         include_forms=self.settings["form_search"],
-                                         images_only=True, 
-                                         thumbnails_only=False) > 0:
-                        r.close()
+            level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
+            if level_one_response:
+                level_one_list = self.search(level_one_response)
+                for level_one_urldata in level_one_list:
 
-                        # Might need to take an extra step in parsing form data
-                        # if form data then submit request
+                    level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
+                    if level_two_response:
+                        level_two_list = self.search(level_two_response)
+                        for level_two_urldata in level_two_list:
 
-                        for index, imgdata in enumerate(imgdata_list):
-                            # check if url has already in global list
-                            if not Urls.url_exists(imgdata.url):
-                                # its ok then add it to the global list
-                                Urls.add_url(imgdata.url)
-                                # download each one and save it
-                                imgresp = request_from_url(imgdata, Threads.cookie_jar, self.settings)
+                            level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
+                            if level_three_response:
+                                self.search(level_three_response)
+                                
+                                level_three_response.close()
+                        level_two_response.close()
+                level_one_response.close()
 
-                                if imgresp:
-                                    # check the content-type matches and image
-                                    ext = parsing.is_valid_content_type(imgdata.url, 
-                                                                        imgresp.headers.get("Content-Type"), 
-                                                                        self.settings["images_to_search"])
-
-                                    if ext in parsing.IMAGE_EXTS:
-                                        # if image then create a file path and check
-                                        # the image resolution size matches
-                                        # if it does then save to file
-                                        if self.settings["generate_filenames"]["enabled"]:
-                                            filename = f'{self.settings["generate_filenames"]["name"]}{self.thread_index}{ext}'
-                                        else:
-                                            filename = f"test{self.thread_index}{ext}"
-                                        download_image(filename, imgresp, self.settings)
-                                    # close the image request handle
-                                    imgresp.close()
-                else:
-                    if ext in parsing.IMAGE_EXTS:
-                        if not Urls.url_exists(self.urldata.url):
-                            Urls.add_url(self.urldata.url)
-                            # if image then create a file path and check
-                            # the image resolution size matches
-                            # if it does then save to file
-                            if self.settings["generate_filenames"]["enabled"]:
-                                filename = f'{self.settings["generate_filenames"]["name"]}{self.thread_index}{ext}'
-                            else:
-                                filename = f"test{self.thread_index}{ext}"
-                            download_image(filename, r, self.settings)
-                    r.close()
         #Threads.semaphore.release()
         if Threads.cancel.is_set():
             notify_commander(GruntMessage(status="cancelled", type="finished"))
@@ -309,7 +312,7 @@ def commander_thread(callback):
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=scanned_urldata,
-                                                     include_forms=True,
+                                                     include_forms=False,
                                                      images_only=False, 
                                                      thumbnails_only=True) > 0:
                                     # send the scanned urls to the main thread for processing

@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 
 from global_props import Settings
 
+html_ext = ".html"
+
 FILTER_SEARCH = [
     "imagevenue.com/", 
     "imagebam.com/", 

@@ -16,13 +16,31 @@ class Urls:
     """
 
     links = []
+    images = []
     lock = threading.Lock()
 
     @staticmethod
     def clear():
         Urls.lock.acquire()
         Urls.links.clear()
+        Urls.images.clear()
         Urls.lock.release()
+    
+    @staticmethod
+    def add_image_url(url):
+        Urls.lock.acquire()
+        Urls.images.append(url)
+        Urls.lock.release()
+    
+    @staticmethod
+    def image_url_exists(url):
+        Urls.lock.acquire()
+        try:
+            index = Urls.images.index(url)
+        except ValueError:
+            index = -1
+        Urls.lock.release()
+        return index >= 0
 
     @staticmethod
     def add_url(url):
