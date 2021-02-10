@@ -40,8 +40,24 @@ class MainWindow(wx.Frame):
         evt.Skip()
     
     def message_from_thread(self, msg):
-        if msg.type == "message":
-            self.update_status(msg.thread, msg.data["message"])
+        if msg.thread == "commander":
+            if msg.type == "message":
+                self.update_status(msg.thread.upper(), msg.data["message"])
+            elif msg.type == "complete":
+                self.dldpanel.progressbar.reset_progress(100)
+                self.status.SetValue("")
+                self.update_status("COMMANDER", "All tasks have completed")
+            elif msg.type == "fetch" and msg.status == "finished":
+                    self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+
+        elif msg.thread == "grunt":
+            if msg.type == "image" and msg.status == "ok":
+                self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
+            elif msg.type == "finished" and msg.status == "complete":
+                self.dldpanel.progressbar.increment()
+            elif msg.type == "finished" and msg.status == "cancelled":
+                self.update_status(f"Thread#{msg.id}", "has cancelled")
+                
 
     def handler_callback(self, msg):
         # notify the main thread
@@ -53,6 +69,7 @@ class MainWindow(wx.Frame):
             status = ""
         status += f"[{time.ctime(time.time())}]{name}: {text}\n" 
         self.status.SetValue(status)
+        self.status.ShowPosition(self.status.GetLastPosition())
 
 
 def _main():

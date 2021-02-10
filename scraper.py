@@ -7,7 +7,8 @@ from dataclasses import dataclass
 
 from webrequest import (
     request_from_url,
-    Urls
+    Urls,
+    load_cookies
 )
 
 # Image
@@ -52,6 +53,9 @@ class Threads:
     semaphore = threading.Semaphore(10)
     # global event to cancel current running task
     cancel = threading.Event()
+
+    # Global cookie jar
+    cookie_jar = None
 
 
 class ImageFile:
@@ -150,7 +154,7 @@ class Grunt(threading.Thread):
         if not Threads.cancel.is_set():
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # request the url
-            r = request_from_url(self.url, self.settings)
+            r = request_from_url(self.url, Threads.cookie_jar, self.settings)
             if r:
                 ext = parsing.is_valid_content_type(self.url, r.headers.get("Content-Type"), self.settings["images_to_search"])
                 if ".html" == ext:
@@ -165,7 +169,7 @@ class Grunt(threading.Thread):
                                 # its ok then add it to the global list
                                 Urls.add_url(imgurl)
                                 # download each one and save it
-                                imgresp = request_from_url(imgurl, self.settings)
+                                imgresp = request_from_url(imgurl, Threads.cookie_jar, self.settings)
 
                                 if imgresp:
                                     # check the content-type matches and image
@@ -241,7 +245,8 @@ def commander_thread(callback):
                         # we dont want these values to change
                         # whilst downloading and saving to file
                         settings = dict(Settings.load())
-
+                        # Load the cookiejar again
+                        Threads.cookie_jar = load_cookies(settings)
                         # Set the max connections
                         max_connections = round(int(settings["max_connections"]))
                         Threads.semaphore = threading.Semaphore(max_connections)
@@ -264,13 +269,16 @@ def commander_thread(callback):
                     if not _task_running:
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
+                        # Load the settings
                         settings = Settings.load()
                         callback(MessageMain(data={"message": "Initializing the global search filter..."}))
                         # compile our filter matches only add those from the filter list
                         parsing.compile_regex_global_filter()
                         # get the document from the URL
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
-                        webreq = request_from_url(r.data["url"], settings)
+                        # Load the cookiejar
+                        Threads.cookie_jar = load_cookies(settings)
+                        webreq = request_from_url(r.data["url"], Threads.cookie_jar, settings)
                         if webreq:
                             # make sure is a text document to parse
                             ext = parsing.is_valid_content_type(

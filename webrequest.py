@@ -41,12 +41,7 @@ class Urls:
         return index >= 0
 
 
-def request_from_url(url, settings):
-    """
-    request_from_url(str)
-
-    gets the request from url and returns the requests object
-    """
+def load_cookies(settings):
     cookies = settings["cookies"]
     if cookies["firefox"]:
         cj = browser_cookie3.firefox()
@@ -58,6 +53,15 @@ def request_from_url(url, settings):
         cj = browser_cookie3.edge()
     else:
         cj = CookieJar()
+    return cj
+
+
+def request_from_url(url, cj, settings):
+    """
+    request_from_url(str)
+
+    gets the request from url and returns the requests object
+    """
     try:
         r = requests.get(url, 
                             cookies=cj, 

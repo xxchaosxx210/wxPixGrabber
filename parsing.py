@@ -37,15 +37,14 @@ def assign_unique_name(url, html_doc):
     Globals.new_folder_lock.acquire()
     title = get_title_from_html(html_doc)
     if title:
-        unique_name = url2pathname(title.text)
+        settings = Settings.load()
+        settings["unique_pathname"]["name"] = format_filename(title.text)
+        Settings.save(settings)
     else:
         unique_name = url2pathname(url)
-    # remove any illegal characters
-    # this function was taken from stackoverflow
-    # assign to global unique_path_name
-    settings = Settings.load()
-    settings["unique_pathname"]["name"] = format_filename(unique_name)
-    Settings.save(settings)
+        settings = Settings.load()
+        settings["unique_pathname"]["name"] = format_filename(unique_name)
+        Settings.save(settings)
     Globals.new_folder_lock.release()
 
 def format_filename(s):
