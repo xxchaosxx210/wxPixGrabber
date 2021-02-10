@@ -58,24 +58,6 @@ class Threads:
     cookie_jar = None
 
 
-class ImageFile:
-
-    """
-    thread safe. saves bytes read from requests
-    and saves to disk
-    """
-
-    @staticmethod
-    def write_to_file(path, filename, bytes_stream):
-        parsing.Globals.new_folder_lock.acquire()
-        if not os.path.exists(path):
-            os.mkdir(path)
-        parsing.Globals.new_folder_lock.release()
-        full_path = os.path.join(path, filename)
-        with open(full_path, "wb") as fp:
-            fp.write(bytes_stream.getbuffer())
-            fp.close()
-
 def create_commander(callback):
     """
     create the main handler thread.
@@ -85,6 +67,31 @@ def create_commander(callback):
     Threads.commander = threading.Thread(
         target=commander_thread, kwargs={"callback": callback})
     return Threads.commander
+
+def create_save_path(settings):
+    """
+    create_save_path(object)
+    Settings object load from file
+    append the unique folder path if required
+    create the directory if not exists
+    """
+    parsing.Globals.new_folder_lock.acquire()
+    if not os.path.exists(settings["save_path"]):
+        os.mkdir(settings["save_path"])
+    if settings["unique_pathname"]["enabled"]:
+        path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
+        if not os.path.exists(path):
+            os.mkdir(path)
+    else:
+        path = settings["save_path"]
+    parsing.Globals.new_folder_lock.release()
+    return path
+
+def stream_to_file(path, filename, bytes_stream):
+    full_path = os.path.join(path, filename)
+    with open(full_path, "wb") as fp:
+        fp.write(bytes_stream.getbuffer())
+        fp.close()
 
 def download_image(filename, response, settings):
     """
@@ -104,27 +111,19 @@ def download_image(filename, response, settings):
     try:
         image = Image.open(byte_stream)
     except UnidentifiedImageError as err:
-        image = None
         print(f"[IMAGE_ERROR]: {err.__str__()}, {response.url}")
-    if image:
-        width, height = image.size
-        # if image requirements met then save
-        if width > 200 and height > 200:
-            # check if directory exists
-            parsing.Globals.new_folder_lock.acquire()
-            if not os.path.exists(settings["save_path"]):
-                os.mkdir(settings["save_path"])
-            if settings["unique_pathname"]["enabled"]:
-                path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
-                if not os.path.exists(path):
-                    os.mkdir(path)
-            else:
-                path = settings["save_path"]
-            parsing.Globals.new_folder_lock.release()
-            ImageFile.write_to_file(path, filename, byte_stream)
-            notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
-        image.close()
-    byte_stream.close()  
+        return
+    width, height = image.size
+    # if image requirements met then save
+    if width > 200 and height > 200:
+        # create a new save path and write image toi file
+        path = create_save_path(settings)
+        stream_to_file(path, filename, byte_stream)
+        notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
+
+    # close the file handles
+    byte_stream.close()
+    image.close()
 
 
 class Grunt(threading.Thread):
