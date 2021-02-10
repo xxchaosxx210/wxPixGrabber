@@ -142,7 +142,8 @@ def parse_html(html):
 
 def sort_soup(url,
               soup, 
-              urls, 
+              urls,
+              include_forms=True,
               images_only=False, 
               thumbnails_only=False):
     """

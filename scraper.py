@@ -163,7 +163,8 @@ class Grunt(threading.Thread):
                     soup = parsing.parse_html(r.text)
                     if parsing.sort_soup(self.urldata.url, 
                                          soup, 
-                                         imgdata_list, 
+                                         imgdata_list,
+                                         include_forms=self.settings["form_search"],
                                          images_only=True, 
                                          thumbnails_only=False) > 0:
                         r.close()
@@ -306,6 +307,7 @@ def commander_thread(callback):
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=scanned_urldata,
+                                                     include_forms=settings["form_search"],
                                                      images_only=False, 
                                                      thumbnails_only=True) > 0:
                                     # send the scanned urls to the main thread for processing
