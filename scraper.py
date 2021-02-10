@@ -86,6 +86,27 @@ def create_commander(callback):
         target=commander_thread, kwargs={"callback": callback})
     return Threads.commander
 
+def create_save_path(settings):
+    """
+    joins the path and unique name and creates a directory if it doesnt exist
+    returns the newly created and constructed path
+    """
+    # check if directory exists
+    parsing.Globals.new_folder_lock.acquire()
+    # check our save path exists
+    if not os.path.exists(settings["save_path"]):
+        os.mkdir(settings["save_path"])
+    # get a unique path name
+    if settings["unique_pathname"]["enabled"]:
+        path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
+        if not os.path.exists(path):
+            os.mkdir(path)
+    else:
+        # save straight to save path
+        path = settings["save_path"]
+    parsing.Globals.new_folder_lock.release()
+    return path
+
 def download_image(filename, response, settings):
     """
     download_image(str, str, object)
@@ -98,32 +119,61 @@ def download_image(filename, response, settings):
     # store in memory
     # images shouldnt be too large
     byte_stream = BytesIO()
-    for buff in response.iter_content(1000):
+    MAX_BYTE_SIZE = 1000
+    buffer_size_count = 0
+    # file handler
+    fp = None
+    for buff in response.iter_content(MAX_BYTE_SIZE):
         byte_stream.write(buff)
-    # load image from buffer io
-    try:
-        image = Image.open(byte_stream)
-    except UnidentifiedImageError as err:
-        image = None
-        print(f"[IMAGE_ERROR]: {err.__str__()}, {response.url}")
-    if image:
-        width, height = image.size
-        # if image requirements met then save
-        if width > 200 and height > 200:
-            # check if directory exists
-            parsing.Globals.new_folder_lock.acquire()
-            if not os.path.exists(settings["save_path"]):
-                os.mkdir(settings["save_path"])
-            if settings["unique_pathname"]["enabled"]:
-                path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
-                if not os.path.exists(path):
-                    os.mkdir(path)
-            else:
-                path = settings["save_path"]
-            parsing.Globals.new_folder_lock.release()
-            ImageFile.write_to_file(path, filename, byte_stream)
-            notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
-        image.close()
+        if buffer_size_count < MAX_BYTE_SIZE:
+            # load the buffer into an Image object
+            # check the first 1kb. If so then check image width and height
+            try:
+                image = Image.open(byte_stream)
+                width, height = image.size
+                min_width = settings["minimum_image_resolution"]["width"]
+                min_height = settings["minimum_image_resolution"]["height"]
+                if width > min_width and height > min_height:
+                    # Save to file
+                    # check dir exists if not create it
+                    path = create_save_path(settings)
+                    # open file handle
+                    full_path = os.path.join(path, filename)
+                    # NEED TO CLEAN THIS CODE UP
+                    fp = open(full_path, "wb")
+                else:
+                    # Image too small break from loop
+                    print(f"[donwload_image]: Image too small {response.url}, width={width}, height={height}")
+                    fp = None
+                    break
+            except UnidentifiedImageError as err:
+                image = None
+                print(f"[IMAGE_ERROR]: {err.__str__()}, {response.url}")
+        # do we have a file handle open? if so write chunk to file
+        if fp:
+            fp.write(buff)
+        buffer_size_count += MAX_BYTE_SIZE
+    if fp:
+        notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
+        fp.close()
+    # if image:
+    #     width, height = image.size
+    #     # if image requirements met then save
+    #     if width > 200 and height > 200:
+    #         # check if directory exists
+    #         parsing.Globals.new_folder_lock.acquire()
+    #         if not os.path.exists(settings["save_path"]):
+    #             os.mkdir(settings["save_path"])
+    #         if settings["unique_pathname"]["enabled"]:
+    #             path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
+    #             if not os.path.exists(path):
+    #                 os.mkdir(path)
+    #         else:
+    #             path = settings["save_path"]
+    #         parsing.Globals.new_folder_lock.release()
+    #         ImageFile.write_to_file(path, filename, byte_stream)
+    #         notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
+    #     image.close()
     byte_stream.close()  
 
 
