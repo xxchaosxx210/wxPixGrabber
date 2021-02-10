@@ -56,17 +56,26 @@ def load_cookies(settings):
     return cj
 
 
-def request_from_url(url, cj, settings):
+def request_from_url(url, cj, settings, is_post=False, data={}):
     """
     request_from_url(str)
 
     gets the request from url and returns the requests object
     """
     try:
-        r = requests.get(url, 
-                            cookies=cj, 
-                            headers={"User-Agent": FIREFOX_USER_AGENT},
-                            timeout=settings["connection_timeout"])
+        if not is_post:
+            r = requests.get(url, 
+                             cookies=cj, 
+                             headers={"User-Agent": FIREFOX_USER_AGENT},
+                             timeout=settings["connection_timeout"],
+                             data=data)
+        else:
+            # Post request
+            r = requests.get(url, 
+                             cookies=cj, 
+                             headers={"User-Agent": FIREFOX_USER_AGENT},
+                             timeout=settings["connection_timeout"],
+                             data=data)
     except Exception as err:
         print(f"[EXCEPTION]: request_from_url, {url}, {err.__str__()}")
         r = None
