@@ -160,7 +160,12 @@ class Grunt(threading.Thread):
                 if ".html" == ext:
                     imgdata_list = []
                     # parse the document and search for images only
-                    if parsing.parse_html(self.urldata.url, r.text, imgdata_list, images_only=True, thumbnails_only=False) > 0:
+                    soup = parsing.parse_html(r.text)
+                    if parsing.sort_soup(self.urldata.url, 
+                                         soup, 
+                                         imgdata_list, 
+                                         images_only=True, 
+                                         thumbnails_only=False) > 0:
                         r.close()
 
                         # Might need to take an extra step in parsing form data
@@ -290,16 +295,19 @@ def commander_thread(callback):
                                                                 settings["images_to_search"])
                             if ext == ".html":
                                 html_doc = webreq.text
+                                # parse the html
+                                soup = parsing.parse_html(html_doc)
                                 # get the url title
-                                parsing.assign_unique_name(r.data["url"], html_doc)
+                                # amd add a unique path name to the save path
+                                parsing.assign_unique_name(r.data["url"], soup)
                                 callback(MessageMain(data={"message": "Parsing HTML Document..."}))
                                 # scrape links and images from document
                                 scanned_urldata = []
-                                if parsing.parse_html(url=r.data["url"], 
-                                                      html=html_doc, 
-                                                      urls=scanned_urldata,
-                                                      images_only=False, 
-                                                      thumbnails_only=True) > 0:
+                                if parsing.sort_soup(url=r.data["url"],
+                                                     soup=soup, 
+                                                     urls=scanned_urldata,
+                                                     images_only=False, 
+                                                     thumbnails_only=True) > 0:
                                     # send the scanned urls to the main thread for processing
                                     callback(MessageMain(data={"message": f"Parsing succesful. Found {len(scanned_urldata)} links"}))
                                     data = {"urls": scanned_urldata}
@@ -331,9 +339,12 @@ def commander_thread(callback):
 
         finally:
             if _task_running:
-                # check if all grunts are finished if so cleanup
+                # check if all grunts are finished
+                # and that the grunt counter is greater or
+                # equal to the size of grunt threads 
+                # if so cleanup
                 # and notify main thread
-                if len(grunts_alive(grunts)) == 0:
+                if len(grunts_alive(grunts)) == 0 and counter >= len(grunts):
                     Threads.cancel.clear()
                     grunts = []
                     _task_running = False

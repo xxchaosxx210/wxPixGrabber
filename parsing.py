@@ -40,14 +40,16 @@ class Globals:
     new_folder_lock = threading.Lock()
 
 
-def assign_unique_name(url, html_doc):
+def assign_unique_name(url, soup):
     """
-    uses the title tag in the html docunment
-    as a folder name
-    uses the url instead
+    assign_unique_name(str, object)
+    loads the settings file and adds a unique folder name
+    to the settings and saves
+    url to convert into path
+    object is a beautifulsoup html object
     """
     Globals.new_folder_lock.acquire()
-    title = get_title_from_html(html_doc)
+    title = soup.find("title")
     if title:
         settings = Settings.load()
         settings["unique_pathname"]["name"] = format_filename(title.text)
@@ -113,11 +115,10 @@ def is_valid_content_type(url, content_type, valid_types):
             print(f"is_valid_content_type web.py: {err.__str__()}, {url}")
     return ext
 
-def get_title_from_html(html):
-    soup = BeautifulSoup(html, features="html.parser")
-    return soup.find("title")
-
-def construct_query_from_form(form):
+def _construct_query_from_form(form):
+    """
+    looks for input types within form tags
+    """
     inputs = form.find_all("input")
     data = {}
     for _input in inputs:
@@ -127,20 +128,26 @@ def construct_query_from_form(form):
     return data
 
 def process_form(url, form):
+    """
+    creates a UrlData object from form tag
+    """
     action = form.attrs.get("action", "")
     req_type = form.attrs.get("method", "POST")
-    data = construct_query_from_form(form)
+    data = _construct_query_from_form(form)
     submit_url = parse.urljoin(url, action)
     return UrlData(url=submit_url, action=action, method=req_type, data=data)
 
-def parse_html( url,
-                html, 
-                urls, 
-                images_only=False, 
-                thumbnails_only=False):
+def parse_html(html):
+    return BeautifulSoup(html, features="html.parser")
+
+def sort_soup(url,
+              soup, 
+              urls, 
+              images_only=False, 
+              thumbnails_only=False):
     """
-    parse_html(str, str, list, bool, bool)
-    scans the html and searches for images, forms and anchor tags
+    sort_soup(str, str, list, bool, bool)
+    searches for images, forms and anchor tags in BeatifulSoup object
     stores them in urls and returns then size of the urls list
     urls is a list of dicts:
         url:
@@ -149,7 +156,6 @@ def parse_html( url,
             data     - dict  data containing key, value pairs
             action   - str   the submit link
     """
-    soup = BeautifulSoup(html, features="html.parser")
     ignore_list = []
     if not images_only:
         # search for links on document
