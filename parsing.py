@@ -106,6 +106,27 @@ def get_title_from_html(html):
     soup = BeautifulSoup(html, features="html.parser")
     return soup.find("title")
 
+def construct_query_from_form(form):
+    inputs = form.find_all("input")
+    data = {}
+    for _input in inputs:
+        name = _input.attrs.get("name", "")
+        value = _input.attrs.get("value", "")
+        data[name] = value
+    return data
+
+def process_form(url, form):
+    action = form.attrs.get("action", "")
+    req_type = form.attrs.get("method", "POST")
+    data = construct_query_from_form(form)
+    submit_url = parse.urljoin(url, action)
+    return {
+        "url": submit_url,
+        "method": req_type,
+        "data": data,
+        "action": action
+    }
+
 def parse_html( url,
                 html, 
                 urls, 
