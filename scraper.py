@@ -213,17 +213,21 @@ class Grunt(threading.Thread):
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
         if not Threads.cancel.is_set():
             notify_commander(GruntMessage(status="ok", type="scanning"))
-            # request the url
+            # Three Levels of Searching
+
+            ## Level 1
             level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
             if level_one_response:
                 level_one_list = self.search_response(level_one_response)
                 for level_one_urldata in level_one_list:
-
+                    
+                    # Level 2
                     level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
                     if level_two_response:
                         level_two_list = self.search_response(level_two_response)
                         for level_two_urldata in level_two_list:
-
+                            
+                            # Level 3
                             level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
                             if level_three_response:
                                 self.search_response(level_three_response)
