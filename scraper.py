@@ -304,10 +304,12 @@ def commander_thread(callback):
                                 callback(MessageMain(data={"message": "Parsing HTML Document..."}))
                                 # scrape links and images from document
                                 scanned_urldata = []
+                                # find images and links
+                                # set the include_form to False on level 1 scan
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=scanned_urldata,
-                                                     include_forms=settings["form_search"],
+                                                     include_forms=True,
                                                      images_only=False, 
                                                      thumbnails_only=True) > 0:
                                     # send the scanned urls to the main thread for processing

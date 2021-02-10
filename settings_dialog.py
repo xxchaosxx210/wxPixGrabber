@@ -43,8 +43,10 @@ class SettingsDialog(wx.Dialog):
         settings = Settings.load()
 
         # form search
-        settings["form_search"] = \
-            self.panel.formsearch_panel.checkbox.GetValue()
+        settings["form_search"]["enabled"] = \
+            self.panel.formsearch_panel.chk_enable.GetValue()
+        settings["form_search"]["include_original_host"] = \
+            self.panel.formsearch_panel.chk_include_host.GetValue()
 
         # If file already exists
         settings["file_exists"] = \
@@ -348,16 +350,21 @@ class FormSearchPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.checkbox = wx.CheckBox(self, -1, "")
+        self.chk_enable = wx.CheckBox(self, -1, "Enable")
+        self.chk_include_host = wx.CheckBox(self, -1, "Include Forms from original Host")
 
         hs = hboxsizer()
-        hs.Add(self.checkbox, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
+        hs.Add(self.chk_enable, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
+        hs.AddSpacer(DIALOG_BORDER)
+        hs.Add(self.chk_include_host, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Forms (can be slow)")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
 
         self.SetSizer(box)
 
-        self.checkbox.SetValue(Settings.load()["form_search"])
+        formsearch = Settings.load()["form_search"]
+        self.chk_enable.SetValue(formsearch["enabled"])
+        self.chk_include_host.SetValue(formsearch["include_original_host"])
 
 
 class ThumbnailOnlyPanel(wx.Panel):

@@ -153,6 +153,12 @@ def sort_soup(url,
     urls is a list of UrlData objects
     returns n if any tags found
     """
+    if include_forms:
+        # scan forms
+        for form in soup.find_all("form"):
+            urldata = process_form(url, form)
+            urls.append(urldata)
+
     ignore_list = []
     if not images_only:
         # search for links on document

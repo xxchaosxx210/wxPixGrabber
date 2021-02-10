@@ -62,13 +62,13 @@ def request_from_url(urldata, cj, settings):
     gets the request from url and returns the requests object
     """
     try:
-        if urldata.method == "GET":
+        if urldata.method.lower() == "get":
             r = requests.get(urldata.url, 
                              cookies=cj, 
                              headers={"User-Agent": FIREFOX_USER_AGENT},
                              timeout=settings["connection_timeout"],
                              data=urldata.data)
-        elif urldata.method == "POST":
+        elif urldata.method.lower() == "post":
             # Post request
             r = requests.post(urldata.url, 
                              cookies=cj, 
