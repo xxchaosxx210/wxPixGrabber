@@ -18,7 +18,8 @@ FILTER_SEARCH = [
     "pimpandhost",
     "imagetwist",
     "imgbox",
-    "turboimagehost"]
+    "turboimagehost",
+    "imx.to/"]
 
 IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
 
