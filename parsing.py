@@ -197,7 +197,7 @@ def _appendlink(full_url, src, url_data_list):
         # Filter the URL
         if Globals.regex_filter.search(url):
             # make sure we dont have a duplicate
-            # exception ValueError raised if no url found so add it to list
+            # filter through the urldata list
             urldata = UrlData(url=url, action="", method="GET", data={})
             if not list(filter(lambda d : d.url == url, url_data_list)):
                 url_data_list.append(urldata)
