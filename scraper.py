@@ -147,7 +147,7 @@ class Grunt(threading.Thread):
         self.settings = settings
         self.fileindex = 0
     
-    def search_response(self, response):
+    def search_response(self, response, include_forms):
         """
         if html parse look for image sources
         if image then save
@@ -168,7 +168,7 @@ class Grunt(threading.Thread):
                                  response.url,
                                  soup,
                                  datalist, 
-                                 include_forms=self.settings["form_search"]["enabled"], 
+                                 include_forms=include_forms, 
                                  images_only=True, 
                                  thumbnails_only=False) > 0:
                 # run through each UrlData object
@@ -217,19 +217,19 @@ class Grunt(threading.Thread):
             ## Level 1
             level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
             if level_one_response:
-                level_one_list = self.search_response(level_one_response)
+                level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
                 for level_one_urldata in level_one_list:
                     
                     # Level 2
                     level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
                     if level_two_response:
-                        level_two_list = self.search_response(level_two_response)
+                        level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
                         for level_two_urldata in level_two_list:
                             
                             # Level 3
                             level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
                             if level_three_response:
-                                self.search_response(level_three_response)
+                                self.search_response(level_three_response, self.settings["form_search"]["enabled"])
                                 
                                 level_three_response.close()
                         level_two_response.close()
