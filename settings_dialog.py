@@ -12,6 +12,8 @@ from app_theme import (
     DIALOG_BORDER
 )
 
+STATICBOX_BORDER = 5
+
 
 class SettingsDialog(wx.Dialog):
 
@@ -39,6 +41,10 @@ class SettingsDialog(wx.Dialog):
     
     def save_settings(self):
         settings = Settings.load()
+
+        # form search
+        settings["form_search"] = \
+            self.panel.formsearch_panel.checkbox.GetValue()
 
         # If file already exists
         settings["file_exists"] = \
@@ -96,6 +102,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.cookie_panel = CookieOptionsPanel(self, -1)
         self.imgformat_panel = ImageFormatOptionsPanel(self, -1)
         self.fileexist_panel = FileAlreadyExistPanel(self, -1)
+        self.formsearch_panel = FormSearchPanel(self, -1)
 
         vs = vboxsizer()
 
@@ -124,12 +131,17 @@ class SettingsPanel(scrolled.ScrolledPanel):
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
-        hs.Add(self.cookie_panel, 1, wx.EXPAND|wx.ALL, 0)
+        hs.Add(self.cookie_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
-        hs.Add(self.imgformat_panel, 1, wx.EXPAND|wx.ALL, 0)
+        hs.Add(self.imgformat_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.formsearch_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
@@ -329,6 +341,23 @@ class MaxConnectionsPanel(wx.Panel):
         self.SetSizer(box)
 
         self.slider.SetValue(Settings.load()["max_connections"])
+
+
+class FormSearchPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.checkbox = wx.CheckBox(self, -1, "")
+
+        hs = hboxsizer()
+        hs.Add(self.checkbox, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Forms (can be slow)")
+        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+
+        self.SetSizer(box)
+
+        self.checkbox.SetValue(Settings.load()["form_search"])
 
 
 class ThumbnailOnlyPanel(wx.Panel):

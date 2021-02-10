@@ -46,6 +46,7 @@ DEFAULT_SETTINGS = {
     "filter_search": {
         "filters": []},
     "file_exists": "overwrite",
+    "form_search": True
     }
 
 global_settings = DEFAULT_SETTINGS
