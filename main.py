@@ -5,7 +5,8 @@ from download_panel import DownloadPanel
 
 from scraper import (
     create_commander,
-    notify_commander
+    notify_commander,
+    Message
 )
 
 class PixGrabberApp(wx.App):
@@ -25,12 +26,18 @@ class MainWindow(wx.Frame):
         self.SetSizer(vs)
         self.SetSize(kw["size"])
 
-        self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(wx.EVT_CLOSE, self.on_close_window)
 
         self.status = self.dldpanel.statusbox.txt_status
 
-        commander = create_commander(self.handler_callback)
-        commander.start()
+        self.commander = create_commander(self.handler_callback)
+        self.commander.start()
+    
+    def on_close_window(self, evt):
+        notify_commander(Message(thread="main", type="quit"))
+        self.update_status("Quit", "Waiting for Task thread to quit...")
+        self.commander.join()
+        evt.Skip()
     
     def message_from_thread(self, msg):
         if msg.type == "message":
@@ -42,7 +49,7 @@ class MainWindow(wx.Frame):
     
     def update_status(self, name, text):
         status = self.status.GetValue()
-        if len(status) > 1000000:
+        if len(status) > 100000:
             status = ""
         status += f"[{time.ctime(time.time())}]{name}: {text}\n" 
         self.status.SetValue(status)

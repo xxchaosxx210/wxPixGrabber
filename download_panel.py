@@ -93,7 +93,7 @@ class StatusPanel(wx.Panel):
 
         self.txt_status = wx.TextCtrl(self, -
         1, 
-        "Ready to Fetch...",
+        "",
         style=wx.TE_READONLY|wx.TE_MULTILINE)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)

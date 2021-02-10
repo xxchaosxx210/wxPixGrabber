@@ -335,11 +335,11 @@ def grunts_alive(grunts):
     """
     return list(filter(lambda grunt : grunt.is_alive(), grunts))
 
-def notify_commander(r):
+def notify_commander(message):
     """
     send_message(object)
     FIFO queue puts a no wait message on the queue
 
-    r - Request namedtuple
+    message is a Message object
     """
-    Threads.commander_queue.put_nowait(r)
+    Threads.commander_queue.put_nowait(message)
