@@ -2,6 +2,7 @@ import re
 import os
 import threading
 import string
+from dataclasses import dataclass
 
 from urllib.request import url2pathname
 from urllib import parse
@@ -25,9 +26,19 @@ IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
 
 _image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
 
+
+@dataclass
+class UrlData:
+    url: str
+    method: str = "GET"
+    action: str = ""
+    data: dict = None
+
+
 class Globals:
     regex_filter = None
     new_folder_lock = threading.Lock()
+
 
 def assign_unique_name(url, html_doc):
     """
@@ -120,12 +131,7 @@ def process_form(url, form):
     req_type = form.attrs.get("method", "POST")
     data = construct_query_from_form(form)
     submit_url = parse.urljoin(url, action)
-    return {
-        "url": submit_url,
-        "method": req_type,
-        "data": data,
-        "action": action
-    }
+    return UrlData(url=submit_url, action=action, method=req_type, data=data)
 
 def parse_html( url,
                 html, 
@@ -133,14 +139,15 @@ def parse_html( url,
                 images_only=False, 
                 thumbnails_only=False):
     """
-    new_pasre_html(str, str, list, bool)
-    takes in the url linked to the html document.
-    the Urls is a reference ot the list all found links
-    and images will be stored in it. Specify images_only
-    if you only want to search for img and meta tags
-    everything else will be ignored set to False by default.
-
-    returns n size of found tags. 0 if none found
+    parse_html(str, str, list, bool, bool)
+    scans the html and searches for images, forms and anchor tags
+    stores them in urls and returns then size of the urls list
+    urls is a list of dicts:
+        url:
+            url      - str   the constructed url
+            method   - str   POST or GET
+            data     - dict  data containing key, value pairs
+            action   - str   the submit link
     """
     soup = BeautifulSoup(html, features="html.parser")
     ignore_list = []
@@ -176,7 +183,8 @@ def parse_html( url,
     
     return len(urls)
 
-def _appendlink(full_url, src, urllist):
+
+def _appendlink(full_url, src, url_data_list):
     """
     _appendlink(str, str, list)
     joins the url to the src and then uses a filter pattern
@@ -190,7 +198,8 @@ def _appendlink(full_url, src, urllist):
         if Globals.regex_filter.search(url):
             # make sure we dont have a duplicate
             # exception ValueError raised if no url found so add it to list
-            try:
-                urllist.index(url)
-            except ValueError:
-                urllist.append(url)
+            urldata = UrlData(url=url, action="", method="GET", data={})
+            if not list(filter(lambda d : d.url == url, url_data_list)):
+                url_data_list.append(urldata)
+            else:
+                print("replicate")

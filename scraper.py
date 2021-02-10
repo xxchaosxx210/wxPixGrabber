@@ -133,7 +133,7 @@ class Grunt(threading.Thread):
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, thread_index, url, settings, **kwargs):
+    def __init__(self, thread_index, urldata, settings, **kwargs):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -144,7 +144,7 @@ class Grunt(threading.Thread):
         """
         super().__init__(**kwargs)
         self.thread_index = thread_index
-        self.url = url
+        self.urldata = urldata
         self.settings = settings
     
     def run(self):
@@ -154,28 +154,31 @@ class Grunt(threading.Thread):
         if not Threads.cancel.is_set():
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # request the url
-            r = request_from_url(self.url, Threads.cookie_jar, self.settings)
+            r = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
             if r:
-                ext = parsing.is_valid_content_type(self.url, r.headers.get("Content-Type"), self.settings["images_to_search"])
+                ext = parsing.is_valid_content_type(self.urldata.url, r.headers.get("Content-Type"), self.settings["images_to_search"])
                 if ".html" == ext:
-                    imgs = []
+                    imgdata_list = []
                     # parse the document and search for images only
-                    if parsing.parse_html(self.url, r.text, imgs, images_only=True, thumbnails_only=False) > 0:
+                    if parsing.parse_html(self.urldata.url, r.text, imgdata_list, images_only=True, thumbnails_only=False) > 0:
                         r.close()
 
-                        for index, imgurl in enumerate(imgs):
+                        # Might need to take an extra step in parsing form data
+                        # if form data then submit request
+
+                        for index, imgdata in enumerate(imgdata_list):
                             # check if url has already in global list
-                            if not Urls.url_exists(imgurl):
+                            if not Urls.url_exists(imgdata.url):
                                 # its ok then add it to the global list
-                                Urls.add_url(imgurl)
+                                Urls.add_url(imgdata.url)
                                 # download each one and save it
-                                imgresp = request_from_url(imgurl, Threads.cookie_jar, self.settings)
+                                imgresp = request_from_url(imgdata, Threads.cookie_jar, self.settings)
 
                                 if imgresp:
                                     # check the content-type matches and image
-                                    ext = parsing.is_valid_content_type(imgurl, 
-                                                                    imgresp.headers.get("Content-Type"), 
-                                                                    self.settings["images_to_search"])
+                                    ext = parsing.is_valid_content_type(imgdata.url, 
+                                                                        imgresp.headers.get("Content-Type"), 
+                                                                        self.settings["images_to_search"])
 
                                     if ext in parsing.IMAGE_EXTS:
                                         # if image then create a file path and check
@@ -190,8 +193,8 @@ class Grunt(threading.Thread):
                                     imgresp.close()
                 else:
                     if ext in parsing.IMAGE_EXTS:
-                        if not Urls.url_exists(self.url):
-                            Urls.add_url(self.url)
+                        if not Urls.url_exists(self.urldata.url):
+                            Urls.add_url(self.urldata.url)
                             # if image then create a file path and check
                             # the image resolution size matches
                             # if it does then save to file
@@ -224,7 +227,7 @@ def commander_thread(callback):
     MessageMain = functools.partial(Message, thread="commander", type="message")
     # settings dict will contain the settings at start of scraping
     settings = {}
-    scanned_urls = []
+    scanned_urldata = []
     counter = 0
     while not quit:
         try:
@@ -249,11 +252,10 @@ def commander_thread(callback):
                         Threads.cookie_jar = load_cookies(settings)
                         # Set the max connections
                         max_connections = round(int(settings["max_connections"]))
-                        Threads.semaphore = threading.Semaphore(max_connections)
 
                         callback(MessageMain(data={"message": "Starting Threads..."}))
-                        for thread_index, url in enumerate(scanned_urls):
-                            grunts.append(Grunt(thread_index, url, settings))
+                        for thread_index, urldata in enumerate(scanned_urldata):
+                            grunts.append(Grunt(thread_index, urldata, settings))
                         counter = 0
                         max_connections = round(int(settings["max_connections"]))
                         if max_connections < len(grunts):
@@ -278,7 +280,8 @@ def commander_thread(callback):
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
                         Threads.cookie_jar = load_cookies(settings)
-                        webreq = request_from_url(r.data["url"], Threads.cookie_jar, settings)
+                        urldata = parsing.UrlData(r.data["url"], method="GET")
+                        webreq = request_from_url(urldata, Threads.cookie_jar, settings)
                         if webreq:
                             # make sure is a text document to parse
                             ext = parsing.is_valid_content_type(
@@ -291,15 +294,15 @@ def commander_thread(callback):
                                 parsing.assign_unique_name(r.data["url"], html_doc)
                                 callback(MessageMain(data={"message": "Parsing HTML Document..."}))
                                 # scrape links and images from document
-                                scanned_urls = []
+                                scanned_urldata = []
                                 if parsing.parse_html(url=r.data["url"], 
                                                       html=html_doc, 
-                                                      urls=scanned_urls,
+                                                      urls=scanned_urldata,
                                                       images_only=False, 
                                                       thumbnails_only=True) > 0:
                                     # send the scanned urls to the main thread for processing
-                                    callback(MessageMain(data={"message": f"Parsing succesful. Found {len(scanned_urls)} links"}))
-                                    data = {"urls": scanned_urls}
+                                    callback(MessageMain(data={"message": f"Parsing succesful. Found {len(scanned_urldata)} links"}))
+                                    data = {"urls": scanned_urldata}
                                     reqmsg = Message(thread="commander", type="fetch", status="finished", data=data)
                                     callback(reqmsg)
                                 else:

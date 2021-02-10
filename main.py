@@ -52,7 +52,7 @@ class MainWindow(wx.Frame):
 
         elif msg.thread == "grunt":
             if msg.type == "image" and msg.status == "ok":
-                self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
+                self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url'].url}")
             elif msg.type == "finished" and msg.status == "complete":
                 self.dldpanel.progressbar.increment()
             elif msg.type == "finished" and msg.status == "cancelled":
