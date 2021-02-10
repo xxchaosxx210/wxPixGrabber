@@ -283,13 +283,24 @@ def commander_thread(callback):
                         callback(MessageMain(data={"message": "Starting Threads..."}))
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunts.append(Grunt(thread_index, urldata, settings))
+                        # reset the threads counter
+                        # this is used to keep track of
+                        # threads that have been  started
+                        # once a running thread has been notified
+                        # this thread counter is incremeneted
+                        # counter is checked with length of grunts
+                        # once the counter has reached length then
+                        # then all threads have been complete
                         counter = 0
                         max_connections = round(int(settings["max_connections"]))
+                        # if maximum running threads allowed is less then
+                        # size of link count. Then open length of max n
                         if max_connections < len(grunts):
                             for x in range(max_connections):
                                 grunts[x].start()
                                 counter += 1
                         else:
+                            # just loop what is there
                             for _grunt in grunts:
                                 _grunt.start()
                                 counter += 1
