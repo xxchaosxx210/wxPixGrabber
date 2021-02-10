@@ -34,12 +34,17 @@ class MainWindow(wx.Frame):
         self.commander.start()
     
     def on_close_window(self, evt):
+        """
+        close the running thread and exit
+        """
         notify_commander(Message(thread="main", type="quit"))
-        self.update_status("Quit", "Waiting for Task thread to quit...")
         self.commander.join()
         evt.Skip()
     
     def message_from_thread(self, msg):
+        """
+        callback from background thread
+        """
         if msg.thread == "commander":
             if msg.type == "message":
                 self.update_status(msg.thread.upper(), msg.data["message"])
@@ -61,10 +66,19 @@ class MainWindow(wx.Frame):
                 
 
     def handler_callback(self, msg):
-        # notify the main thread
+        """
+        sends the message from background thread to the main thread.
+        I wanted to keep the GUI code seperate from the scraper module
+        """
         wx.CallAfter(self.message_from_thread, msg)
     
     def update_status(self, name, text):
+        """
+        takes in a name of type of message
+        display the text with a time code
+        will replace this with a listctrl in
+        the future
+        """
         status = self.status.GetValue()
         if len(status) > 100000:
             status = ""

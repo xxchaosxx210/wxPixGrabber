@@ -148,20 +148,23 @@ class Grunt(threading.Thread):
         self.settings = settings
         self.fileindex = 0
     
-    def search(self, response):
+    def search_response(self, response):
         """
         if html parse look for image sources
         if image then save
         """
+        # intialize the list containing UrlData objects
         datalist = []
+        # check the file extension
         ext = parsing.is_valid_content_type(
             response.url,
             response.headers.get("Content-Type", ""),
             self.settings["images_to_search"]
         )
-
         if parsing.html_ext == ext:
+            # if html document then parse the text
             soup = parsing.parse_html(response.text)
+            # search for links in soup
             if parsing.sort_soup(
                                  response.url,
                                  soup,
@@ -169,21 +172,38 @@ class Grunt(threading.Thread):
                                  include_forms=self.settings["form_search"]["enabled"], 
                                  images_only=True, 
                                  thumbnails_only=False) > 0:
+                # run through each UrlData object
+                # add the url from the UrlData to the
+                # global links list
                 for urldata in datalist:
                     if not Urls.url_exists(urldata.url):
                         Urls.add_url(urldata.url)
         elif ext in parsing.IMAGE_EXTS:
+            # If Content-Type is an image
+            # check our global image url list
+            # make sure were not duplicating
             if not Urls.image_url_exists(response.url):
+                # not been added before. Add it to the global image bucket
                 Urls.add_image_url(response.url)
+                # check if unique filename has been set in settings
                 if self.settings["generate_filenames"]["enabled"]:
+                    # if so then append thread index and fileindex
+                    # to make a unique identifier
                     fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
+                    # increment the fileindex for the next image found
                     self.fileindex += 1
+                    # append the saved unique name to our file path
                     filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
                 else:
+                    # if not parse split the url and append the filename
+                    # found from the url and use that instead
                     filename = f"test{self.thread_index}{ext}"
+                # check the validity of the image and save
                 download_image(filename, response, self.settings)
             return []
         else:
+            # If link is nothing of interest
+            # addd it to the check list
             if not Urls.url_exists(response.url):
                 Urls.add_url(response.url)
         return datalist
@@ -191,29 +211,27 @@ class Grunt(threading.Thread):
     def run(self):
         # partial function to avoid repetitive typing
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
-        #Threads.semaphore.acquire()
         if not Threads.cancel.is_set():
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # request the url
             level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
             if level_one_response:
-                level_one_list = self.search(level_one_response)
+                level_one_list = self.search_response(level_one_response)
                 for level_one_urldata in level_one_list:
 
                     level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
                     if level_two_response:
-                        level_two_list = self.search(level_two_response)
+                        level_two_list = self.search_response(level_two_response)
                         for level_two_urldata in level_two_list:
 
                             level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
                             if level_three_response:
-                                self.search(level_three_response)
+                                self.search_response(level_three_response)
                                 
                                 level_three_response.close()
                         level_two_response.close()
                 level_one_response.close()
 
-        #Threads.semaphore.release()
         if Threads.cancel.is_set():
             notify_commander(GruntMessage(status="cancelled", type="finished"))
         else:
