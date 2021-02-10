@@ -149,12 +149,8 @@ def sort_soup(url,
     sort_soup(str, str, list, bool, bool)
     searches for images, forms and anchor tags in BeatifulSoup object
     stores them in urls and returns then size of the urls list
-    urls is a list of dicts:
-        url:
-            url      - str   the constructed url
-            method   - str   POST or GET
-            data     - dict  data containing key, value pairs
-            action   - str   the submit link
+    urls is a list of UrlData objects
+    returns n if any tags found
     """
     ignore_list = []
     if not images_only:
@@ -207,5 +203,3 @@ def _appendlink(full_url, src, url_data_list):
             urldata = UrlData(url=url, action="", method="GET", data={})
             if not list(filter(lambda d : d.url == url, url_data_list)):
                 url_data_list.append(urldata)
-            else:
-                print("replicate")
