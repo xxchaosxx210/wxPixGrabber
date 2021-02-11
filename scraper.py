@@ -41,14 +41,14 @@ class Blacklist:
     @staticmethod
     def add(item):
         Blacklist.lock.acquire()
-        Blacklist.links.append(item)
+        Blacklist.links.append(item.__dict__)
         Blacklist.lock.release()
     
     @staticmethod
     def exists(item):
         Blacklist.lock.acquire()
         try:
-            index = Blacklist.links.index(item)
+            index = Blacklist.links.index(item.__dict__)
         except ValueError:
             index = -1
         Blacklist.lock.release()
@@ -248,22 +248,22 @@ class Grunt(threading.Thread):
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # Three Levels of Searching
 
-            if not Blacklist.exists(self.urldata.url):
-                Blacklist.add(self.urldata.url)
+            if not Blacklist.exists(self.urldata):
+                Blacklist.add(self.urldata)
                 ## Level 1
                 level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
                 if level_one_response:
                     level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
                     for level_one_urldata in level_one_list:
-                        if not Blacklist.exists(level_one_urldata.url):
-                            Blacklist.add(level_one_urldata.url)
+                        if not Blacklist.exists(level_one_urldata):
+                            Blacklist.add(level_one_urldata)
                             # Level 2
                             level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
                             if level_two_response:
                                 level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
                                 for level_two_urldata in level_two_list:
-                                    if not Blacklist.exists(level_two_urldata.url):
-                                        Blacklist.add(level_two_urldata.url)
+                                    if not Blacklist.exists(level_two_urldata):
+                                        Blacklist.add(level_two_urldata)
                                         # Level 3
                                         level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
                                         if level_three_response:
