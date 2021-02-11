@@ -20,6 +20,11 @@ from global_props import Settings
 
 import parsing
 
+from cache import Sql
+
+# Initialize the ignore table in the db file
+Sql.initialize_ignore()
+
 class Blacklist:
 
     """
@@ -174,6 +179,10 @@ def download_image(filename, response, settings):
             type="image", 
             status="ok", 
             data={"pathname": filename, "url": response.url, "images_saved": Stats.saved}))
+    else:
+        # add the URl to the cache
+        if not Sql.query_ignore(response.url):
+            Sql.add_ignore(response.url, "small-image", width, height)
 
     # close the file handles
     byte_stream.close()
@@ -245,6 +254,8 @@ class Grunt(threading.Thread):
             # ingored counter goes up
             Stats.ignored += 1
             notify_commander(Message(thread="grunt", type="stat", status="ignored", data={"value": Stats.errors}))
+            if not Sql.query_ignore(response.url):
+                Sql.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
     
     def run(self):
