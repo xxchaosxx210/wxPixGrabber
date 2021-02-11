@@ -35,6 +35,7 @@ class UrlData:
     method: str = "GET"
     action: str = ""
     data: dict = None
+    tag: str = ""
 
 
 class Globals:
@@ -137,7 +138,7 @@ def process_form(url, form):
     req_type = form.attrs.get("method", "POST")
     data = _construct_query_from_form(form)
     submit_url = parse.urljoin(url, action)
-    return UrlData(url=submit_url, action=action, method=req_type, data=data)
+    return UrlData(url=submit_url, action=action, method=req_type, data=data, tag="form")
 
 def parse_html(html):
     return BeautifulSoup(html, features="html.parser")
@@ -171,10 +172,10 @@ def sort_soup(url,
                 if thumbnails_only:
                     imgtag = atag.find("img")
                     if imgtag:
-                        _appendlink(url, atag.get("href"), urls)
+                        _appendlink(url, atag.get("href"), urls, "a")
                         ignore_list.append(imgtag.get("src"))
                 else:
-                    _appendlink(url, atag.get("href", ""), urls)
+                    _appendlink(url, atag.get("href", ""), urls, "a")
     
     # search image tags
     for imgtag in soup.find_all("img"):
@@ -184,18 +185,18 @@ def sort_soup(url,
                 ignore_list.index(imgtag.get("src"))
             except ValueError:
                 # its not in our ignorelist
-                _appendlink(url, imgtag.get("src", ""), urls)
+                _appendlink(url, imgtag.get("src", ""), urls, "img")
         else:
-            _appendlink(url, imgtag.get("src", ""), urls)
+            _appendlink(url, imgtag.get("src", ""), urls, "img")
 
     # search images in meta data
     for metatag in soup.find_all("meta", content=_image_ext_pattern):
-        _appendlink(url, metatag.get("content", ""), urls)
+        _appendlink(url, metatag.get("content", ""), urls, "img")
     
     return len(urls)
 
 
-def _appendlink(full_url, src, url_data_list):
+def _appendlink(full_url, src, url_data_list, tag):
     """
     _appendlink(str, str, list)
     joins the url to the src and then uses a filter pattern
@@ -209,6 +210,6 @@ def _appendlink(full_url, src, url_data_list):
         if Globals.regex_filter.search(url):
             # make sure we dont have a duplicate
             # filter through the urldata list
-            urldata = UrlData(url=url, action="", method="GET", data={})
+            urldata = UrlData(url=url, action="", method="GET", data={}, tag=tag)
             if not list(filter(lambda d : d.url == url, url_data_list)):
                 url_data_list.append(urldata)

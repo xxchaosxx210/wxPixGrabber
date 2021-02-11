@@ -21,6 +21,39 @@ from global_props import Settings
 
 import parsing
 
+class Blacklist:
+
+    """
+    thread safe container class for storing global links
+    this is to check there arent duplicate links
+    saves a lot of time and less scraping
+    """
+
+    links = []
+    lock = threading.Lock()
+
+    @staticmethod
+    def clear():
+        Blacklist.lock.acquire()
+        Blacklist.links.clear()
+        Blacklist.lock.release()
+    
+    @staticmethod
+    def add(item):
+        Blacklist.lock.acquire()
+        Blacklist.links.append(item)
+        Blacklist.lock.release()
+    
+    @staticmethod
+    def exists(item):
+        Blacklist.lock.acquire()
+        try:
+            index = Blacklist.links.index(item)
+        except ValueError:
+            index = -1
+        Blacklist.lock.release()
+        return index >= 0
+
 @dataclass
 class Message:
     """
@@ -205,6 +238,7 @@ class Grunt(threading.Thread):
             # addd it to the check list
             if not Urls.url_exists(response.url):
                 Urls.add_url(response.url)
+                Urls.add_image_url(response.url)
         return datalist
     
     def run(self):
@@ -214,26 +248,30 @@ class Grunt(threading.Thread):
             notify_commander(GruntMessage(status="ok", type="scanning"))
             # Three Levels of Searching
 
-            ## Level 1
-            level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
-            if level_one_response:
-                level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
-                for level_one_urldata in level_one_list:
-                    
-                    # Level 2
-                    level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
-                    if level_two_response:
-                        level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
-                        for level_two_urldata in level_two_list:
-                            
-                            # Level 3
-                            level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
-                            if level_three_response:
-                                self.search_response(level_three_response, self.settings["form_search"]["enabled"])
-                                
-                                level_three_response.close()
-                        level_two_response.close()
-                level_one_response.close()
+            if not Blacklist.exists(self.urldata.url):
+                Blacklist.add(self.urldata.url)
+                ## Level 1
+                level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
+                if level_one_response:
+                    level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
+                    for level_one_urldata in level_one_list:
+                        if not Blacklist.exists(level_one_urldata.url):
+                            Blacklist.add(level_one_urldata.url)
+                            # Level 2
+                            level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
+                            if level_two_response:
+                                level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
+                                for level_two_urldata in level_two_list:
+                                    if not Blacklist.exists(level_two_urldata.url):
+                                        Blacklist.add(level_two_urldata.url)
+                                        # Level 3
+                                        level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
+                                        if level_three_response:
+                                            self.search_response(level_three_response, self.settings["form_search"]["enabled"])
+                                            
+                                            level_three_response.close()
+                                level_two_response.close()
+                    level_one_response.close()
 
         if Threads.cancel.is_set():
             notify_commander(GruntMessage(status="cancelled", type="finished"))
@@ -388,6 +426,7 @@ def commander_thread(callback):
                     grunts = []
                     _task_running = False
                     Urls.clear()
+                    Blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
 
 def grunts_alive(grunts):
