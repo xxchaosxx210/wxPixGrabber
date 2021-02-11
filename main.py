@@ -49,11 +49,12 @@ class MainWindow(wx.Frame):
             if msg.type == "message":
                 self.update_status(msg.thread.upper(), msg.data["message"])
             elif msg.type == "complete":
-                self.dldpanel.progressbar.reset_progress(100)
                 self.status.SetValue("")
                 self.update_status("COMMANDER", "All tasks have completed")
+                self.dldpanel.progressbar.reset_progress(0)
             elif msg.type == "fetch" and msg.status == "finished":
-                    self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+                # Set the progress bar maximum range
+                self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
 
         elif msg.thread == "grunt":
             if msg.type == "image" and msg.status == "ok":
