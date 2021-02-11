@@ -79,6 +79,31 @@ class Sql:
         return rows
 
 
+def check_cache_for_image(url, settings):
+    """
+    checks if url is in database and checks the image
+    minimum width and height returns false
+    if no duplicate exists.
+    """
+    result = Sql.query_ignore(url)
+    if result:
+        urldata = result[0]
+        if urldata[1] == "small-image":
+            width = settings["minimum_image_resolution"]["width"]
+            height = settings["minimum_image_resolution"]["height"]
+            if width > urldata[2] and height > urldata[3]:
+                # minimum resolution has changed
+                return False
+            else:
+                return True
+    return False
+
+def _process_url():
+    pass
+
+def _process_img():
+    pass
+
 def _create_connection(dbpath):
     """
     create_connection(str)

@@ -187,26 +187,7 @@ def download_image(filename, response, settings):
     # close the file handles
     byte_stream.close()
     image.close()
-
-
-def check_cache_for_image(url, settings):
-    """
-    checks if url is in database and checks the image
-    minimum width and height returns false
-    if no duplicate exists.
-    """
-    result = Sql.query_ignore(url)
-    if result:
-        urldata = result[0]
-        if urldata[1] == "small-image":
-            width = settings["minimum_image_resolution"]["width"]
-            height = settings["minimum_image_resolution"]["height"]
-            if width > urldata[2] and height > urldata[3]:
-                # minimum resolution has changed
-                return False
-            else:
-                return True
-    return False
+    
 
 class Grunt(threading.Thread):
 

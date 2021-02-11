@@ -7,6 +7,8 @@ import threading
 
 import scraper
 
+import cache
+
 FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
 
 
@@ -30,6 +32,7 @@ def request_from_url(urldata, cj, settings):
 
     gets the request from url and returns the requests object
     """
+    # check the cache first before connecting
     try:
         if urldata.method.lower() == "get":
             r = requests.get(urldata.url, 
