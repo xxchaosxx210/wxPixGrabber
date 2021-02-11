@@ -321,7 +321,7 @@ def commander_thread(callback):
                         # Set the max connections
                         max_connections = round(int(settings["max_connections"]))
 
-                        callback(MessageMain(data={"message": "Starting Threads..."}))
+                        callback(MessageMain(type="searching", status="start"))
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunts.append(Grunt(thread_index, urldata, settings))
                         # reset the threads counter

@@ -12,12 +12,12 @@ WX_BUTTON_SIZE = (68, -1)
 
 DIALOG_BORDER = 30
 
-class ThemedStaticText(wx.TextCtrl):
+class ThemedTextCtrl(wx.TextCtrl):
 
     def __init__(self, *args, **kw):
-        super(ThemedStaticText, self).__init__(*args, **kw)
+        super(ThemedTextCtrl, self).__init__(*args, **kw)
         font = self.GetFont()
-        font.SetPointSize(10)
+        font.SetPointSize(9)
         font.SetFamily(wx.FONTFAMILY_MODERN)
         self.SetFont(font)
 
@@ -29,4 +29,13 @@ class ThemedButton(wx.Button):
         font.SetPointSize(12)
         #font.SetFamily(wx.FONTFAMILY_MAX)
         font.SetWeight(wx.FONTWEIGHT_MEDIUM)
+        self.SetFont(font)
+
+class ThemedStaticText(wx.StaticText):
+
+    def __init__(self, *args, **kw):
+        super(ThemedStaticText, self).__init__(*args, **kw)
+        font = self.GetFont()
+        font.SetPointSize(10)
+        font.SetFamily(wx.FONTFAMILY_MODERN)
         self.SetFont(font)

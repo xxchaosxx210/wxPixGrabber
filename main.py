@@ -9,6 +9,11 @@ from scraper import (
     Message
 )
 
+from timer import (
+    create_timer_thread,
+    timer_quit
+)
+
 class PixGrabberApp(wx.App):
 
     def __init__(self, **kwargs):
@@ -33,10 +38,17 @@ class MainWindow(wx.Frame):
         self.commander = create_commander(self.handler_callback)
         self.commander.start()
     
+    def on_timer_callback(self, formatted_time):
+        try:
+            wx.CallAfter(self.dldpanel.progressbar.time.SetLabel, formatted_time)
+        except AssertionError:
+            pass
+    
     def on_close_window(self, evt):
         """
         close the running thread and exit
         """
+        timer_quit.set()
         notify_commander(Message(thread="main", type="quit"))
         self.commander.join()
         evt.Skip()
@@ -49,6 +61,8 @@ class MainWindow(wx.Frame):
             if msg.type == "message":
                 self.update_status(msg.thread.upper(), msg.data["message"])
             elif msg.type == "complete":
+                # kill the timer thread
+                timer_quit.set()
                 self.status.SetValue("")
                 self.update_status("COMMANDER", "All tasks have completed")
                 self.dldpanel.progressbar.reset_progress(0)
@@ -56,6 +70,10 @@ class MainWindow(wx.Frame):
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+            elif msg.type == "searching" and msg.status == "start":
+                timer_quit.clear()
+                create_timer_thread(self.on_timer_callback).start()
+                self.update_status(msg.thread.upper(), "Starting threads...")
 
         elif msg.thread == "grunt":
             if msg.type == "image" and msg.status == "ok":

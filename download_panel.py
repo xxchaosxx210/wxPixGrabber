@@ -3,8 +3,11 @@ import wx
 from app_theme import (
     WX_BORDER,
     WX_BUTTON_SIZE,
-    ThemedStaticText,
-    ThemedButton
+    ThemedTextCtrl,
+    ThemedButton,
+    vboxsizer,
+    hboxsizer,
+    ThemedStaticText
 )
 
 from scraper import (
@@ -83,7 +86,7 @@ class AddressBar(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.txt_address = ThemedStaticText(self, -1, "")
+        self.txt_address = ThemedTextCtrl(self, -1, "")
 
         btn_fetch = ThemedButton(self, -1, "Fetch", size=WX_BUTTON_SIZE)
         btn_stop = ThemedButton(self, -1, "Cancel", size=WX_BUTTON_SIZE)
@@ -129,12 +132,20 @@ class ProgressPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.gauge = wx.Gauge(self, -1, 100)
+        self.time = ThemedStaticText(self, -1, "00:00:00")
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.gauge, 1, wx.EXPAND|wx.ALL, 0)
+        box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
 
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Progress")
-        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        vs = vboxsizer()
+        vs.Add(self.gauge, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(vs, 1, wx.ALL|wx.EXPAND, 0)
+
+        box.AddSpacer(WX_BORDER)
+
+        vs = vboxsizer()
+        vs.Add(self.time, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(vs, 0, wx.ALL|wx.EXPAND, 0)
+
         self.SetSizer(box)
     
     def reset_progress(self, max_range):
