@@ -121,8 +121,8 @@ def _create_table(conn, sql_table):
 
 def _test():
     Sql.initialize_ignore()
-    Sql.add_ignore("http://www.freeones.com", "boobs", 100, 100)
-    print(Sql.query_ignore("http://www.freeones.com"))
+    Sql.add_ignore("http://www.google.com", "text", 100, 100)
+    print(Sql.query_ignore("http://www.google.com"))
 
 if __name__ == '__main__':
     _test()
