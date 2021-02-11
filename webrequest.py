@@ -5,6 +5,8 @@ from http.cookiejar import CookieJar
 
 import threading
 
+import scraper
+
 FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
 
 class Urls:
@@ -97,5 +99,12 @@ def request_from_url(urldata, cj, settings):
             r = None
     except Exception as err:
         print(f"[EXCEPTION]: request_from_url, {urldata}, {err.__str__()}")
+        scraper.Stats.errors += 1
+        scraper.notify_commander(
+            scraper.Message(
+                thread="grunt", 
+                type="stat", 
+                status="error", 
+                data={"value": scraper.Stats.errors}))
         r = None
     return r

@@ -70,6 +70,20 @@ class Message:
     status: str = ""
     data: dict = None
 
+
+class Stats:
+
+    saved = 0
+    errors = 0
+    ignored = 0
+
+    @staticmethod
+    def reset():
+        Stats.saved = 0
+        Stats.errors = 0
+        Stats.ignored = 0
+
+
 class Threads:
 
     """
@@ -125,6 +139,8 @@ def stream_to_file(path, filename, bytes_stream):
     with open(full_path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
         fp.close()
+        # Update the images saved stats counter
+        Stats.saved += 1
 
 def download_image(filename, response, settings):
     """
@@ -145,6 +161,8 @@ def download_image(filename, response, settings):
         image = Image.open(byte_stream)
     except UnidentifiedImageError as err:
         print(f"[IMAGE_ERROR]: {err.__str__()}, {response.url}")
+        Stats.errors += 1
+        notify_commander(Message(thread="grunt", type="stat", status="error", data={"value": Stats.errors}))
         return
     width, height = image.size
     # if image requirements met then save
@@ -152,7 +170,11 @@ def download_image(filename, response, settings):
         # create a new save path and write image toi file
         path = create_save_path(settings)
         stream_to_file(path, filename, byte_stream)
-        notify_commander(Message(thread="grunt", type="image", status="ok", data={"pathname": filename, "url": response.url}))
+        notify_commander(Message(
+            thread="grunt", 
+            type="image", 
+            status="ok", 
+            data={"pathname": filename, "url": response.url, "images_saved": Stats.saved}))
 
     # close the file handles
     byte_stream.close()
@@ -239,6 +261,9 @@ class Grunt(threading.Thread):
             if not Urls.url_exists(response.url):
                 Urls.add_url(response.url)
                 Urls.add_image_url(response.url)
+            # ingored counter goes up
+            Stats.ignored += 1
+            notify_commander(Message(thread="grunt", type="stat", status="ignored", data={"value": Stats.errors}))
         return datalist
     
     def run(self):
@@ -318,9 +343,8 @@ def commander_thread(callback):
                         settings = dict(Settings.load())
                         # Load the cookiejar again
                         Threads.cookie_jar = load_cookies(settings)
-                        # Set the max connections
-                        max_connections = round(int(settings["max_connections"]))
 
+                        # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunts.append(Grunt(thread_index, urldata, settings))
@@ -348,6 +372,7 @@ def commander_thread(callback):
 
                 elif r.type == "fetch":                
                     if not _task_running:
+                        Stats.reset()
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings

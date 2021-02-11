@@ -37,6 +37,9 @@ class DownloadPanel(wx.Panel):
 
         self.addressbar = AddressBar(self, -1)
         self.statusbox = StatusPanel(self, -1)
+        self.errors = StatsPanel(parent=self, stat_name="Errors:", stat_value="0")
+        self.ignored = StatsPanel(parent=self, stat_name="Ignored:", stat_value="0")
+        self.imgsaved = StatsPanel(parent=self, stat_name="Saved:", stat_value="0")
         self.progressbar = ProgressPanel(self, -1)
 
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -48,6 +51,15 @@ class DownloadPanel(wx.Panel):
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(self.statusbox, 1, wx.EXPAND|wx.ALL, WX_BORDER)
         vs.Add(hs, 1, wx.EXPAND|wx.ALL, WX_BORDER)
+
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.AddStretchSpacer(1)
+        hs.Add(self.errors, 0, wx.EXPAND|wx.ALL, 2)
+        hs.AddSpacer(WX_BORDER)
+        hs.Add(self.ignored, 0, wx.EXPAND|wx.ALL, 2)
+        hs.AddSpacer(WX_BORDER)
+        hs.Add(self.imgsaved, 0, wx.EXPAND|wx.ALL, 2)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 2)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(self.progressbar, 1, wx.EXPAND|wx.ALL, WX_BORDER)
@@ -79,6 +91,11 @@ class DownloadPanel(wx.Panel):
 
     def on_stop_button(self, evt):
         notify_commander(Message(thread="main", type="cancel"))
+    
+    def reset(self):
+        self.imgsaved.value.SetLabel("0")
+        self.errors.value.SetLabel("0")
+        self.ignored.value.SetLabel("0")
 
 
 class AddressBar(wx.Panel):
@@ -125,6 +142,24 @@ class StatusPanel(wx.Panel):
         box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(box)
+
+
+class StatsPanel(wx.Panel):
+
+    def __init__(self, stat_name, stat_value, *args, **kw):
+        super().__init__(*args, **kw)
+
+        lbl = wx.StaticText(self, -1, stat_name)
+        self.value = wx.StaticText(self, -1, stat_value)
+
+        vs = vboxsizer()
+        hs = hboxsizer()
+        hs.Add(lbl, 1, wx.ALL|wx.EXPAND, 0)
+        hs.AddSpacer(WX_BORDER)
+        hs.Add(self.value, 1, wx.ALL|wx.EXPAND, 0)
+        vs.Add(hs, 1, wx.ALL|wx.EXPAND)
+        self.SetSizer(vs)
+
 
 class ProgressPanel(wx.Panel):
 

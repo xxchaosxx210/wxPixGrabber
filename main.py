@@ -58,8 +58,10 @@ class MainWindow(wx.Frame):
         callback from background thread
         """
         if msg.thread == "commander":
+            # message
             if msg.type == "message":
                 self.update_status(msg.thread.upper(), msg.data["message"])
+            # All tasks complete
             elif msg.type == "complete":
                 # kill the timer thread
                 timer_quit.set()
@@ -67,22 +69,34 @@ class MainWindow(wx.Frame):
                 self.update_status("COMMANDER", "All tasks have completed")
                 self.dldpanel.progressbar.reset_progress(0)
                 self.dldpanel.addressbar.txt_address.SetValue("")
+            # fetch has completed
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+            # started download and loading threads
             elif msg.type == "searching" and msg.status == "start":
                 timer_quit.clear()
                 create_timer_thread(self.on_timer_callback).start()
                 self.update_status(msg.thread.upper(), "Starting threads...")
-
+        
         elif msg.thread == "grunt":
+            # saved and ok
             if msg.type == "image" and msg.status == "ok":
                 self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
+                self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
+            # finished task
             elif msg.type == "finished" and msg.status == "complete":
                 self.dldpanel.progressbar.increment()
+            # finsihed task by cancelling
             elif msg.type == "finished" and msg.status == "cancelled":
                 self.update_status(f"Thread#{msg.id}", "has cancelled")
                 self.dldpanel.progressbar.increment()
+            # error stat update
+            elif msg.type == "stat" and msg.status == "error":
+                self.dldpanel.errors.value.SetLabel(str(msg.data["value"]))
+            # ignored link update
+            elif msg.type == "stat" and msg.status == "ignored":
+                self.dldpanel.errors.value.SetLabel(str(msg.data["value"]))
                 
 
     def handler_callback(self, msg):
