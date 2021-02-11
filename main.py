@@ -52,6 +52,7 @@ class MainWindow(wx.Frame):
                 self.status.SetValue("")
                 self.update_status("COMMANDER", "All tasks have completed")
                 self.dldpanel.progressbar.reset_progress(0)
+                self.dldpanel.addressbar.txt_address.SetValue("")
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
