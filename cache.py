@@ -32,6 +32,8 @@ VALUES(?,?,?,?,?)"""
 QUERY_DELETE_IGNORE = """DELETE FROM ignored WHERE url=?
 """
 
+QUERY_URL_IGNORE = "SELECT * FROM ignored WHERE url=?"
+
 
 class Sql:
 
@@ -66,7 +68,15 @@ class Sql:
     @staticmethod
     def query_ignore(url):
         Sql._lock.acquire()
+        rows = []
+        conn = _create_connection(SQL_FILENAME)
+        if conn:
+            cur = conn.cursor()
+            cur.execute(QUERY_URL_IGNORE, (url,))
+            rows = cur.fetchall()
+            conn.close()
         Sql._lock.release()
+        return rows
 
 
 def _create_connection(dbpath):
@@ -111,7 +121,8 @@ def _create_table(conn, sql_table):
 
 def _test():
     Sql.initialize_ignore()
-    Sql.delete_ignore("http://www.freeones.com")
+    Sql.add_ignore("http://www.freeones.com", "boobs", 100, 100)
+    print(Sql.query_ignore("http://www.freeones.com"))
 
 if __name__ == '__main__':
     _test()
