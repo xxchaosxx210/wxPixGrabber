@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from webrequest import (
     request_from_url,
-    Urls,
     load_cookies
 )
 
@@ -219,48 +218,30 @@ class Grunt(threading.Thread):
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
-            if parsing.sort_soup(
-                                 response.url,
-                                 soup,
-                                 datalist, 
-                                 include_forms=include_forms, 
-                                 images_only=True, 
-                                 thumbnails_only=False) > 0:
-                # run through each UrlData object
-                # add the url from the UrlData to the
-                # global links list
-                for urldata in datalist:
-                    if not Urls.url_exists(urldata.url):
-                        Urls.add_url(urldata.url)
+            parsing.sort_soup(response.url,
+                              soup,
+                              datalist, 
+                              include_forms=include_forms, 
+                              images_only=True, 
+                              thumbnails_only=False)
         elif ext in parsing.IMAGE_EXTS:
-            # If Content-Type is an image
-            # check our global image url list
-            # make sure were not duplicating
-            if not Urls.image_url_exists(response.url):
-                # not been added before. Add it to the global image bucket
-                Urls.add_image_url(response.url)
-                # check if unique filename has been set in settings
-                if self.settings["generate_filenames"]["enabled"]:
-                    # if so then append thread index and fileindex
-                    # to make a unique identifier
-                    fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
-                    # increment the fileindex for the next image found
-                    self.fileindex += 1
-                    # append the saved unique name to our file path
-                    filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
-                else:
-                    # if not parse split the url and append the filename
-                    # found from the url and use that instead
-                    filename = f"test{self.thread_index}{ext}"
-                # check the validity of the image and save
-                download_image(filename, response, self.settings)
+            # check if unique filename has been set in settings
+            if self.settings["generate_filenames"]["enabled"]:
+                # if so then append thread index and fileindex
+                # to make a unique identifier
+                fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
+                # increment the fileindex for the next image found
+                self.fileindex += 1
+                # append the saved unique name to our file path
+                filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
+            else:
+                # if not parse split the url and append the filename
+                # found from the url and use that instead
+                filename = f"test{self.thread_index}{ext}"
+            # check the validity of the image and save
+            download_image(filename, response, self.settings)
             return []
         else:
-            # If link is nothing of interest
-            # addd it to the check list
-            if not Urls.url_exists(response.url):
-                Urls.add_url(response.url)
-                Urls.add_image_url(response.url)
             # ingored counter goes up
             Stats.ignored += 1
             notify_commander(Message(thread="grunt", type="stat", status="ignored", data={"value": Stats.errors}))
@@ -450,7 +431,6 @@ def commander_thread(callback):
                     Threads.cancel.clear()
                     grunts = []
                     _task_running = False
-                    Urls.clear()
                     Blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
 
