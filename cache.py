@@ -93,16 +93,12 @@ def check_cache_for_image(url, settings):
             height = settings["minimum_image_resolution"]["height"]
             if width > urldata[2] and height > urldata[3]:
                 # minimum resolution has changed
+                # delete the entry
+                Sql.delete_ignore(url)
                 return False
             else:
                 return True
     return False
-
-def _process_url():
-    pass
-
-def _process_img():
-    pass
 
 def _create_connection(dbpath):
     """
@@ -146,8 +142,7 @@ def _create_table(conn, sql_table):
 
 def _test():
     Sql.initialize_ignore()
-    Sql.add_ignore("http://www.google.com", "text", 100, 100)
-    print(Sql.query_ignore("http://www.google.com"))
+    print(Sql.query_ignore("https://imgbox.com/images/imgbox.png"))
 
 if __name__ == '__main__':
     _test()

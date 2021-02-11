@@ -33,6 +33,11 @@ def request_from_url(urldata, cj, settings):
     gets the request from url and returns the requests object
     """
     # check the cache first before connecting
+
+    if urldata.tag == "img":
+        if cache.check_cache_for_image(urldata.url, settings):
+            return None
+
     try:
         if urldata.method.lower() == "get":
             r = requests.get(urldata.url, 

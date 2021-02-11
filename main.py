@@ -65,7 +65,6 @@ class MainWindow(wx.Frame):
             elif msg.type == "complete":
                 # kill the timer thread
                 timer_quit.set()
-                self.status.SetValue("")
                 self.update_status("COMMANDER", "All tasks have completed")
                 self.dldpanel.progressbar.reset_progress(0)
                 self.dldpanel.addressbar.txt_address.SetValue("")
@@ -73,6 +72,9 @@ class MainWindow(wx.Frame):
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+            # fetch has started
+            elif msg.type == "fetch" and msg.status == "started":
+                self.status.SetValue("")
             # started download and loading threads
             elif msg.type == "searching" and msg.status == "start":
                 timer_quit.clear()
@@ -118,7 +120,7 @@ class MainWindow(wx.Frame):
             status = ""
         status += f"[{time.ctime(time.time())}]{name}: {text}\n" 
         self.status.SetValue(status)
-        self.status.ShowPosition(self.status.GetLastPosition())
+        #self.status.ShowPosition(self.status.GetLastPosition())
 
 
 def _main():
