@@ -38,6 +38,8 @@ class SettingsDialog(wx.Dialog):
         self.SetSizer(vs)
 
         self.SetSize(600, 400)
+
+        self.panel.SetFocus()
     
     def save_settings(self):
         settings = Settings.load()

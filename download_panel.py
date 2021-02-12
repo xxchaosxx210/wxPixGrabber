@@ -68,6 +68,9 @@ class DownloadPanel(wx.Panel):
         self.SetSizer(vs)
 
     def on_btn_settings(self, evt):
+        # if listening for clipboard events then
+        # dialog won't recive window messages
+        self.GetParent().clipboard.stop()
         dlg = SettingsDialog(parent=self.GetParent(),
                              id= -1,
                              title="Settings",
@@ -80,6 +83,8 @@ class DownloadPanel(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             dlg.save_settings()
         dlg.Destroy()
+        # start up the clipboard listener again
+        self.GetParent().clipboard.start()
     
     def on_fetch_button(self, evt):
         if self.addressbar.txt_address.GetValue():

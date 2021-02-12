@@ -1,3 +1,8 @@
+__version__ = "0.1"
+__author__ = "Paul Millar"
+__description__ = """
+Windows Clipboard event listener"""
+
 import wx
 import os
 import re
@@ -16,37 +21,35 @@ URL_PATTERN = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-
 
 class ClipboardListener:
 
-    def __init__(self, parent, callback, url_only=False):
+    def __init__(self, parent, callback, url_only=False, debug=False):
         """
         __init__(object, function, bool)
         takes in a wx window normally a frame. callback is a function
         to which to recieve text changes from the clipboard
         url_only set to True then callback will only recieve url links
         found in the text from the clipboard.
+        debug set to true then WM_ will be displayed in stdout
+        call start to start listening
         """
         self.hwnd = parent.GetHandle()
         self._first = True
         self.callback = callback
         self._next_hwnd = None
         self._url_only = url_only
-        if os.name == "nt":
-            self.oldwndproc = \
-                win32gui.SetWindowLong(self.hwnd, 
-                                       win32con.GWL_WNDPROC, 
-                                       self.wndproc)
-        self._next_hwnd = win32clipboard.SetClipboardViewer(self.hwnd)
+        self._debug = debug
+        
+        if debug:
+            self.msgdict = {}
+            for name in dir(win32con):
+                if name.startswith("WM_"):
+                    value = getattr(win32con, name)
+                    self.msgdict[value] = name
     
-    def wndproc(self, hwnd, msg, wparam, lparam):
+    def _wndproc(self, hwnd, msg, wparam, lparam):
+        if self._debug:
+            print(self.msgdict.get(msg), hwnd, msg, wparam, lparam)
         if msg == win32con.WM_DESTROY:
-            if self._next_hwnd:
-                win32clipboard.ChangeClipboardChain(
-                    self.hwnd, self._next_hwnd)
-            else:
-                win32clipboard.ChangeClipboardChain(
-                    self.hwnd, 0)
-            win32api.SetWindowLong(self.hwnd, 
-                                   win32con.GWL_WNDPROC, 
-                                   self.oldwndproc)
+            self.stop()
 
         elif msg == win32con.WM_CHANGECBCHAIN:
             # is it our window?
@@ -81,6 +84,7 @@ class ClipboardListener:
         if self._first:
             self._first = False
         else:
+            # check if text is availible in the clipboard
             text = self._getclipboardtext()
             if text:
                 if self._url_only:
@@ -89,3 +93,34 @@ class ClipboardListener:
                         self.callback(result.group())
                 else:
                     return text
+    
+    def _remove_from_chain(self):
+        if self._next_hwnd:
+            win32clipboard.ChangeClipboardChain(
+                self.hwnd, self._next_hwnd)
+        else:
+            win32clipboard.ChangeClipboardChain(
+                self.hwnd, 0)
+    
+    def stop(self):
+        """
+        stops the clipboard event listener
+        """
+        if os.name == "nt":
+            # unhinge from clipboard chain
+            self._remove_from_chain()
+            win32api.SetWindowLong(self.hwnd, 
+                                win32con.GWL_WNDPROC,
+                                self.oldwndproc)
+    
+    def start(self):
+        """
+        starts the clipboard event listener
+        """
+        if os.name == "nt":
+            self.oldwndproc = \
+                    win32gui.SetWindowLong(self.hwnd, 
+                                        win32con.GWL_WNDPROC, 
+                                        self._wndproc)
+            self._next_hwnd = \
+                win32clipboard.SetClipboardViewer(self.hwnd)

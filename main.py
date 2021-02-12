@@ -40,7 +40,11 @@ class MainWindow(wx.Frame):
         self.commander = create_commander(self.handler_callback)
         self.commander.start()
     
-        self.clipboard = clipboard.ClipboardListener(self, self.on_clipboard, True)
+        self.clipboard = \
+            clipboard.ClipboardListener(parent=self, 
+                                        callback=self.on_clipboard, 
+                                        url_only=True)
+        self.clipboard.start()
 
     def on_clipboard(self, text):
         self.dldpanel.addressbar.txt_address.SetValue(text)
