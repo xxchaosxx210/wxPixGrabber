@@ -1,0 +1,6 @@
+todo list
+
+add clipboard listener
+add overwrite rename or skip to code
+refactor unique filename assignment
+more optimization

@@ -84,7 +84,7 @@ class MainWindow(wx.Frame):
         elif msg.thread == "grunt":
             # saved and ok
             if msg.type == "image" and msg.status == "ok":
-                self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
+                #self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
                 self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
             # finished task
             elif msg.type == "finished" and msg.status == "complete":
