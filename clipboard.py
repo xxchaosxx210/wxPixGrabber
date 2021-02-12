@@ -1,41 +1,91 @@
-import threading
-import queue
 import wx
+import os
+import re
 
-class ClipboardListener(threading.Thread):
+if os.name == "nt":
+    from win32 import (
+        win32api,
+        win32gui,
+        win32clipboard
+    )
+    import win32.lib.win32con as win32con
 
-    msgbox = queue.Queue()
+# Http and Https pattern
+URL_PATTERN = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
 
-    def __init__(self, callback):
-        super().__init__(daemon=True)
+
+class ClipboardListener:
+
+    def __init__(self, parent, callback, url_only=False):
+        """
+        __init__(object, function, bool)
+        takes in a wx window normally a frame. callback is a function
+        to which to recieve text changes from the clipboard
+        url_only set to True then callback will only recieve url links
+        found in the text from the clipboard.
+        """
+        self.hwnd = parent.GetHandle()
+        self._first = True
         self.callback = callback
+        self._next_hwnd = None
+        self._url_only = url_only
+        if os.name == "nt":
+            self.oldwndproc = \
+                win32gui.SetWindowLong(self.hwnd, 
+                                       win32con.GWL_WNDPROC, 
+                                       self.wndproc)
+        self._next_hwnd = win32clipboard.SetClipboardViewer(self.hwnd)
+    
+    def wndproc(self, hwnd, msg, wparam, lparam):
+        if msg == win32con.WM_DESTROY:
+            if self._next_hwnd:
+                win32clipboard.ChangeClipboardChain(
+                    self.hwnd, self._next_hwnd)
+            else:
+                win32clipboard.ChangeClipboardChain(
+                    self.hwnd, 0)
+            win32api.SetWindowLong(self.hwnd, 
+                                   win32con.GWL_WNDPROC, 
+                                   self.oldwndproc)
 
-    def run(self):
-        quit = threading.Event()
-        previous_text = ""
-        while not quit.is_set():
-            try:
-                msg = ClipboardListener.msgbox.get(timeout=1)
-                if msg["type"] == "quit":
-                    quit.set()
-            except queue.Empty:
-                do = wx.TextDataObject()
-                if wx.TheClipboard.Open():
-                    success = wx.TheClipboard.GetData(do)
-                    wx.TheClipboard.Close()
-                    if success:
-                        if previous_text != do.GetText():
-                            previous_text = do.GetText()
-                            print(do.GetText())
+        elif msg == win32con.WM_CHANGECBCHAIN:
+            # is it our window?
+            if self._next_hwnd == wparam:
+                # repair the chain
+                self._next_hwnd = lparam
+            if self._next_hwnd:
+                # if another viewer in chain pass it on
+                win32api.SendMessage(
+                    self._next_hwnd, msg, wparam, lparam)
 
-def notify_clipboard_listener(msg):
-    ClipboardListener.msgbox.put_nowait(msg)
+        elif msg == win32con.WM_DRAWCLIPBOARD:
+            self._process_clipboard()
+            if self._next_hwnd:
+                win32api.SendMessage(hwnd, msg, wparam, lparam)
 
-if __name__ == '__main__':
-    import wx
-    app = wx.App()
-    frame = wx.Frame(None, -1, "Clipboard Example", size=(500, 500))
-    frame.Show()
-    clip = ClipboardListener(lambda x: x)
-    clip.start()
-    app.MainLoop()
+        win32gui.CallWindowProc(self.oldwndproc, hwnd, msg, wparam, lparam)
+    
+    def _getclipboardtext(self):
+        text = ""
+        c = wx.Clipboard()
+        if c.Open():
+            if c.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                data = wx.TextDataObject()
+                c.GetData(data)
+                text = data.GetText()
+                c.Close()
+        return text
+    
+    def _process_clipboard(self):
+        # first link in the clipboard chain?
+        if self._first:
+            self._first = False
+        else:
+            text = self._getclipboardtext()
+            if text:
+                if self._url_only:
+                    result = URL_PATTERN.search(text)
+                    if result:
+                        self.callback(result.group())
+                else:
+                    return text

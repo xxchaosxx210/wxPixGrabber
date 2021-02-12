@@ -14,6 +14,8 @@ from timer import (
     timer_quit
 )
 
+import clipboard
+
 class PixGrabberApp(wx.App):
 
     def __init__(self, **kwargs):
@@ -37,6 +39,12 @@ class MainWindow(wx.Frame):
 
         self.commander = create_commander(self.handler_callback)
         self.commander.start()
+    
+        self.clipboard = clipboard.ClipboardListener(self, self.on_clipboard, True)
+
+    def on_clipboard(self, text):
+        self.dldpanel.addressbar.txt_address.SetValue(text)
+        self.Raise()
     
     def on_timer_callback(self, formatted_time):
         try:
