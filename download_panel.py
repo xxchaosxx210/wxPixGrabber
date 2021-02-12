@@ -66,6 +66,11 @@ class DownloadPanel(wx.Panel):
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
 
         self.SetSizer(vs)
+    
+    def resetstats(self):
+        self.errors.value.SetLabel("0")
+        self.imgsaved.value.SetLabel("0")
+        self.ignored.value.SetLabel("0")
 
     def on_btn_settings(self, evt):
         # if listening for clipboard events then
@@ -164,7 +169,7 @@ class StatsPanel(wx.Panel):
         hs.Add(self.value, 1, wx.ALL|wx.EXPAND, 0)
         vs.Add(hs, 1, wx.ALL|wx.EXPAND)
         self.SetSizer(vs)
-
+    
 
 class ProgressPanel(wx.Panel):
 

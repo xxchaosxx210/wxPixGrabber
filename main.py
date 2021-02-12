@@ -1,4 +1,5 @@
 import wx
+from wx.adv import Sound
 import time
 
 from download_panel import DownloadPanel
@@ -15,6 +16,7 @@ from timer import (
 )
 
 import clipboard
+from global_props import Settings
 
 class PixGrabberApp(wx.App):
 
@@ -39,6 +41,9 @@ class MainWindow(wx.Frame):
 
         self.commander = create_commander(self.handler_callback)
         self.commander.start()
+
+        self.notify_sfx = Sound()
+        self.notify_sfx.Create("notification.wav")
     
         self.clipboard = \
             clipboard.ClipboardListener(parent=self, 
@@ -75,6 +80,8 @@ class MainWindow(wx.Frame):
                 self.update_status(msg.thread.upper(), msg.data["message"])
             # All tasks complete
             elif msg.type == "complete":
+                if Settings.load()["notify-done"]:
+                    self.notify_sfx.Play()
                 # kill the timer thread
                 timer_quit.set()
                 self.update_status("COMMANDER", "All tasks have completed")
@@ -90,6 +97,7 @@ class MainWindow(wx.Frame):
             # started download and loading threads
             elif msg.type == "searching" and msg.status == "start":
                 timer_quit.clear()
+                self.dldpanel.resetstats()
                 create_timer_thread(self.on_timer_callback).start()
                 self.update_status(msg.thread.upper(), "Starting threads...")
         

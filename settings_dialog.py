@@ -44,6 +44,10 @@ class SettingsDialog(wx.Dialog):
     def save_settings(self):
         settings = Settings.load()
 
+        # notify
+        settings["notify-done"] = \
+            self.panel.notify_panel.checkbox.GetValue()
+
         # form search
         settings["form_search"]["enabled"] = \
             self.panel.formsearch_panel.chk_enable.GetValue()
@@ -107,6 +111,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.imgformat_panel = ImageFormatOptionsPanel(self, -1)
         self.fileexist_panel = FileAlreadyExistPanel(self, -1)
         self.formsearch_panel = FormSearchPanel(self, -1)
+        self.notify_panel = NotifyPanel(self, -1)
 
         vs = vboxsizer()
 
@@ -154,11 +159,34 @@ class SettingsPanel(scrolled.ScrolledPanel):
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
+        hs = hboxsizer()
+        hs.Add(self.notify_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
         self.SetSizer(vs)
         self.Fit()
 
         self.SetAutoLayout(1)
         self.SetupScrolling()
+
+
+class NotifyPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.checkbox = wx.CheckBox(self, -1, "Enable")
+
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Notify when finished")
+
+        hs = hboxsizer()
+        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
+        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+
+        self.SetSizer(box)
+
+        self.checkbox.SetValue(Settings.load()["notify-done"])
 
 
 class ImageFormatOptionsPanel(wx.Panel):
