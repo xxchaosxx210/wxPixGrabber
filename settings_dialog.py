@@ -48,6 +48,10 @@ class SettingsDialog(wx.Dialog):
         settings["notify-done"] = \
             self.panel.notify_panel.checkbox.GetValue()
 
+        # auto-download
+        settings["auto-download"] = \
+            self.panel.auto_panel.checkbox.GetValue()
+
         # form search
         settings["form_search"]["enabled"] = \
             self.panel.formsearch_panel.chk_enable.GetValue()
@@ -103,6 +107,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
         self.max_connections = MaxConnectionsPanel(self, -1)
         self.timeout = TimeoutPanel(self, -1)
+        self.auto_panel = AutoDownload(self, -1)
         self.minsize_panel = MinWidthHeightPanel(self, -1)
         self.thumb_panel = ThumbnailOnlyPanel(self, -1)
         self.savepath = SaveFolderPanel(self, -1)
@@ -120,6 +125,11 @@ class SettingsPanel(scrolled.ScrolledPanel):
         hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.timeout, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.auto_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
@@ -169,6 +179,26 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
         self.SetAutoLayout(1)
         self.SetupScrolling()
+
+
+class AutoDownload(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.checkbox = wx.CheckBox(self, -1, "Enable")
+
+        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Automatically Download when Url found")
+
+        hs = hboxsizer()
+        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
+        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+
+        self.SetSizer(box)
+
+        enable = Settings.load()["auto-download"]
+
+        self.checkbox.SetValue(enable)
 
 
 class NotifyPanel(wx.Panel):

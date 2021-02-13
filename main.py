@@ -53,7 +53,12 @@ class MainWindow(wx.Frame):
 
     def on_clipboard(self, text):
         self.dldpanel.addressbar.txt_address.SetValue(text)
-        self.Raise()
+        
+        if Settings.load()["auto-download"]:
+            self.dldpanel.on_fetch_button(None)
+        else:
+            self.Raise()
+
     
     def on_timer_callback(self, formatted_time):
         try:
@@ -91,6 +96,11 @@ class MainWindow(wx.Frame):
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+                if msg.data.get("urls", []):
+                    if Settings.load()["auto-download"]:
+                        # start the download automatically no wait
+                        self.dldpanel.on_start_button(None)
+
             # fetch has started
             elif msg.type == "fetch" and msg.status == "started":
                 self.status.SetValue("")

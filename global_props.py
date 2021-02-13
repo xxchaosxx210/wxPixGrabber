@@ -47,7 +47,8 @@ DEFAULT_SETTINGS = {
         "filters": []},
     "file_exists": "overwrite",
     "form_search": {"enabled": True, "include_original_host": False},
-    "notify-done": True
+    "notify-done": True,
+    "auto-download": False
     }
 
 global_settings = DEFAULT_SETTINGS
