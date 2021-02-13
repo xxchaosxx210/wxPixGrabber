@@ -9,7 +9,7 @@ from urllib import parse
 
 from bs4 import BeautifulSoup
 
-from global_props import Settings
+from options import Settings
 
 html_ext = ".html"
 

@@ -1,11 +1,9 @@
 import wx
 from wx.lib import masked
 
-from global_props import Settings
-
 import wx.lib.scrolledpanel as scrolled
 
-from app_theme import (
+from gui.theme import (
     ThemedButton,
     hboxsizer,
     vboxsizer,
@@ -17,7 +15,7 @@ STATICBOX_BORDER = 5
 
 class SettingsDialog(wx.Dialog):
 
-    def __init__(self, parent, id, title, size, pos, style, name):
+    def __init__(self, parent, id, title, size, pos, style, name, settings):
         super().__init__()
         self.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
         self.Create(parent, id, title, pos, size, style, name)
@@ -40,9 +38,58 @@ class SettingsDialog(wx.Dialog):
         self.SetSize(600, 400)
 
         self.panel.SetFocus()
+
+        self.settings = settings
+
+        self.load_settings(settings)
     
-    def save_settings(self):
-        settings = Settings.load()
+    def load_settings(self, settings):
+        self.panel.auto_panel.checkbox.SetValue(
+            settings.get("auto-download", False))
+
+        self.panel.notify_panel.checkbox.SetValue(
+            settings.get("notify-done", True))
+        
+        self.panel.imgformat_panel.set_values(
+            settings.get("images_to_search", 
+            (True, False, False, False, False, False, False)))
+        
+        self.panel.fileexist_panel.set_selection(
+            settings.get("file_exists", "overwrite"))
+        
+        self.panel.cookie_panel.set_group(settings.get("cookies", {}))
+
+        self.panel.savepath.text.SetValue(
+            settings.get("save_path", ""))
+
+        self.panel.folder_panel.set_options(
+            settings["unique_pathname"]["enabled"],
+            settings["generate_filenames"]["enabled"],
+            settings["generate_filenames"]["name"])
+        
+        self.panel.max_connections.slider.SetValue(
+            settings.get("max_connections", 10))
+
+        formsearch = settings.get("form_search", {
+            "enabled": True, "include_original_host": False})
+        self.panel.formsearch_panel.chk_enable.SetValue(
+            formsearch["enabled"])
+        self.panel.formsearch_panel.chk_include_host.SetValue(
+            formsearch["include_original_host"])
+
+        self.panel.thumb_panel.checkbox.SetValue(
+            settings.get("thumbnails_only", True))
+        
+        minsize = settings.get(
+            "minimum_image_resolution", {"width": 100, "height": 100})
+        self.panel.minsize_panel.set_min_values(
+            minsize["width"], minsize["height"])
+
+        self.panel.timeout.set_timeout(
+            settings.get("connection_timeout", 5))
+    
+    def get_settings(self):
+        settings = self.settings
 
         # notify
         settings["notify-done"] = \
@@ -97,7 +144,7 @@ class SettingsDialog(wx.Dialog):
         settings["images_to_search"] = \
             self.panel.imgformat_panel.get_values()
         
-        Settings.save(settings)
+        return settings
 
 
 class SettingsPanel(scrolled.ScrolledPanel):
@@ -196,10 +243,6 @@ class AutoDownload(wx.Panel):
 
         self.SetSizer(box)
 
-        enable = Settings.load()["auto-download"]
-
-        self.checkbox.SetValue(enable)
-
 
 class NotifyPanel(wx.Panel):
 
@@ -215,8 +258,6 @@ class NotifyPanel(wx.Panel):
         box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(box)
-
-        self.checkbox.SetValue(Settings.load()["notify-done"])
 
 
 class ImageFormatOptionsPanel(wx.Panel):
@@ -241,11 +282,11 @@ class ImageFormatOptionsPanel(wx.Panel):
             box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
             box.AddSpacer(10)
         self.SetSizer(box)
-
-        exts = Settings.load()["images_to_search"]
+    
+    def set_values(self, file_exts):
         # iterate through the file extension dict
-        for index, key in enumerate(exts.keys()):
-            self.ext[index].SetValue(exts[key])
+        for index, key in enumerate(file_exts.keys()):
+            self.ext[index].SetValue(file_exts[key])
     
     def get_values(self):
         d = {}
@@ -254,6 +295,7 @@ class ImageFormatOptionsPanel(wx.Panel):
             value = bool(checkbox.GetValue())
             d[key] = value
         return d
+
 
 class FileAlreadyExistPanel(wx.Panel):
 
@@ -274,7 +316,7 @@ class FileAlreadyExistPanel(wx.Panel):
             box.AddSpacer(10)
         self.SetSizer(box)
 
-        file_exists = Settings.load()["file_exists"]
+    def set_selection(self, file_exists):
         for rb in self.group:
             rb.SetValue(False)
             if file_exists == rb.GetLabelText().lower():
@@ -309,7 +351,7 @@ class CookieOptionsPanel(wx.Panel):
             box.AddSpacer(10)
         self.SetSizer(box)
 
-        cookies = Settings.load()["cookies"]
+    def set_group(self, cookies):
         # iterate through the browser cookie dict
         for index, key in enumerate(cookies.keys()):
             self.group[index].SetValue(cookies[key])
@@ -339,8 +381,6 @@ class SaveFolderPanel(wx.Panel):
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Save Path")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
-
-        self.text.SetValue(Settings.load()["save_path"])
     
     def on_dir_button(self, evt):
         dlg = wx.DirDialog(
@@ -381,10 +421,12 @@ class SaveOptionsPanel(wx.Panel):
 
         self.SetSizer(box)
 
-        settings = Settings.load()
-        self.chk_prefixed_name.SetValue(settings["unique_pathname"]["enabled"])
-        self.chk_unique_path.SetValue(settings["generate_filenames"]["enabled"])
-        self.txt_unique_path.SetValue(settings["generate_filenames"]["name"])
+    
+    def set_options(self, unique_path_enabled, 
+                    gen_filename_enabled, gen_filename):
+        self.chk_prefixed_name.SetValue(unique_path_enabled)
+        self.chk_unique_path.SetValue(gen_filename_enabled)
+        self.txt_unique_path.SetValue(gen_filename)
         
 
 class MaxConnectionsPanel(wx.Panel):
@@ -401,8 +443,6 @@ class MaxConnectionsPanel(wx.Panel):
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Maximum Connections")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
-
-        self.slider.SetValue(Settings.load()["max_connections"])
 
 
 class FormSearchPanel(wx.Panel):
@@ -422,10 +462,6 @@ class FormSearchPanel(wx.Panel):
 
         self.SetSizer(box)
 
-        formsearch = Settings.load()["form_search"]
-        self.chk_enable.SetValue(formsearch["enabled"])
-        self.chk_include_host.SetValue(formsearch["include_original_host"])
-
 
 class ThumbnailOnlyPanel(wx.Panel):
 
@@ -440,8 +476,6 @@ class ThumbnailOnlyPanel(wx.Panel):
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Thumbnail Links only")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
-
-        self.checkbox.SetValue(Settings.load()["thumbnails_only"])
 
 
 class MinWidthHeightPanel(wx.Panel):
@@ -474,9 +508,10 @@ class MinWidthHeightPanel(wx.Panel):
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
 
-        minsize = Settings.load()["minimum_image_resolution"]
-        self.text_width.SetValue(minsize["width"])
-        self.text_height.SetValue(minsize["height"])
+    def set_min_values(self, width, height):
+        self.text_width.SetValue(width)
+        self.text_height.SetValue(height)
+
 
 class TimeoutPanel(wx.Panel):
 
@@ -497,8 +532,8 @@ class TimeoutPanel(wx.Panel):
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Timeout")
         box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(box)
-
-        timeout = Settings.load()["connection_timeout"]
+    
+    def set_timeout(self, timeout):
         if timeout > 0 and timeout <= 60:
             self.choice.SetSelection(timeout)
 

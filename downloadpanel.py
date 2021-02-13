@@ -1,6 +1,6 @@
 import wx
 
-from app_theme import (
+from gui.theme import (
     WX_BORDER,
     WX_BUTTON_SIZE,
     ThemedTextCtrl,
@@ -15,19 +15,9 @@ from scraper import (
     Message
 )
 
-from settings_dialog import SettingsDialog
+from gui.settingsdialog import SettingsDialog
 
-"""
-download_panel:
-    Vertical:
-        Horizontal:
-            addressbar:
-                Horizontal:
-                    txt_address:
-                    btn_fetch:
-                    btn_stop:
-                    btn_start
-"""
+from options import Settings
 
 
 class DownloadPanel(wx.Panel):
@@ -82,11 +72,13 @@ class DownloadPanel(wx.Panel):
                              size=wx.DefaultSize,
                              pos=wx.DefaultPosition,
                              style=wx.DEFAULT_DIALOG_STYLE,
-                             name="settings_dialog")
+                             name="settings_dialog",
+                             settings=Settings.load())
         dlg.CenterOnParent()
 
         if dlg.ShowModal() == wx.ID_OK:
-            dlg.save_settings()
+            settings = dlg.get_settings()
+            Settings.save(settings)
         dlg.Destroy()
         # start up the clipboard listener again
         self.GetParent().clipboard.start()

@@ -12,9 +12,9 @@ import threading
 
 from sqlite3 import Error
 
-import global_props
+import options
 
-SQL_FILENAME = os.path.join(global_props.PATH, "cache.db")
+SQL_FILENAME = os.path.join(options.PATH, "cache.db")
 
 CACHE_TABLE = """CREATE TABLE IF NOT EXISTS ignored (
     url text NOT NULL,

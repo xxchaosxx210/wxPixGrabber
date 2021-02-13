@@ -16,7 +16,7 @@ from PIL import (
     UnidentifiedImageError
 )
 
-from global_props import Settings
+from options import Settings
 
 import parsing
 

@@ -1,7 +1,7 @@
 import wx
 import time
 
-from download_panel import DownloadPanel
+from downloadpanel import DownloadPanel
 
 from scraper import (
     create_commander,
@@ -15,7 +15,7 @@ from timer import (
 )
 
 import clipboard
-from global_props import Settings
+from options import Settings
 
 from resources.sfx import Sfx
 
