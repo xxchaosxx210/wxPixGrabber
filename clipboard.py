@@ -17,7 +17,7 @@ if os.name == "nt":
 
 # Http and Https pattern
 URL_PATTERN = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
-
+LOCALHOST_PATTERN = re.compile(r'^http://localhost:[0-9]+/ready-to-fetch$')
 
 class ClipboardListener:
 
@@ -88,9 +88,12 @@ class ClipboardListener:
             text = self._getclipboardtext()
             if text:
                 if self._url_only:
-                    result = URL_PATTERN.search(text)
-                    if result:
-                        self.callback(result.group())
+                    if LOCALHOST_PATTERN.search(text):
+                        self.callback(text)
+                    else:
+                        result = URL_PATTERN.search(text)
+                        if result:
+                            self.callback(result.group())
                 else:
                     return text
     
