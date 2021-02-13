@@ -57,10 +57,11 @@ class MainWindow(wx.Frame):
         if Settings.load()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
         else:
+            # bring the window to the foreground
             self.Raise()
 
     
-    def on_timer_callback(self, formatted_time):
+    def _on_timer_callback(self, formatted_time):
         try:
             wx.CallAfter(self.dldpanel.progressbar.time.SetLabel, formatted_time)
         except AssertionError:
@@ -77,7 +78,9 @@ class MainWindow(wx.Frame):
     
     def message_from_thread(self, msg):
         """
-        callback from background thread
+        msg - Message
+            thread - the name of the calling thread. Either: grunt or commander
+            type   - the type of message
         """
         if msg.thread == "commander":
             # message
@@ -108,7 +111,7 @@ class MainWindow(wx.Frame):
             elif msg.type == "searching" and msg.status == "start":
                 timer_quit.clear()
                 self.dldpanel.resetstats()
-                create_timer_thread(self.on_timer_callback).start()
+                create_timer_thread(self._on_timer_callback).start()
                 self.update_status(msg.thread.upper(), "Starting threads...")
         
         elif msg.thread == "grunt":
