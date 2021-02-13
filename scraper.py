@@ -95,16 +95,10 @@ class Threads:
     """
     # commander thread reference
     commander = None
-    # global list for containing runnning threads
-    grunts = []
     # commander thread messaging queue
     commander_queue = queue.Queue()
-    # global semaphore. this is related to max_connections
-    # found in the settings file
-    semaphore = threading.Semaphore(10)
     # global event to cancel current running task
     cancel = threading.Event()
-
     # Global cookie jar
     cookie_jar = None
 
@@ -296,10 +290,18 @@ class Grunt(threading.Thread):
             notify_commander(GruntMessage(status="complete", type="finished"))
 
 
+def _start_max_threads(threads, max_threads, counter):
+    for th in threads:
+        if counter >= max_threads:
+            break
+        else:
+            th.start()
+            counter += 1
+    return counter
+
 def commander_thread(callback):
     """
     main handler thread takes in filepath or url
-    and then passes onto captain_thread for parsing
 
     Level 1 parser and image finder thread
     will create grunt threads if any links found on url
@@ -308,7 +310,6 @@ def commander_thread(callback):
     grunts = []
     _task_running = False
     callback(Message(thread="commander", type="message", data={"message": "Commander thread has loaded. Waiting to scan"}))
-    # stops code getting to long verbose
     MessageMain = functools.partial(Message, thread="commander", type="message")
     # settings dict will contain the settings at start of scraping
     settings = {}
@@ -316,7 +317,6 @@ def commander_thread(callback):
     counter = 0
     while not quit:
         try:
-            # Get the json object from the global queue
             r = Threads.commander_queue.get(0.2)
             if r.thread == "main":
                 if r.type == "quit":
@@ -333,34 +333,21 @@ def commander_thread(callback):
                         # we dont want these values to change
                         # whilst downloading and saving to file
                         settings = dict(Settings.load())
-                        # Load the cookiejar again
+
                         Threads.cookie_jar = load_cookies(settings)
 
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunts.append(Grunt(thread_index, urldata, settings))
-                        # reset the threads counter
-                        # this is used to keep track of
-                        # threads that have been  started
-                        # once a running thread has been notified
-                        # this thread counter is incremeneted
-                        # counter is checked with length of grunts
-                        # once the counter has reached length then
-                        # then all threads have been complete
+                            
+                        # reset the threads counter this is used to keep track of
+                        # threads that have been  started once a running thread has been notified
+                        # this thread counter is incremenetet counter is checked with length of grunts
+                        # once the counter has reached length then then all threads have been complete
                         counter = 0
                         max_connections = round(int(settings["max_connections"]))
-                        # if maximum running threads allowed is less then
-                        # size of link count. Then open length of max n
-                        if max_connections < len(grunts):
-                            for x in range(max_connections):
-                                grunts[x].start()
-                                counter += 1
-                        else:
-                            # just loop what is there
-                            for _grunt in grunts:
-                                _grunt.start()
-                                counter += 1
+                        counter = _start_max_threads(grunts, max_connections, counter)
 
                 elif r.type == "fetch":                
                     if not _task_running:
