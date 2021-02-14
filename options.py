@@ -51,7 +51,6 @@ DEFAULT_SETTINGS = {
     "auto-download": False
     }
 
-global_settings = DEFAULT_SETTINGS
 
 class Settings:
 
