@@ -78,17 +78,11 @@ class Message:
     data: dict = None
 
 
+@dataclass
 class Stats:
-
-    saved = 0
-    errors = 0
-    ignored = 0
-
-    @staticmethod
-    def reset():
-        Stats.saved = 0
-        Stats.errors = 0
-        Stats.ignored = 0
+    saved: int = 0
+    errors: int = 0
+    ignored: int = 0
 
 
 class Threads:
@@ -140,8 +134,8 @@ def stream_to_file(path, filename, bytes_stream):
     with open(full_path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
         fp.close()
-        # Update the images saved stats counter
-        Stats.saved += 1
+        return True
+    return False
 
 def _response_to_stream(response):
     # read from requests object
@@ -152,7 +146,7 @@ def _response_to_stream(response):
     return byte_stream
 
 
-def download_image(filename, response, folder_lock, settings):
+def _download_image(filename, response, folder_lock, settings):
     """
     download_image(str, str, object, object)
 
@@ -160,35 +154,28 @@ def download_image(filename, response, folder_lock, settings):
     os.path.join is used to append path to filename
     response is the response returned from requests.get
     """
-    # images shouldnt be too large
+    stats = Stats()
     byte_stream = _response_to_stream(response)
-    # load image from buffer io
-    try:
-        image = Image.open(byte_stream)
-    except UnidentifiedImageError as err:
-        print(f"[IMAGE_ERROR]: {err.__str__()}, {response.url}")
-        Stats.errors += 1
-        notify_commander(Message(thread="grunt", type="stat", status="error", data={"value": Stats.errors}))
-        return
+    minsize = settings["minimum_image_resolution"]
+    image = Image.open(byte_stream)
     width, height = image.size
-    # if image requirements met then save
-    if width > 200 and height > 200:
+    if width > minsize["width"] and height > minsize["height"]:
         # create a new save path and write image toi file
         path = create_save_path(settings, folder_lock)
-        stream_to_file(path, filename, byte_stream)
-        notify_commander(Message(
-            thread="grunt", 
-            type="image", 
-            status="ok", 
-            data={"pathname": filename, "url": response.url, "images_saved": Stats.saved}))
+        if stream_to_file(path, filename, byte_stream):
+            stats.saved += 1
+        else:
+            stats.errors += 1
     else:
         # add the URl to the cache
         if not Sql.query_ignore(response.url):
             Sql.add_ignore(response.url, "small-image", width, height)
+        stats.ignored += 1
 
-    # close the file handles
+    # close the file handle
     byte_stream.close()
-    image.close()
+    
+    return stats
     
 
 class Grunt(threading.Thread):
@@ -199,7 +186,14 @@ class Grunt(threading.Thread):
 
     folder_lock = threading.Lock()
 
-    def __init__(self, thread_index, urldata, settings, filters, folder_lock):
+    def __init__(
+                 self, 
+                 thread_index, 
+                 urldata, 
+                 settings, 
+                 filters, 
+                 folder_lock,
+                 commander_msg):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -215,6 +209,7 @@ class Grunt(threading.Thread):
         self.fileindex = 0
         self.filters = filters
         self.folder_lock = folder_lock
+        self.comm_queue = commander_msg
     
     def search_response(self, response, include_forms):
         """
@@ -255,21 +250,32 @@ class Grunt(threading.Thread):
                 # found from the url and use that instead
                 filename = f"test{self.thread_index}{ext}"
             # check the validity of the image and save
-            download_image(filename, response, self.folder_lock, self.settings)
+            try:
+                stats = _download_image(filename, response, self.folder_lock, self.settings)
+                self.notify_thread(
+                    Message(
+                        thread="grunt", type="stat-update", data={
+                            "saved": stats.saved,
+                            "errors": stats.errors,
+                            "ignored": stats.ignored}))
+            except UnidentifiedImageError as err:
+                # Couldnt load the Image from Stream
+                pass
             return []
         else:
-            # ingored counter goes up
-            Stats.ignored += 1
-            notify_commander(Message(thread="grunt", type="stat", status="ignored", data={"value": Stats.errors}))
             if not Sql.query_ignore(response.url):
                 Sql.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
+    
+    def notify_thread(self, msg):
+        self.comm_queue.put_nowait(msg)
     
     def run(self):
         # partial function to avoid repetitive typing
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
         if not Threads.cancel.is_set():
-            notify_commander(GruntMessage(status="ok", type="scanning"))
+            self.notify_thread(
+                GruntMessage(status="ok", type="scanning"))
             # Three Levels of Searching
 
             if not Blacklist.exists(self.urldata):
@@ -298,9 +304,9 @@ class Grunt(threading.Thread):
                     level_one_response.close()
 
         if Threads.cancel.is_set():
-            notify_commander(GruntMessage(status="cancelled", type="finished"))
+            self.notify_thread(GruntMessage(status="cancelled", type="finished"))
         else:
-            notify_commander(GruntMessage(status="complete", type="finished"))
+            self.notify_thread(GruntMessage(status="complete", type="finished"))
 
 
 def _start_max_threads(threads, max_threads, counter):
@@ -331,7 +337,7 @@ def commander_thread(callback):
     _folder_lock = threading.Lock()
     while not quit:
         try:
-            r = Threads.commander_queue.get(0.2)
+            r = Threads.commander_queue.get()
             if r.thread == "main":
                 if r.type == "quit":
                     Threads.cancel.set()
@@ -341,7 +347,7 @@ def commander_thread(callback):
                     if not _task_running:
                         grunts = []
                         _task_running = True
-
+                        stats = Stats()
                         # load the settings from file
                         # create a new instance of it in memory
                         # we dont want these values to change
@@ -354,7 +360,14 @@ def commander_thread(callback):
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(settings["filters"])
                         for thread_index, urldata in enumerate(scanned_urldata):
-                            grunts.append(Grunt(thread_index, urldata, settings, filters, _folder_lock))
+                            grunt = Grunt(
+                                          thread_index, 
+                                          urldata, 
+                                          settings, 
+                                          filters, 
+                                          _folder_lock,
+                                          Threads.commander_queue)
+                            grunts.append(grunt)
                             
                         # reset the threads counter this is used to keep track of
                         # threads that have been  started once a running thread has been notified
@@ -366,7 +379,6 @@ def commander_thread(callback):
 
                 elif r.type == "fetch":                
                     if not _task_running:
-                        Stats.reset()
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
@@ -423,13 +435,20 @@ def commander_thread(callback):
                     if counter < len(grunts):
                         grunts[counter].start()
                         counter += 1
-                callback(r)
-            
+                        callback(r)
+                elif r.type == "stat-update":
+                    stats.saved += r.data["saved"]
+                    stats.errors += r.data["errors"]
+                    stats.ignored += r.data["ignored"]
+                    callback(Message(thread="commander", type="stat-update", data={"stats": stats}))
+                else:
+                    callback(r)
+                    
             elif r.thread == "settings":
                 callback(MessageMain(data=r.data))
 
         except queue.Empty as err:
-            print(f"Queue error: {err.__str__()}")
+            pass
 
         finally:
             if _task_running:

@@ -109,6 +109,11 @@ class MainWindow(wx.Frame):
                 self.dldpanel.resetstats()
                 create_timer_thread(self._on_timer_callback).start()
                 self.update_status(msg.thread.upper(), "Starting threads...")
+            
+            # error stat update
+            elif msg.type == "stat-update":
+                stats = msg.data["stats"]
+                self.dldpanel.update_stats(stats.saved, stats.ignored, stats.errors)
         
         elif msg.thread == "grunt":
             # saved and ok
@@ -122,13 +127,6 @@ class MainWindow(wx.Frame):
             elif msg.type == "finished" and msg.status == "cancelled":
                 self.update_status(f"Thread#{msg.id}", "has cancelled")
                 self.dldpanel.progressbar.increment()
-            # error stat update
-            elif msg.type == "stat" and msg.status == "error":
-                self.dldpanel.errors.value.SetLabel(str(msg.data["value"]))
-            # ignored link update
-            elif msg.type == "stat" and msg.status == "ignored":
-                self.dldpanel.errors.value.SetLabel(str(msg.data["value"]))
-                
 
     def handler_callback(self, msg):
         """

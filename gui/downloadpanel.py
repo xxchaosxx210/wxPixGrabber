@@ -98,6 +98,11 @@ class DownloadPanel(wx.Panel):
         self.imgsaved.value.SetLabel("0")
         self.errors.value.SetLabel("0")
         self.ignored.value.SetLabel("0")
+    
+    def update_stats(self, saved, ignored, errors):
+        self.ignored.value.SetLabel(str(ignored))
+        self.imgsaved.value.SetLabel(str(saved))
+        self.errors.value.SetLabel(str(errors))
 
 
 class AddressBar(wx.Panel):
