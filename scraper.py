@@ -316,6 +316,12 @@ def _start_max_threads(threads, max_threads, counter):
             counter += 1
     return counter
 
+def _add_stats(stats, data):
+    stats.saved += data["saved"]
+    stats.errors += data["errors"]
+    stats.ignored += data["ignored"]
+    return stats
+
 def commander_thread(callback):
     """
     main handler thread takes in filepath or url
@@ -323,10 +329,13 @@ def commander_thread(callback):
     Level 1 parser and image finder thread
     will create grunt threads if any links found on url
     """
-    quit = False
+    _quit = False
     grunts = []
     _task_running = False
-    callback(Message(thread="commander", type="message", data={"message": "Commander thread has loaded. Waiting to scan"}))
+    callback(Message(
+        thread="commander", 
+        type="message", 
+        data={"message": "Commander thread has loaded. Waiting to scan"}))
     MessageMain = functools.partial(Message, thread="commander", type="message")
     # settings dict will contain the settings at start of scraping
     settings = {}
@@ -334,14 +343,14 @@ def commander_thread(callback):
     counter = 0
     _folder_lock = threading.Lock()
     blacklist = Blacklist()
-    while not quit:
+    while not _quit:
         try:
             r = Threads.commander_queue.get()
             if r.thread == "main":
                 if r.type == "quit":
                     Threads.cancel.set()
                     callback(Message(thread="commander", type="quit"))
-                    quit = True
+                    _quit = True
                 elif r.type == "start":
                     if not _task_running:
                         grunts = []
@@ -437,11 +446,13 @@ def commander_thread(callback):
                         counter += 1
                         callback(r)
                 elif r.type == "stat-update":
-                    stats.saved += r.data["saved"]
-                    stats.errors += r.data["errors"]
-                    stats.ignored += r.data["ignored"]
-                    callback(Message(thread="commander", type="stat-update", data={"stats": stats}))
+                    # add stats up and notify main thread
+                    _add_stats(stats, r.data)
+                    callback(Message(thread="commander", 
+                                     type="stat-update", data={"stats": stats}))
                 elif r.type == "blacklist":
+                    # check the blacklist with urldata and notify Grunt process
+                    # if no duplicate and added then True returned
                     process_index = r.data["index"]
                     grunt = grunts[process_index]
                     if not blacklist.exists(r.data["urldata"]):
@@ -454,6 +465,7 @@ def commander_thread(callback):
                         status=blacklist_added
                     ))
                 else:
+                    # something pass onto main thread
                     callback(r)
                     
             elif r.thread == "settings":
