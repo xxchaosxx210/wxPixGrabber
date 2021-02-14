@@ -13,17 +13,6 @@ from options import Settings
 
 html_ext = ".html"
 
-FILTER_SEARCH = [
-    "imagevenue.com/", 
-    "imagebam.com/", 
-    "pixhost.to/",
-    "lulzimg",
-    "pimpandhost",
-    "imagetwist",
-    "imgbox",
-    "turboimagehost",
-    "imx.to/"]
-
 IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
 
 _image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
@@ -80,8 +69,8 @@ def format_filename(s):
     filename = filename.replace(' ','_') # I don't like spaces in filenames.
     return filename
 
-def compile_regex_global_filter(filter_list=FILTER_SEARCH):
-    Globals.regex_filter = re.compile("|".join(filter_list))
+def compile_filter_list(filter_list):
+    return re.compile("|".join(filter_list))
 
 def is_valid_content_type(url, content_type, valid_types):
     """
@@ -146,9 +135,10 @@ def parse_html(html):
 def sort_soup(url,
               soup, 
               urls,
-              include_forms=True,
-              images_only=False, 
-              thumbnails_only=False):
+              include_forms,
+              images_only, 
+              thumbnails_only,
+              filters):
     """
     sort_soup(str, str, list, bool, bool)
     searches for images, forms and anchor tags in BeatifulSoup object
@@ -172,10 +162,10 @@ def sort_soup(url,
                 if thumbnails_only:
                     imgtag = atag.find("img")
                     if imgtag:
-                        _appendlink(url, atag.get("href"), urls, "a")
+                        _appendlink(url, atag.get("href"), urls, "a", filters)
                         ignore_list.append(imgtag.get("src"))
                 else:
-                    _appendlink(url, atag.get("href", ""), urls, "a")
+                    _appendlink(url, atag.get("href", ""), urls, "a", filters)
     
     # search image tags
     for imgtag in soup.find_all("img"):
@@ -185,18 +175,18 @@ def sort_soup(url,
                 ignore_list.index(imgtag.get("src"))
             except ValueError:
                 # its not in our ignorelist
-                _appendlink(url, imgtag.get("src", ""), urls, "img")
+                _appendlink(url, imgtag.get("src", ""), urls, "img", filters)
         else:
-            _appendlink(url, imgtag.get("src", ""), urls, "img")
+            _appendlink(url, imgtag.get("src", ""), urls, "img", filters)
 
     # search images in meta data
     for metatag in soup.find_all("meta", content=_image_ext_pattern):
-        _appendlink(url, metatag.get("content", ""), urls, "img")
+        _appendlink(url, metatag.get("content", ""), urls, "img", filters)
     
     return len(urls)
 
 
-def _appendlink(full_url, src, url_data_list, tag):
+def _appendlink(full_url, src, url_data_list, tag, filters):
     """
     _appendlink(str, str, list)
     joins the url to the src and then uses a filter pattern
@@ -207,7 +197,7 @@ def _appendlink(full_url, src, url_data_list, tag):
     if src:
         url = parse.urljoin(full_url, src)
         # Filter the URL
-        if Globals.regex_filter.search(url):
+        if filters.search(url):
             # make sure we dont have a duplicate
             # filter through the urldata list
             urldata = UrlData(url=url, action="", method="GET", data={}, tag=tag)

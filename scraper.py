@@ -189,7 +189,7 @@ class Grunt(threading.Thread):
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, thread_index, urldata, settings, **kwargs):
+    def __init__(self, thread_index, urldata, settings, filters):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -198,11 +198,12 @@ class Grunt(threading.Thread):
         first thread will be 0 and indexed that way
         url is the universal resource locator to search and parse
         """
-        super().__init__(**kwargs)
+        super().__init__()
         self.thread_index = thread_index
         self.urldata = urldata
         self.settings = settings
         self.fileindex = 0
+        self.filters = filters
     
     def search_response(self, response, include_forms):
         """
@@ -221,12 +222,13 @@ class Grunt(threading.Thread):
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
-            parsing.sort_soup(response.url,
-                              soup,
-                              datalist, 
+            parsing.sort_soup(url=response.url,
+                              soup=soup,
+                              urls=datalist, 
                               include_forms=include_forms, 
                               images_only=True, 
-                              thumbnails_only=False)
+                              thumbnails_only=False,
+                              filters=self.filters)
         elif ext in parsing.IMAGE_EXTS:
             # check if unique filename has been set in settings
             if self.settings["generate_filenames"]["enabled"]:
@@ -338,8 +340,9 @@ def commander_thread(callback):
 
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
+                        filters = parsing.compile_filter_list(settings["filters"])
                         for thread_index, urldata in enumerate(scanned_urldata):
-                            grunts.append(Grunt(thread_index, urldata, settings))
+                            grunts.append(Grunt(thread_index, urldata, settings, filters))
                             
                         # reset the threads counter this is used to keep track of
                         # threads that have been  started once a running thread has been notified
@@ -356,9 +359,6 @@ def commander_thread(callback):
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
                         settings = Settings.load()
-                        callback(MessageMain(data={"message": "Initializing the global search filter..."}))
-                        # compile our filter matches only add those from the filter list
-                        parsing.compile_regex_global_filter()
                         # get the document from the URL
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
@@ -383,12 +383,15 @@ def commander_thread(callback):
                                 scanned_urldata = []
                                 # find images and links
                                 # set the include_form to False on level 1 scan
+                                # compile our filter matches only add those from the filter list
+                                filters = parsing.compile_filter_list(settings["filters"])
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=scanned_urldata,
                                                      include_forms=False,
                                                      images_only=False, 
-                                                     thumbnails_only=True) > 0:
+                                                     thumbnails_only=True,
+                                                     filters=filters) > 0:
                                     # send the scanned urls to the main thread for processing
                                     callback(MessageMain(data={"message": f"Parsing succesful. Found {len(scanned_urldata)} links"}))
                                     data = {"urls": scanned_urldata}

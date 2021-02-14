@@ -24,6 +24,17 @@ DEFAULT_PICTURE_PATH = "Pictures"
 
 _file_lock = Lock()
 
+_FILTER_SEARCH = [
+    "imagevenue.com/", 
+    "imagebam.com/", 
+    "pixhost.to/",
+    "lulzimg",
+    "pimpandhost",
+    "imagetwist",
+    "imgbox",
+    "turboimagehost",
+    "imx.to/"]
+
 DEFAULT_SETTINGS = {
     "app_version": VERSION,
     "cookies": {"firefox": True, "chrome": False, "opera": False, "edge": False, "all": False},
@@ -43,8 +54,7 @@ DEFAULT_SETTINGS = {
         "ico": False,
         "tiff": False,
         "tga": False},
-    "filter_search": {
-        "filters": []},
+    "filters": _FILTER_SEARCH,
     "file_exists": "overwrite",
     "form_search": {"enabled": True, "include_original_host": False},
     "notify-done": True,
