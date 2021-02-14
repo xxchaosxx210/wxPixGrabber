@@ -143,6 +143,15 @@ def stream_to_file(path, filename, bytes_stream):
         # Update the images saved stats counter
         Stats.saved += 1
 
+def _response_to_stream(response):
+    # read from requests object
+    # store in memory
+    byte_stream = BytesIO()
+    for buff in response.iter_content(1000):
+        byte_stream.write(buff)
+    return byte_stream
+
+
 def download_image(filename, response, folder_lock, settings):
     """
     download_image(str, str, object, object)
@@ -151,12 +160,8 @@ def download_image(filename, response, folder_lock, settings):
     os.path.join is used to append path to filename
     response is the response returned from requests.get
     """
-    # read from socket
-    # store in memory
     # images shouldnt be too large
-    byte_stream = BytesIO()
-    for buff in response.iter_content(1000):
-        byte_stream.write(buff)
+    byte_stream = _response_to_stream(response)
     # load image from buffer io
     try:
         image = Image.open(byte_stream)
