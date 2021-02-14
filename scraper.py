@@ -36,29 +36,20 @@ class Blacklist:
     saves a lot of time and less scraping
     """
 
-    links = []
-    lock = threading.Lock()
+    def __init__(self):
+        self.items = []
 
-    @staticmethod
-    def clear():
-        Blacklist.lock.acquire()
-        Blacklist.links.clear()
-        Blacklist.lock.release()
+    def clear(self):
+        self.items.clear()
     
-    @staticmethod
-    def add(item):
-        Blacklist.lock.acquire()
-        Blacklist.links.append(item.__dict__)
-        Blacklist.lock.release()
+    def add(self, item):
+        self.items.append(item.__dict__)
     
-    @staticmethod
-    def exists(item):
-        Blacklist.lock.acquire()
+    def exists(self, item):
         try:
-            index = Blacklist.links.index(item.__dict__)
+            index = self.items.index(item.__dict__)
         except ValueError:
             index = -1
-        Blacklist.lock.release()
         return index >= 0
 
 @dataclass
@@ -210,6 +201,7 @@ class Grunt(threading.Thread):
         self.filters = filters
         self.folder_lock = folder_lock
         self.comm_queue = commander_msg
+        self.msgbox = queue.Queue()
     
     def search_response(self, response, include_forms):
         """
@@ -270,6 +262,15 @@ class Grunt(threading.Thread):
     def notify_thread(self, msg):
         self.comm_queue.put_nowait(msg)
     
+    def add_url(self, urldata):
+        self.comm_queue.put(Message(
+            thread="grunt",
+            type="blacklist",
+            data={"index": self.thread_index, "urldata": urldata}
+        ))
+        reply = self.msgbox.get()
+        return reply.status
+    
     def run(self):
         # partial function to avoid repetitive typing
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
@@ -278,22 +279,19 @@ class Grunt(threading.Thread):
                 GruntMessage(status="ok", type="scanning"))
             # Three Levels of Searching
 
-            if not Blacklist.exists(self.urldata):
-                Blacklist.add(self.urldata)
+            if self.add_url(self.urldata):
                 ## Level 1
                 level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
                 if level_one_response:
                     level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
                     for level_one_urldata in level_one_list:
-                        if not Blacklist.exists(level_one_urldata):
-                            Blacklist.add(level_one_urldata)
+                        if self.add_url(level_one_urldata):
                             # Level 2
                             level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
                             if level_two_response:
                                 level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
                                 for level_two_urldata in level_two_list:
-                                    if not Blacklist.exists(level_two_urldata):
-                                        Blacklist.add(level_two_urldata)
+                                    if self.add_url(level_two_urldata):
                                         # Level 3
                                         level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
                                         if level_three_response:
@@ -335,6 +333,7 @@ def commander_thread(callback):
     scanned_urldata = []
     counter = 0
     _folder_lock = threading.Lock()
+    blacklist = Blacklist()
     while not quit:
         try:
             r = Threads.commander_queue.get()
@@ -348,6 +347,7 @@ def commander_thread(callback):
                         grunts = []
                         _task_running = True
                         stats = Stats()
+                        blacklist.clear()
                         # load the settings from file
                         # create a new instance of it in memory
                         # we dont want these values to change
@@ -441,13 +441,25 @@ def commander_thread(callback):
                     stats.errors += r.data["errors"]
                     stats.ignored += r.data["ignored"]
                     callback(Message(thread="commander", type="stat-update", data={"stats": stats}))
+                elif r.type == "blacklist":
+                    process_index = r.data["index"]
+                    grunt = grunts[process_index]
+                    if not blacklist.exists(r.data["urldata"]):
+                        blacklist.add(r.data["urldata"])
+                        blacklist_added = True
+                    else:
+                        blacklist_added = False
+                    grunt.msgbox.put(Message(
+                        thread="commander", type="blacklist",
+                        status=blacklist_added
+                    ))
                 else:
                     callback(r)
                     
             elif r.thread == "settings":
                 callback(MessageMain(data=r.data))
 
-        except queue.Empty as err:
+        except queue.Empty:
             pass
 
         finally:
@@ -461,7 +473,7 @@ def commander_thread(callback):
                     Threads.cancel.clear()
                     grunts = []
                     _task_running = False
-                    Blacklist.clear()
+                    blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
 
 def grunts_alive(grunts):
