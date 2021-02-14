@@ -195,13 +195,18 @@ class Grunt(threading.Thread):
         """
         super().__init__()
         self.thread_index = thread_index
+        # grunts starting url
         self.urldata = urldata
         self.settings = settings
         self.fileindex = 0
         self.filters = filters
+        # use this for create a save path needs to be thread and process safe
         self.folder_lock = folder_lock
+        # Commander process message box
         self.comm_queue = commander_msg
+        # Grunts message box
         self.msgbox = queue.Queue()
+        self.cookiejar = Threads.cookie_jar
     
     def search_response(self, response, include_forms):
         """
@@ -260,9 +265,17 @@ class Grunt(threading.Thread):
         return datalist
     
     def notify_thread(self, msg):
+        """
+        Notify the Commander Process
+        """
         self.comm_queue.put_nowait(msg)
     
     def add_url(self, urldata):
+        """
+        Query the Parent Process if this url dict exists
+        if not then Parent Process will add it to its blacklist
+        returns True if no entry found
+        """
         self.comm_queue.put(Message(
             thread="grunt",
             type="blacklist",
@@ -271,35 +284,41 @@ class Grunt(threading.Thread):
         reply = self.msgbox.get()
         return reply.status
     
+    def follow_url(self, urldata, cj):
+        """
+        follow_url(object, object)
+        request url and parse the response
+        """
+        try:
+            resp = request_from_url(urldata, cj, self.settings)
+            urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
+        except Exception as err:
+            print(f"[GRUNT#{self.thread_index}]: {err.__str__()}")
+            self.notify_thread(
+                    Message(thread="grunt", type="stat-update", 
+                            data={"saved": 0, "errors": 1, "ignored": 0}))  
+            return []
+        resp.close()
+        return urllist
+
     def run(self):
-        # partial function to avoid repetitive typing
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
         if not Threads.cancel.is_set():
             self.notify_thread(
                 GruntMessage(status="ok", type="scanning"))
-            # Three Levels of Searching
-
+            # Three Levels of looping each level parses
+            # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
                 ## Level 1
-                level_one_response = request_from_url(self.urldata, Threads.cookie_jar, self.settings)
-                if level_one_response:
-                    level_one_list = self.search_response(level_one_response, self.settings["form_search"]["enabled"])
-                    for level_one_urldata in level_one_list:
-                        if self.add_url(level_one_urldata):
-                            # Level 2
-                            level_two_response = request_from_url(level_one_urldata, Threads.cookie_jar, self.settings)
-                            if level_two_response:
-                                level_two_list = self.search_response(level_two_response, self.settings["form_search"]["enabled"])
-                                for level_two_urldata in level_two_list:
-                                    if self.add_url(level_two_urldata):
-                                        # Level 3
-                                        level_three_response = request_from_url(level_two_urldata, Threads.cookie_jar, self.settings)
-                                        if level_three_response:
-                                            self.search_response(level_three_response, self.settings["form_search"]["enabled"])
-                                            
-                                            level_three_response.close()
-                                level_two_response.close()
-                    level_one_response.close()
+                level_one_urls = self.follow_url(self.urldata, Threads.cookie_jar)
+                for level_one_urldata in level_one_urls:
+                    if self.add_url(level_one_urldata):
+                        # Level 2
+                        level_two_urls = self.follow_url(level_one_urldata, Threads.cookie_jar)
+                        for level_two_urldata in level_two_urls:
+                            if self.add_url(level_two_urldata):
+                                # Level 3
+                                self.follow_url(level_two_urldata, Threads.cookie_jar)
 
         if Threads.cancel.is_set():
             self.notify_thread(GruntMessage(status="cancelled", type="finished"))

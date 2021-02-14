@@ -34,32 +34,19 @@ def request_from_url(urldata, cj, settings):
 
     if urldata.tag == "img":
         if cache.check_cache_for_image(urldata.url, settings):
-            return None
+            raise AttributeError("Url already exists in Cache")
 
-    try:
-        if urldata.method.lower() == "get":
-            r = requests.get(urldata.url, 
-                             cookies=cj, 
-                             headers={"User-Agent": FIREFOX_USER_AGENT},
-                             timeout=settings["connection_timeout"],
-                             data=urldata.data)
-        elif urldata.method.lower() == "post":
-            # Post request
-            r = requests.post(urldata.url, 
-                             cookies=cj, 
-                             headers={"User-Agent": FIREFOX_USER_AGENT},
-                             timeout=settings["connection_timeout"],
-                             data=urldata.data)
-        else:
-            r = None
-    except Exception as err:
-        print(f"[EXCEPTION]: request_from_url, {urldata}, {err.__str__()}")
-        scraper.Stats.errors += 1
-        scraper.notify_commander(
-            scraper.Message(
-                thread="grunt", 
-                type="stat", 
-                status="error", 
-                data={"value": scraper.Stats.errors}))
-        r = None
+    if urldata.method.lower() == "get":
+        r = requests.get(urldata.url, 
+                            cookies=cj, 
+                            headers={"User-Agent": FIREFOX_USER_AGENT},
+                            timeout=settings["connection_timeout"],
+                            data=urldata.data)
+    elif urldata.method.lower() == "post":
+        # Post request
+        r = requests.post(urldata.url, 
+                            cookies=cj, 
+                            headers={"User-Agent": FIREFOX_USER_AGENT},
+                            timeout=settings["connection_timeout"],
+                            data=urldata.data)
     return r
