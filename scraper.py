@@ -16,7 +16,10 @@ from PIL import (
     UnidentifiedImageError
 )
 
-from options import Settings
+from options import (
+    Settings,
+    assign_unique_name
+)
 
 import parsing
 
@@ -377,7 +380,8 @@ def commander_thread(callback):
                                 soup = parsing.parse_html(html_doc)
                                 # get the url title
                                 # amd add a unique path name to the save path
-                                parsing.assign_unique_name(r.data["url"], soup)
+                                assign_unique_name(
+                                    webreq.url, getattr(soup.find("title"), "text", ""))
                                 callback(MessageMain(data={"message": "Parsing HTML Document..."}))
                                 # scrape links and images from document
                                 scanned_urldata = []

@@ -1,15 +1,9 @@
 import re
 import os
-import threading
-import string
 from dataclasses import dataclass
-
-from urllib.request import url2pathname
 from urllib import parse
 
 from bs4 import BeautifulSoup
-
-from options import Settings
 
 html_ext = ".html"
 
@@ -25,49 +19,6 @@ class UrlData:
     action: str = ""
     data: dict = None
     tag: str = ""
-
-
-class Globals:
-    regex_filter = None
-    new_folder_lock = threading.Lock()
-
-
-def assign_unique_name(url, soup):
-    """
-    assign_unique_name(str, object)
-    loads the settings file and adds a unique folder name
-    to the settings and saves
-    url to convert into path
-    object is a beautifulsoup html object
-    """
-    Globals.new_folder_lock.acquire()
-    title = soup.find("title")
-    if title:
-        settings = Settings.load()
-        settings["unique_pathname"]["name"] = format_filename(title.text)
-        Settings.save(settings)
-    else:
-        unique_name = url2pathname(url)
-        settings = Settings.load()
-        settings["unique_pathname"]["name"] = format_filename(unique_name)
-        Settings.save(settings)
-    Globals.new_folder_lock.release()
-
-def format_filename(s):
-    """Take a string and return a valid filename constructed from the string.
-        Uses a whitelist approach: any characters not present in valid_chars are
-        removed. Also spaces are replaced with underscores.
-        
-        Note: this method may produce invalid filenames such as ``, `.` or `..`
-        When I use this method I prepend a date string like '2009_01_15_19_46_32_'
-        and append a file extension like '.txt', so I avoid the potential of using
-        an invalid filename.
-        
-        """
-    valid_chars = f"-_.() {string.ascii_letters}{string.digits}"
-    filename = ''.join(c for c in s if c in valid_chars)
-    filename = filename.replace(' ','_') # I don't like spaces in filenames.
-    return filename
 
 def compile_filter_list(filter_list):
     return re.compile("|".join(filter_list))
@@ -144,7 +95,7 @@ def sort_soup(url,
     searches for images, forms and anchor tags in BeatifulSoup object
     stores them in urls and returns then size of the urls list
     urls is a list of UrlData objects
-    returns n if any tags found
+    returns tuple (int, str) length of urls and title name
     """
     if include_forms:
         # scan forms
