@@ -85,11 +85,7 @@ class Threads:
     commander = None
     # commander thread messaging queue
     commander_queue = queue.Queue()
-    # global event to cancel current running task
-    cancel = threading.Event()
-    # Global cookie jar
-    cookie_jar = None
-
+    
 
 def create_commander(callback):
     """
@@ -177,14 +173,9 @@ class Grunt(threading.Thread):
 
     folder_lock = threading.Lock()
 
-    def __init__(
-                 self, 
-                 thread_index, 
-                 urldata, 
-                 settings, 
-                 filters, 
-                 folder_lock,
-                 commander_msg):
+    def __init__(self, thread_index, urldata, 
+                 settings, filters, folder_lock,
+                 commander_msg, cookiejar, cancel_event):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -206,7 +197,8 @@ class Grunt(threading.Thread):
         self.comm_queue = commander_msg
         # Grunts message box
         self.msgbox = queue.Queue()
-        self.cookiejar = Threads.cookie_jar
+        self.cookiejar = cookiejar
+        self.cancel = cancel_event
     
     def search_response(self, response, include_forms):
         """
@@ -284,13 +276,13 @@ class Grunt(threading.Thread):
         reply = self.msgbox.get()
         return reply.status
     
-    def follow_url(self, urldata, cj):
+    def follow_url(self, urldata):
         """
         follow_url(object, object)
         request url and parse the response
         """
         try:
-            resp = request_from_url(urldata, cj, self.settings)
+            resp = request_from_url(urldata, self.cookiejar, self.settings)
             urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
         except Exception as err:
             print(f"[GRUNT#{self.thread_index}]: {err.__str__()}")
@@ -303,24 +295,24 @@ class Grunt(threading.Thread):
 
     def run(self):
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
-        if not Threads.cancel.is_set():
+        if not self.cancel.is_set():
             self.notify_thread(
                 GruntMessage(status="ok", type="scanning"))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
                 ## Level 1
-                level_one_urls = self.follow_url(self.urldata, Threads.cookie_jar)
+                level_one_urls = self.follow_url(self.urldata)
                 for level_one_urldata in level_one_urls:
                     if self.add_url(level_one_urldata):
                         # Level 2
-                        level_two_urls = self.follow_url(level_one_urldata, Threads.cookie_jar)
+                        level_two_urls = self.follow_url(level_one_urldata)
                         for level_two_urldata in level_two_urls:
                             if self.add_url(level_two_urldata):
                                 # Level 3
-                                self.follow_url(level_two_urldata, Threads.cookie_jar)
+                                self.follow_url(level_two_urldata)
 
-        if Threads.cancel.is_set():
+        if self.cancel.is_set():
             self.notify_thread(GruntMessage(status="cancelled", type="finished"))
         else:
             self.notify_thread(GruntMessage(status="complete", type="finished"))
@@ -362,12 +354,13 @@ def commander_thread(callback):
     counter = 0
     _folder_lock = threading.Lock()
     blacklist = Blacklist()
+    cancel_all = threading.Event()
     while not _quit:
         try:
             r = Threads.commander_queue.get()
             if r.thread == "main":
                 if r.type == "quit":
-                    Threads.cancel.set()
+                    cancel_all.set()
                     callback(Message(thread="commander", type="quit"))
                     _quit = True
                 elif r.type == "start":
@@ -382,19 +375,16 @@ def commander_thread(callback):
                         # whilst downloading and saving to file
                         settings = dict(Settings.load())
 
-                        Threads.cookie_jar = load_cookies(settings)
+                        cookiejar = load_cookies(settings)
 
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(settings["filters"])
                         for thread_index, urldata in enumerate(scanned_urldata):
-                            grunt = Grunt(
-                                          thread_index, 
-                                          urldata, 
-                                          settings, 
-                                          filters, 
-                                          _folder_lock,
-                                          Threads.commander_queue)
+                            grunt = Grunt(thread_index, urldata, settings, 
+                                          filters, _folder_lock,
+                                          Threads.commander_queue, cookiejar,
+                                          cancel_all)
                             grunts.append(grunt)
                             
                         # reset the threads counter this is used to keep track of
@@ -407,6 +397,7 @@ def commander_thread(callback):
 
                 elif r.type == "fetch":                
                     if not _task_running:
+                        cancel_all.clear()
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
@@ -414,9 +405,9 @@ def commander_thread(callback):
                         # get the document from the URL
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
-                        Threads.cookie_jar = load_cookies(settings)
+                        cookiejar = load_cookies(settings)
                         urldata = parsing.UrlData(r.data["url"], method="GET")
-                        webreq = request_from_url(urldata, Threads.cookie_jar, settings)
+                        webreq = request_from_url(urldata, cookiejar, settings)
                         if webreq:
                             # make sure is a text document to parse
                             ext = parsing.is_valid_content_type(
@@ -455,7 +446,7 @@ def commander_thread(callback):
                         callback(MessageMain(data={"message": "Still scanning for images please press cancel to start a new scan"}))
 
                 elif r.type == "cancel":
-                    Threads.cancel.set()
+                    cancel_all.set()
 
             elif r.thread == "grunt":
                 if r.type == "finished":
@@ -501,7 +492,7 @@ def commander_thread(callback):
                 # if so cleanup
                 # and notify main thread
                 if len(grunts_alive(grunts)) == 0 and counter >= len(grunts):
-                    Threads.cancel.clear()
+                    cancel_all.clear()
                     grunts = []
                     _task_running = False
                     blacklist.clear()
