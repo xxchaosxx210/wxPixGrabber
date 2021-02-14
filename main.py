@@ -15,7 +15,7 @@ def _main():
         parent=None,
         id=-1,
         title="PixGrabber", 
-        size=(800, 600))
+        size=(900, 600))
     window.Show()
     app.MainLoop()
 

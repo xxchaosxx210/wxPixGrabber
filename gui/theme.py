@@ -17,7 +17,7 @@ class ThemedTextCtrl(wx.TextCtrl):
     def __init__(self, *args, **kw):
         super(ThemedTextCtrl, self).__init__(*args, **kw)
         font = self.GetFont()
-        font.SetPointSize(9)
+        font.SetPointSize(12)
         font.SetFamily(wx.FONTFAMILY_MODERN)
         self.SetFont(font)
 

@@ -92,6 +92,8 @@ class MainWindow(wx.Frame):
             # fetch has completed
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
+                self.update_status("COMMANDER", f"{len(msg.data['urls'])} Links found")
+                self.update_status("COMMANDER", "Press Start to start scanning for images...")
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
                 if msg.data.get("urls", []):
                     if Settings.load()["auto-download"]:

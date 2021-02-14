@@ -116,14 +116,14 @@ def create_commander(callback):
         target=commander_thread, kwargs={"callback": callback})
     return Threads.commander
 
-def create_save_path(settings):
+def create_save_path(settings, folder_lock):
     """
     create_save_path(object)
     Settings object load from file
     append the unique folder path if required
     create the directory if not exists
     """
-    parsing.Globals.new_folder_lock.acquire()
+    folder_lock.acquire()
     if not os.path.exists(settings["save_path"]):
         os.mkdir(settings["save_path"])
     if settings["unique_pathname"]["enabled"]:
@@ -132,7 +132,7 @@ def create_save_path(settings):
             os.mkdir(path)
     else:
         path = settings["save_path"]
-    parsing.Globals.new_folder_lock.release()
+    folder_lock.release()
     return path
 
 def stream_to_file(path, filename, bytes_stream):
@@ -143,9 +143,9 @@ def stream_to_file(path, filename, bytes_stream):
         # Update the images saved stats counter
         Stats.saved += 1
 
-def download_image(filename, response, settings):
+def download_image(filename, response, folder_lock, settings):
     """
-    download_image(str, str, object)
+    download_image(str, str, object, object)
 
     path should be the file path, filename should be the name of the file
     os.path.join is used to append path to filename
@@ -169,7 +169,7 @@ def download_image(filename, response, settings):
     # if image requirements met then save
     if width > 200 and height > 200:
         # create a new save path and write image toi file
-        path = create_save_path(settings)
+        path = create_save_path(settings, folder_lock)
         stream_to_file(path, filename, byte_stream)
         notify_commander(Message(
             thread="grunt", 
@@ -192,7 +192,9 @@ class Grunt(threading.Thread):
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, thread_index, urldata, settings, filters):
+    folder_lock = threading.Lock()
+
+    def __init__(self, thread_index, urldata, settings, filters, folder_lock):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -207,6 +209,7 @@ class Grunt(threading.Thread):
         self.settings = settings
         self.fileindex = 0
         self.filters = filters
+        self.folder_lock = folder_lock
     
     def search_response(self, response, include_forms):
         """
@@ -247,7 +250,7 @@ class Grunt(threading.Thread):
                 # found from the url and use that instead
                 filename = f"test{self.thread_index}{ext}"
             # check the validity of the image and save
-            download_image(filename, response, self.settings)
+            download_image(filename, response, self.folder_lock, self.settings)
             return []
         else:
             # ingored counter goes up
@@ -320,6 +323,7 @@ def commander_thread(callback):
     settings = {}
     scanned_urldata = []
     counter = 0
+    _folder_lock = threading.Lock()
     while not quit:
         try:
             r = Threads.commander_queue.get(0.2)
@@ -345,7 +349,7 @@ def commander_thread(callback):
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(settings["filters"])
                         for thread_index, urldata in enumerate(scanned_urldata):
-                            grunts.append(Grunt(thread_index, urldata, settings, filters))
+                            grunts.append(Grunt(thread_index, urldata, settings, filters, _folder_lock))
                             
                         # reset the threads counter this is used to keep track of
                         # threads that have been  started once a running thread has been notified
@@ -382,7 +386,6 @@ def commander_thread(callback):
                                 # amd add a unique path name to the save path
                                 assign_unique_name(
                                     webreq.url, getattr(soup.find("title"), "text", ""))
-                                callback(MessageMain(data={"message": "Parsing HTML Document..."}))
                                 # scrape links and images from document
                                 scanned_urldata = []
                                 # find images and links
@@ -396,11 +399,9 @@ def commander_thread(callback):
                                                      images_only=False, 
                                                      thumbnails_only=True,
                                                      filters=filters) > 0:
-                                    # send the scanned urls to the main thread for processing
-                                    callback(MessageMain(data={"message": f"Parsing succesful. Found {len(scanned_urldata)} links"}))
-                                    data = {"urls": scanned_urldata}
-                                    reqmsg = Message(thread="commander", type="fetch", status="finished", data=data)
-                                    callback(reqmsg)
+                                    callback(
+                                        Message(thread="commander", type="fetch", 
+                                                     status="finished", data={"urls": scanned_urldata}))
                                 else:
                                     # Nothing found notify main thread
                                     callback(MessageMain(data={"message": "No links found :("}))

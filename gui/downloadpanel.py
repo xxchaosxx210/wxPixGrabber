@@ -132,7 +132,7 @@ class StatusPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.txt_status = wx.TextCtrl(self, -
+        self.txt_status = ThemedTextCtrl(self, -
         1, 
         "",
         style=wx.TE_READONLY|wx.TE_MULTILINE)
