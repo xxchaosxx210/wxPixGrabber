@@ -1,9 +1,6 @@
 import requests
 import browser_cookie3
-from urllib3.connection import HTTPConnection
 from http.cookiejar import CookieJar
-
-import scraper
 
 import cache
 

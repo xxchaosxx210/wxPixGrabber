@@ -236,9 +236,11 @@ class Grunt(threading.Thread):
                             "saved": stats.saved,
                             "errors": stats.errors,
                             "ignored": stats.ignored}))
-            except UnidentifiedImageError as err:
+            except UnidentifiedImageError:
                 # Couldnt load the Image from Stream
-                pass
+                self.notify_thread(Message(
+                                   thread="grunt", type="stat-update", 
+                                   data={"saved": 0, "errors": 1, "ignored": 0}))
             return []
         else:
             if not Sql.query_ignore(response.url):
