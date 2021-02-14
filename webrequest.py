@@ -3,8 +3,6 @@ import browser_cookie3
 from urllib3.connection import HTTPConnection
 from http.cookiejar import CookieJar
 
-import threading
-
 import scraper
 
 import cache
