@@ -10,10 +10,7 @@ from gui.theme import (
     ThemedStaticText
 )
 
-from scraper import (
-    notify_commander,
-    Message
-)
+from scraper import Message
 
 from gui.settingsdialog import SettingsDialog
 
@@ -86,13 +83,16 @@ class DownloadPanel(wx.Panel):
     def on_fetch_button(self, evt):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
-            notify_commander(Message(thread="main", type="fetch", data=data))
+            self.GetParent().commander_msgbox.put_nowait(
+                Message(thread="main", type="fetch", data=data))
 
     def on_start_button(self, evt):
-        notify_commander(Message(thread="main", type="start"))
+        self.GetParent().commander_msgbox.put_nowait(
+                Message(thread="main", type="start"))
 
     def on_stop_button(self, evt):
-        notify_commander(Message(thread="main", type="cancel"))
+        self.GetParent().commander_msgbox.put_nowait(
+            Message(thread="main", type="cancel"))
     
     def reset(self):
         self.imgsaved.value.SetLabel("0")

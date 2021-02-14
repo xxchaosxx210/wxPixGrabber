@@ -1,11 +1,11 @@
 import wx
 import time
+import queue
 
 from gui.downloadpanel import DownloadPanel
 
 from scraper import (
     create_commander,
-    notify_commander,
     Message
 )
 
@@ -34,7 +34,9 @@ class MainWindow(wx.Frame):
 
         self.status = self.dldpanel.statusbox.txt_status
 
-        self.commander = create_commander(self.handler_callback)
+        self.commander_msgbox = queue.Queue()
+        self.commander = create_commander(self.handler_callback, 
+                                          self.commander_msgbox)
         self.commander.start()
 
         Sfx.load()
@@ -66,7 +68,7 @@ class MainWindow(wx.Frame):
         close the running thread and exit
         """
         timer_quit.set()
-        notify_commander(Message(thread="main", type="quit"))
+        self.commander_msgbox.put(Message(thread="main", type="quit"))
         self.commander.join()
         evt.Skip()
     

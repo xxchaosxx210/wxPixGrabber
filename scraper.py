@@ -74,28 +74,17 @@ class Stats:
     saved: int = 0
     errors: int = 0
     ignored: int = 0
-
-
-class Threads:
-
-    """
-    static class holding global scope variables
-    """
-    # commander thread reference
-    commander = None
-    # commander thread messaging queue
-    commander_queue = queue.Queue()
     
 
-def create_commander(callback):
+def create_commander(callback, msgbox):
     """
     create the main handler thread.
     this thread will stay iterating for the
     remainder of the programs life cycle
+    msgbox is a queue.Queue() object
     """
-    Threads.commander = threading.Thread(
-        target=commander_thread, kwargs={"callback": callback})
-    return Threads.commander
+    return threading.Thread(target=commander_thread, 
+                            kwargs={"callback": callback, "msgbox": msgbox})
 
 def create_save_path(settings, folder_lock):
     """
@@ -333,7 +322,7 @@ def _add_stats(stats, data):
     stats.ignored += data["ignored"]
     return stats
 
-def commander_thread(callback):
+def commander_thread(callback, msgbox):
     """
     main handler thread takes in filepath or url
 
@@ -357,7 +346,7 @@ def commander_thread(callback):
     cancel_all = threading.Event()
     while not _quit:
         try:
-            r = Threads.commander_queue.get()
+            r = msgbox.get()
             if r.thread == "main":
                 if r.type == "quit":
                     cancel_all.set()
@@ -383,7 +372,7 @@ def commander_thread(callback):
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunt = Grunt(thread_index, urldata, settings, 
                                           filters, _folder_lock,
-                                          Threads.commander_queue, cookiejar,
+                                          msgbox, cookiejar,
                                           cancel_all)
                             grunts.append(grunt)
                             
@@ -503,12 +492,3 @@ def grunts_alive(grunts):
     returns a list of grunt threads that are still alive
     """
     return list(filter(lambda grunt : grunt.is_alive(), grunts))
-
-def notify_commander(message):
-    """
-    send_message(object)
-    FIFO queue puts a no wait message on the queue
-
-    message is a Message object
-    """
-    Threads.commander_queue.put_nowait(message)
