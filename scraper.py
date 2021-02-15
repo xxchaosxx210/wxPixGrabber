@@ -1,4 +1,5 @@
 import threading
+import multiprocessing as mp
 import queue
 import functools
 import os
@@ -45,6 +46,7 @@ class Blacklist:
             index = -1
         return index >= 0
 
+
 @dataclass
 class Message:
     """
@@ -79,23 +81,27 @@ def create_commander(callback, msgbox):
     return threading.Thread(target=commander_thread, 
                             kwargs={"callback": callback, "msgbox": msgbox})
 
-def create_save_path(settings, folder_lock):
+def create_save_path(settings):
     """
     create_save_path(object)
     Settings object load from file
     append the unique folder path if required
     create the directory if not exists
     """
-    folder_lock.acquire()
     if not os.path.exists(settings["save_path"]):
-        os.mkdir(settings["save_path"])
+        try:
+            os.mkdir(settings["save_path"])
+        except FileExistsError:
+            pass
     if settings["unique_pathname"]["enabled"]:
         path = os.path.join(settings["save_path"], settings["unique_pathname"]["name"])
         if not os.path.exists(path):
-            os.mkdir(path)
+            try:
+                os.mkdir(path)
+            except FileExistsError:
+                pass
     else:
         path = settings["save_path"]
-    folder_lock.release()
     return path
 
 def stream_to_file(path, filename, bytes_stream):
@@ -115,7 +121,7 @@ def _response_to_stream(response):
     return byte_stream
 
 
-def _download_image(filename, response, folder_lock, settings):
+def _download_image(filename, response, settings):
     """
     download_image(str, str, object, object)
 
@@ -130,7 +136,7 @@ def _download_image(filename, response, folder_lock, settings):
     width, height = image.size
     if width > minsize["width"] and height > minsize["height"]:
         # create a new save path and write image toi file
-        path = create_save_path(settings, folder_lock)
+        path = create_save_path(settings)
         if stream_to_file(path, filename, byte_stream):
             stats.saved += 1
         else:
@@ -147,17 +153,15 @@ def _download_image(filename, response, folder_lock, settings):
     return stats
     
 
-class Grunt(threading.Thread):
+class Grunt(mp.Process):
 
     """
     Worker thread which will search for images on the url passed into __init__
     """
 
-    folder_lock = threading.Lock()
-
     def __init__(self, thread_index, urldata, 
-                 settings, filters, folder_lock,
-                 commander_msg, cookiejar, cancel_event):
+                 settings, filters, commander_msg, 
+                 cancel_event):
         """
         __init__(int, str, **kwargs)
         thread_index should be a unique number
@@ -173,13 +177,10 @@ class Grunt(threading.Thread):
         self.settings = settings
         self.fileindex = 0
         self.filters = filters
-        # use this for create a save path needs to be thread and process safe
-        self.folder_lock = folder_lock
         # Commander process message box
         self.comm_queue = commander_msg
         # Grunts message box
-        self.msgbox = queue.Queue()
-        self.cookiejar = cookiejar
+        self.msgbox = mp.Queue()
         self.cancel = cancel_event
     
     def search_response(self, response, include_forms):
@@ -222,7 +223,7 @@ class Grunt(threading.Thread):
                 filename = f"test{self.thread_index}{ext}"
             # check the validity of the image and save
             try:
-                stats = _download_image(filename, response, self.folder_lock, self.settings)
+                stats = _download_image(filename, response, self.settings)
                 self.notify_thread(
                     Message(
                         thread="grunt", type="stat-update", data={
@@ -244,7 +245,7 @@ class Grunt(threading.Thread):
         """
         Notify the Commander Process
         """
-        self.comm_queue.put_nowait(msg)
+        self.comm_queue.put(msg)
     
     def add_url(self, urldata):
         """
@@ -278,6 +279,7 @@ class Grunt(threading.Thread):
         return urllist
 
     def run(self):
+        self.cookiejar = load_cookies(self.settings)
         GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
         if not self.cancel.is_set():
             self.notify_thread(
@@ -339,12 +341,14 @@ def commander_thread(callback, msgbox):
     settings = {}
     scanned_urldata = []
     counter = 0
-    _folder_lock = threading.Lock()
     blacklist = Blacklist()
-    cancel_all = threading.Event()
+    cancel_all = mp.Event()
     while not _quit:
         try:
-            r = msgbox.get()
+            if _task_running:
+                r = msgbox.get(timeout=0.1)
+            else:
+                r = msgbox.get(timeout=None)
             if r.thread == "main":
                 if r.type == "quit":
                     cancel_all.set()
@@ -369,9 +373,7 @@ def commander_thread(callback, msgbox):
                         filters = parsing.compile_filter_list(settings["filters"])
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunt = Grunt(thread_index, urldata, settings, 
-                                          filters, _folder_lock,
-                                          msgbox, cookiejar,
-                                          cancel_all)
+                                          filters, msgbox, cancel_all)
                             grunts.append(grunt)
                             
                         # reset the threads counter this is used to keep track of

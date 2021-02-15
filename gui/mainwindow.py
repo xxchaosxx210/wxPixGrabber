@@ -1,6 +1,6 @@
 import wx
 import time
-import queue
+import multiprocessing as mp
 
 from gui.downloadpanel import DownloadPanel
 
@@ -34,7 +34,7 @@ class MainWindow(wx.Frame):
 
         self.status = self.dldpanel.statusbox.txt_status
 
-        self.commander_msgbox = queue.Queue()
+        self.commander_msgbox = mp.Queue()
         self.commander = create_commander(self.handler_callback, 
                                           self.commander_msgbox)
         self.commander.start()
@@ -86,6 +86,7 @@ class MainWindow(wx.Frame):
             elif msg.type == "complete":
                 if options.load_settings()["notify-done"]:
                     Sfx.notify.Play()
+                    self.Raise()
                 # kill the timer thread
                 timer_quit.set()
                 self.update_status("COMMANDER", "All tasks have completed")
