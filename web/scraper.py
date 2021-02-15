@@ -5,6 +5,7 @@ import functools
 import os
 from io import BytesIO
 from dataclasses import dataclass
+from collections import namedtuple
 import logging
 
 from web.webrequest import (
@@ -276,8 +277,8 @@ class Grunt(mp.Process):
         return urllist
 
     def run(self):
-        self.cookiejar = load_cookies(self.settings)
         if not self.cancel.is_set():
+            self.cookiejar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
                 Message(thread="grunt", id=self.thread_index, status="ok", type="scanning"))
             # Three Levels of looping each level parses
@@ -328,87 +329,96 @@ def commander_thread(callback, msgbox):
     """
     # Create the cache table
     cache.initialize_ignore()
-
-    _quit = False
-    grunts = []
-    _task_running = False
     callback(Message(
         thread="commander", 
         type="message", 
         data={"message": "Commander thread has loaded. Waiting to scan"}))
     MessageMain = functools.partial(Message, thread="commander", type="message")
-    # settings dict will contain the settings at start of scraping
-    settings = {}
-    scanned_urldata = []
-    counter = 0
-    blacklist = Blacklist()
-    cancel_all = mp.Event()
-    while not _quit:
+
+    @dataclass
+    class Properties:
+        settings: dict
+        scanned_urls: list
+        counter: int = 0
+        blacklist: Blacklist = None
+        cancel_all: mp.Event = None
+        task_running: bool = False
+        processes: list = None
+        quit_thread: mp.Event = None
+        test_counter: float = 0.0
+    
+    props = Properties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
+                       processes=[], quit_thread=mp.Event())
+    
+    QUEUE_TIMEOUT = 0.1
+
+    while not props.quit_thread.is_set():
         try:
-            if _task_running:
-                r = msgbox.get(timeout=0.1)
+            if props.task_running:
+                r = msgbox.get(timeout=QUEUE_TIMEOUT)
             else:
                 r = msgbox.get(timeout=None)
             if r.thread == "main":
                 if r.type == "quit":
-                    cancel_all.set()
+                    props.cancel_all.set()
                     callback(Message(thread="commander", type="quit"))
-                    _quit = True
+                    props.quit_thread.set()
                 elif r.type == "start":
-                    if not _task_running:
-                        grunts = []
-                        _task_running = True
+                    if not props.task_running:
+                        props.processes = []
+                        props.task_running = True
                         stats = Stats()
-                        blacklist.clear()
+                        props.blacklist.clear()
                         # load the settings from file
                         # create a new instance of it in memory
                         # we dont want these values to change
                         # whilst downloading and saving to file
-                        settings = dict(options.load_settings())
+                        props.settings = dict(options.load_settings())
 
-                        cookiejar = load_cookies(settings)
+                        cookiejar = load_cookies(props.settings)
 
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
-                        filters = parsing.compile_filter_list(settings["filters"])
+                        filters = parsing.compile_filter_list(props.settings["filters"])
                         _Log.info("Search Filters loaded")
-                        for thread_index, urldata in enumerate(scanned_urldata):
-                            grunt = Grunt(thread_index, urldata, settings, 
-                                          filters, msgbox, cancel_all)
-                            grunts.append(grunt)
+                        for thread_index, urldata in enumerate(props.scanned_urls):
+                            grunt = Grunt(thread_index, urldata, props.settings, 
+                                          filters, msgbox, props.cancel_all)
+                            props.processes.append(grunt)
                         
-                        _Log.info(f"Processes loaded - {len(grunts)} processes")
+                        _Log.info(f"Processes loaded - {len(props.processes)} processes")
                             
                         # reset the threads counter this is used to keep track of
                         # threads that have been  started once a running thread has been notified
-                        # this thread counter is incremenetet counter is checked with length of grunts
+                        # this thread counter is incremenetet counter is checked with length of props.processes
                         # once the counter has reached length then then all threads have been complete
-                        counter = 0
-                        max_connections = round(int(settings["max_connections"]))
-                        counter = _start_max_threads(grunts, max_connections, counter)
+                        props.counter = 0
+                        max_connections = round(int(props.settings["max_connections"]))
+                        props.counter = _start_max_threads(props.processes, max_connections, props.counter)
 
-                        _Log.info(f"""
-                        Process Counter set to 0. Max Connections = {max_connections}. Current running Processes = {len(grunts_alive(grunts))}""")
+                        _Log.info(
+                            f"""Process Counter set to 0. Max Connections = \
+                                {max_connections}. Current running Processes = {len(tasks_alive(props.processes))}""")
 
                 elif r.type == "fetch":                
-                    if not _task_running:
-                        cancel_all.clear()
+                    if not props.task_running:
+                        props.cancel_all.clear()
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
-                        settings = options.load_settings()
+                        props.settings = options.load_settings()
                         # get the document from the URL
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
-                        cookiejar = load_cookies(settings)
+                        cookiejar = load_cookies(props.settings)
                         urldata = parsing.UrlData(r.data["url"], method="GET")
                         try:
-                            webreq = request_from_url(urldata, cookiejar, settings)
+                            webreq = request_from_url(urldata, cookiejar, props.settings)
                             # make sure is a text document to parse
                             ext = parsing.is_valid_content_type(
                                                                 r.data["url"], 
                                                                 webreq.headers["Content-type"], 
-                                                                settings["images_to_search"])
+                                                                props.settings["images_to_search"])
                             if ext == ".html":
                                 html_doc = webreq.text
                                 # parse the html
@@ -418,21 +428,21 @@ def commander_thread(callback, msgbox):
                                 options.assign_unique_name(
                                     webreq.url, getattr(soup.find("title"), "text", ""))
                                 # scrape links and images from document
-                                scanned_urldata = []
+                                props.scanned_urls = []
                                 # find images and links
                                 # set the include_form to False on level 1 scan
                                 # compile our filter matches only add those from the filter list
-                                filters = parsing.compile_filter_list(settings["filters"])
+                                filters = parsing.compile_filter_list(props.settings["filters"])
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
-                                                     urls=scanned_urldata,
+                                                     urls=props.scanned_urls,
                                                      include_forms=False,
                                                      images_only=False, 
                                                      thumbnails_only=True,
                                                      filters=filters) > 0:
                                     callback(
                                         Message(thread="commander", type="fetch", 
-                                                     status="finished", data={"urls": scanned_urldata}))
+                                                     status="finished", data={"urls": props.scanned_urls}))
                                 else:
                                     # Nothing found notify main thread
                                     callback(MessageMain(data={"message": "No links found :("}))
@@ -440,17 +450,21 @@ def commander_thread(callback, msgbox):
                         except Exception as err:
                             _Log.error(f"Commander web request failed - {err.__str__()}")
                     else:
-                        callback(MessageMain(data={"message": "Still scanning for images please press cancel to start a new scan"}))
+                        callback(MessageMain(
+                            data={"message": "Still scanning for images please press cancel to start a new scan"}))
 
                 elif r.type == "cancel":
-                    cancel_all.set()
+                    props.cancel_all.set()
 
             elif r.thread == "grunt":
                 if r.type == "finished":
                     # one grunt is gone start another
-                    if counter < len(grunts):
-                        grunts[counter].start()
-                        counter += 1
+                    if props.counter < len(props.processes):
+                        if not props.cancel_all.is_set():
+                            props.processes[props.counter].start()
+                        else:
+                            props.processes[props.counter].run()
+                        props.counter += 1
                         _Log.info(f"PROCESS#{r.id} is {r.status}")
                         if r.status == "complete":
                             callback(r)
@@ -460,12 +474,12 @@ def commander_thread(callback, msgbox):
                     callback(Message(thread="commander", 
                                      type="stat-update", data={"stats": stats}))
                 elif r.type == "blacklist":
-                    # check the blacklist with urldata and notify Grunt process
+                    # check the props.blacklist with urldata and notify Grunt process
                     # if no duplicate and added then True returned
                     process_index = r.data["index"]
-                    grunt = grunts[process_index]
-                    if not blacklist.exists(r.data["urldata"]):
-                        blacklist.add(r.data["urldata"])
+                    grunt = props.processes[process_index]
+                    if not props.blacklist.exists(r.data["urldata"]):
+                        props.blacklist.add(r.data["urldata"])
                         blacklist_added = True
                     else:
                         blacklist_added = False
@@ -484,21 +498,28 @@ def commander_thread(callback, msgbox):
             pass
 
         finally:
-            if _task_running:
-                # check if all grunts are finished
-                # and that the grunt counter is greater or
+            if props.task_running:
+                # check if all props.processes are finished
+                # and that the grunt props.counter is greater or
                 # equal to the size of grunt threads 
                 # if so cleanup
                 # and notify main thread
-                if len(grunts_alive(grunts)) == 0 and counter >= len(grunts):
-                    cancel_all.clear()
-                    grunts = []
-                    _task_running = False
-                    blacklist.clear()
+                if len(tasks_alive(props.processes)) == 0 and props.counter >= len(props.processes):
+                    props.cancel_all.clear()
+                    props.processes = []
+                    props.task_running = False
+                    props.blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
+                    props.test_counter = 0.0
+                else:
+                    props.test_counter += QUEUE_TIMEOUT
+                    if props.test_counter > 3.0:
+                        # 3 seconds
+                        _Log.info(f"PROCESSES RUNNING: {len(tasks_alive(props.processes))}")
+                        props.test_counter = 0.0
 
-def grunts_alive(grunts):
+def tasks_alive(processes):
     """
-    returns a list of grunt threads that are still alive
+    returns a list of task processes that are still alive
     """
-    return list(filter(lambda grunt : grunt.is_alive(), grunts))
+    return list(filter(lambda grunt : grunt.is_alive(), processes))
