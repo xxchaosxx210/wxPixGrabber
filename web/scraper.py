@@ -345,7 +345,6 @@ def commander_thread(callback, msgbox):
         task_running: bool = False
         processes: list = None
         quit_thread: mp.Event = None
-        test_counter: float = 0.0
     
     props = Properties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
                        processes=[], quit_thread=mp.Event())
@@ -510,13 +509,6 @@ def commander_thread(callback, msgbox):
                     props.task_running = False
                     props.blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
-                    props.test_counter = 0.0
-                else:
-                    props.test_counter += QUEUE_TIMEOUT
-                    if props.test_counter > 3.0:
-                        # 3 seconds
-                        _Log.info(f"PROCESSES RUNNING: {len(tasks_alive(props.processes))}")
-                        props.test_counter = 0.0
 
 def tasks_alive(processes):
     """
