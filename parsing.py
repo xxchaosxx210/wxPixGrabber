@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from urllib import parse
 
 from bs4 import BeautifulSoup
+import logging
+
+_Log = logging.getLogger(__name__)
 
 html_ext = ".html"
 
@@ -55,7 +58,7 @@ def is_valid_content_type(url, content_type, valid_types):
         try:
             ext = os.path.splitext(url)[1]
         except IndexError as err:
-            print(f"is_valid_content_type web.py: {err.__str__()}, {url}")
+            _Log.error(f"{err.__str__()}, {url}")
     return ext
 
 def _construct_query_from_form(form):

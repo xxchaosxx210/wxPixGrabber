@@ -14,6 +14,10 @@ from sqlite3 import Error
 
 import options
 
+import logging
+
+_Log = logging.getLogger(__name__)
+
 SQL_FILENAME = os.path.join(options.PATH, "cache.db")
 
 CACHE_TABLE = """CREATE TABLE IF NOT EXISTS ignored (
@@ -93,7 +97,7 @@ def _create_connection(dbpath):
     try:
         conn = sqlite3.connect(dbpath, check_same_thread=False)
     except Error as err:
-        print(err.__str__())
+        _Log.error(err.__str__())
     return conn
 
 def _add_entry(conn, url, reason, width, height):
@@ -121,11 +125,11 @@ def _create_table(conn, sql_table):
         cur = conn.cursor()
         cur.execute(sql_table)
     except Error as err:
-        print(err.__str__())
+        _Log.error(err.__str__())
 
 def _test():
     initialize_ignore()
-    print(query_ignore("https://imgbox.com/images/imgbox.png"))
+    _Log.info(query_ignore("https://imgbox.com/images/imgbox.png"))
 
 if __name__ == '__main__':
     _test()

@@ -1,6 +1,7 @@
 import wx
 import time
 import multiprocessing as mp
+import logging
 
 from gui.downloadpanel import DownloadPanel
 
@@ -18,6 +19,10 @@ import clipboard
 import options
 
 from resources.sfx import Sfx
+
+
+_log = logging.getLogger(__name__)
+
 
 class MainWindow(wx.Frame):
 
@@ -40,7 +45,15 @@ class MainWindow(wx.Frame):
         self.commander.start()
 
         Sfx.load()
-    
+
+        # keep a reference to the clipboard, there is a bug in that when the clipboard
+        # listener is running, it captures win32 messages before they get to the wx event loop
+        # for some reason messages are not being passed onto Dialog windows
+        # so Dialogs are unresponsive so I patched it by closing the clipboard listener
+        # when a Dialog is open. This leads to a bug when I start the listener again it
+        # recaptures the last text on the clipboard. so a simple if condition makes sure the
+        # text isnt sent to the textctrl address again
+        self._last_text_added = ""
         self.clipboard = \
             clipboard.ClipboardListener(parent=self, 
                                         callback=self.on_clipboard, 
@@ -48,13 +61,18 @@ class MainWindow(wx.Frame):
         self.clipboard.start()
 
     def on_clipboard(self, text):
-        self.dldpanel.addressbar.txt_address.SetValue(text)
-        
-        if options.load_settings()["auto-download"]:
-            self.dldpanel.on_fetch_button(None)
+        if not self._last_text_added == text:
+            self.dldpanel.addressbar.txt_address.SetValue(text)
+            
+            if options.load_settings()["auto-download"]:
+                self.dldpanel.on_fetch_button(None)
+            else:
+                # bring the window to the foreground
+                self.Raise()
+            self._last_text_added = text
+            _log.info(f"{text} added from Clipboard")
         else:
-            # bring the window to the foreground
-            self.Raise()
+            _log.info(f"{text} already added from Clipboard")
 
     
     def _on_timer_callback(self, formatted_time):
@@ -125,10 +143,6 @@ class MainWindow(wx.Frame):
                 self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
             # finished task
             elif msg.type == "finished" and msg.status == "complete":
-                self.dldpanel.progressbar.increment()
-            # finsihed task by cancelling
-            elif msg.type == "finished" and msg.status == "cancelled":
-                self.update_status(f"Thread#{msg.id}", "has cancelled")
                 self.dldpanel.progressbar.increment()
 
     def handler_callback(self, msg):

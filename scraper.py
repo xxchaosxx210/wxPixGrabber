@@ -5,6 +5,9 @@ import functools
 import os
 from io import BytesIO
 from dataclasses import dataclass
+import logging
+
+_Log = logging.getLogger(__name__)
 
 from webrequest import (
     request_from_url,
@@ -238,6 +241,7 @@ class Grunt(mp.Process):
             return []
         else:
             if not cache.query_ignore(response.url):
+                _Log.info(f"PROCESS#{self.thread_index} - Url {response.url} ignored. Storing to cache")
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
     
@@ -270,7 +274,7 @@ class Grunt(mp.Process):
             resp = request_from_url(urldata, self.cookiejar, self.settings)
             urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
         except Exception as err:
-            print(f"[GRUNT#{self.thread_index}]: {err.__str__()}")
+            _Log.error(f"PROCESS#{self.thread_index} - {err.__str__()}")
             self.notify_thread(
                     Message(thread="grunt", type="stat-update", 
                             data={"saved": 0, "errors": 1, "ignored": 0}))  
@@ -299,9 +303,11 @@ class Grunt(mp.Process):
                                 self.follow_url(level_two_urldata)
 
         if self.cancel.is_set():
-            self.notify_thread(GruntMessage(status="cancelled", type="finished"))
+            self.notify_thread(GruntMessage(
+                status="cancelled", type="finished", data={"index": self.thread_index}))
         else:
-            self.notify_thread(GruntMessage(status="complete", type="finished"))
+            self.notify_thread(GruntMessage(
+                status="complete", type="finished", data={"index": self.thread_index}))
 
 
 def _start_max_threads(threads, max_threads, counter):
@@ -371,10 +377,13 @@ def commander_thread(callback, msgbox):
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(settings["filters"])
+                        _Log.info("Search Filters loaded")
                         for thread_index, urldata in enumerate(scanned_urldata):
                             grunt = Grunt(thread_index, urldata, settings, 
                                           filters, msgbox, cancel_all)
                             grunts.append(grunt)
+                        
+                        _Log.info(f"Processes loaded - {len(grunts)} processes")
                             
                         # reset the threads counter this is used to keep track of
                         # threads that have been  started once a running thread has been notified
@@ -383,6 +392,9 @@ def commander_thread(callback, msgbox):
                         counter = 0
                         max_connections = round(int(settings["max_connections"]))
                         counter = _start_max_threads(grunts, max_connections, counter)
+
+                        _Log.info(f"""
+                        Process Counter set to 0. Max Connections = {max_connections}. Current running Processes = {len(grunts_alive(grunts))}""")
 
                 elif r.type == "fetch":                
                     if not _task_running:
@@ -396,8 +408,8 @@ def commander_thread(callback, msgbox):
                         # Load the cookiejar
                         cookiejar = load_cookies(settings)
                         urldata = parsing.UrlData(r.data["url"], method="GET")
-                        webreq = request_from_url(urldata, cookiejar, settings)
-                        if webreq:
+                        try:
+                            webreq = request_from_url(urldata, cookiejar, settings)
                             # make sure is a text document to parse
                             ext = parsing.is_valid_content_type(
                                                                 r.data["url"], 
@@ -431,6 +443,8 @@ def commander_thread(callback, msgbox):
                                     # Nothing found notify main thread
                                     callback(MessageMain(data={"message": "No links found :("}))
                             webreq.close()
+                        except Exception as err:
+                            _Log.error(f"Commander web request failed - {err.__str__()}")
                     else:
                         callback(MessageMain(data={"message": "Still scanning for images please press cancel to start a new scan"}))
 
@@ -443,7 +457,9 @@ def commander_thread(callback, msgbox):
                     if counter < len(grunts):
                         grunts[counter].start()
                         counter += 1
-                        callback(r)
+                        _Log.info(f"PROCESS#{r.data['index']} is {r.status}")
+                        if r.status == "complete":
+                            callback(r)
                 elif r.type == "stat-update":
                     # add stats up and notify main thread
                     _add_stats(stats, r.data)

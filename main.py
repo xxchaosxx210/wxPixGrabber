@@ -2,6 +2,11 @@ import wx
 
 from gui.mainwindow import MainWindow
 
+import logging
+import os
+
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+
 
 class PixGrabberApp(wx.App):
 
