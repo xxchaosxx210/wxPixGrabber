@@ -35,49 +35,32 @@ QUERY_DELETE_IGNORE = """DELETE FROM ignored WHERE url=?
 QUERY_URL_IGNORE = "SELECT * FROM ignored WHERE url=?"
 
 
-class Sql:
+def initialize_ignore():
+    conn = _create_connection(SQL_FILENAME)
+    if conn:
+        _create_table(conn, CACHE_TABLE)
+        conn.close()  
 
-    _lock = threading.Lock()
-
-    @staticmethod
-    def initialize_ignore():
-        Sql._lock.acquire()
-        conn = _create_connection(SQL_FILENAME)
-        if conn:
-            _create_table(conn, CACHE_TABLE)
-            conn.close()
-        Sql._lock.release()
-
-    @staticmethod
-    def add_ignore(url, reason, width, height):
-        Sql._lock.acquire()
-        conn = _create_connection(SQL_FILENAME)
-        if conn:
-            _add_entry(conn, url, reason, width, height)
-            conn.close()
-        Sql._lock.release()
+def add_ignore(url, reason, width, height):
+    conn = _create_connection(SQL_FILENAME)
+    if conn:
+        _add_entry(conn, url, reason, width, height)
+        conn.close()
     
-    @staticmethod
-    def delete_ignore(url):
-        Sql._lock.acquire()
-        conn = _create_connection(SQL_FILENAME)
-        if conn:
-            _delete_entries(conn, url)
-        Sql._lock.release()
-
-    @staticmethod
-    def query_ignore(url):
-        Sql._lock.acquire()
-        rows = []
-        conn = _create_connection(SQL_FILENAME)
-        if conn:
-            cur = conn.cursor()
-            cur.execute(QUERY_URL_IGNORE, (url,))
-            rows = cur.fetchall()
-            conn.close()
-        Sql._lock.release()
-        return rows
-
+def delete_ignore(url):
+    conn = _create_connection(SQL_FILENAME)
+    if conn:
+        _delete_entries(conn, url)
+        
+def query_ignore(url):
+    rows = []
+    conn = _create_connection(SQL_FILENAME)
+    if conn:
+        cur = conn.cursor()
+        cur.execute(QUERY_URL_IGNORE, (url,))
+        rows = cur.fetchall()
+        conn.close()
+    return rows
 
 def check_cache_for_image(url, settings):
     """
@@ -85,7 +68,7 @@ def check_cache_for_image(url, settings):
     minimum width and height returns false
     if no duplicate exists.
     """
-    result = Sql.query_ignore(url)
+    result = query_ignore(url)
     if result:
         urldata = result[0]
         if urldata[1] == "small-image":
@@ -94,7 +77,7 @@ def check_cache_for_image(url, settings):
             if width > urldata[2] and height > urldata[3]:
                 # minimum resolution has changed
                 # delete the entry
-                Sql.delete_ignore(url)
+                delete_ignore(url)
                 return False
             else:
                 return True
@@ -141,8 +124,8 @@ def _create_table(conn, sql_table):
         print(err.__str__())
 
 def _test():
-    Sql.initialize_ignore()
-    print(Sql.query_ignore("https://imgbox.com/images/imgbox.png"))
+    initialize_ignore()
+    print(query_ignore("https://imgbox.com/images/imgbox.png"))
 
 if __name__ == '__main__':
     _test()

@@ -23,10 +23,8 @@ from options import (
 
 import parsing
 
-from cache import Sql
+import cache
 
-# Initialize the ignore table in the db file
-Sql.initialize_ignore()
 
 class Blacklist:
 
@@ -144,8 +142,8 @@ def _download_image(filename, response, folder_lock, settings):
             stats.errors += 1
     else:
         # add the URl to the cache
-        if not Sql.query_ignore(response.url):
-            Sql.add_ignore(response.url, "small-image", width, height)
+        if not cache.query_ignore(response.url):
+            cache.add_ignore(response.url, "small-image", width, height)
         stats.ignored += 1
 
     # close the file handle
@@ -243,8 +241,8 @@ class Grunt(threading.Thread):
                                    data={"saved": 0, "errors": 1, "ignored": 0}))
             return []
         else:
-            if not Sql.query_ignore(response.url):
-                Sql.add_ignore(response.url, "unknown-file-type", 0, 0)
+            if not cache.query_ignore(response.url):
+                cache.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
     
     def notify_thread(self, msg):
@@ -331,6 +329,9 @@ def commander_thread(callback, msgbox):
     Level 1 parser and image finder thread
     will create grunt threads if any links found on url
     """
+    # Create the cache table
+    cache.initialize_ignore()
+
     _quit = False
     grunts = []
     _task_running = False
