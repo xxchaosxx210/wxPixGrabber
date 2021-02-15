@@ -14,7 +14,7 @@ from scraper import Message
 
 from gui.settingsdialog import SettingsDialog
 
-from options import Settings
+import options
 
 
 class DownloadPanel(wx.Panel):
@@ -70,12 +70,12 @@ class DownloadPanel(wx.Panel):
                              pos=wx.DefaultPosition,
                              style=wx.DEFAULT_DIALOG_STYLE,
                              name="settings_dialog",
-                             settings=Settings.load())
+                             settings=options.load_settings())
         dlg.CenterOnParent()
 
         if dlg.ShowModal() == wx.ID_OK:
             settings = dlg.get_settings()
-            Settings.save(settings)
+            options.save_settings(settings)
         dlg.Destroy()
         # start up the clipboard listener again
         self.GetParent().clipboard.start()

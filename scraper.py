@@ -16,13 +16,8 @@ from PIL import (
     UnidentifiedImageError
 )
 
-from options import (
-    Settings,
-    assign_unique_name
-)
-
+import options
 import parsing
-
 import cache
 
 
@@ -365,7 +360,7 @@ def commander_thread(callback, msgbox):
                         # create a new instance of it in memory
                         # we dont want these values to change
                         # whilst downloading and saving to file
-                        settings = dict(Settings.load())
+                        settings = dict(options.load_settings())
 
                         cookiejar = load_cookies(settings)
 
@@ -393,7 +388,7 @@ def commander_thread(callback, msgbox):
                         # Load settings
                         callback(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
-                        settings = Settings.load()
+                        settings = options.load_settings()
                         # get the document from the URL
                         callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
@@ -412,7 +407,7 @@ def commander_thread(callback, msgbox):
                                 soup = parsing.parse_html(html_doc)
                                 # get the url title
                                 # amd add a unique path name to the save path
-                                assign_unique_name(
+                                options.assign_unique_name(
                                     webreq.url, getattr(soup.find("title"), "text", ""))
                                 # scrape links and images from document
                                 scanned_urldata = []

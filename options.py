@@ -5,7 +5,6 @@ loads and saves text on all platforms
 
 import os
 import json
-from threading import Lock
 from urllib.request import url2pathname
 import string
 
@@ -23,8 +22,6 @@ else:
 LOG_PATH = os.path.join(PATH, "log.txt")
 SETTINGS_PATH = os.path.join(PATH, "settings.json")
 DEFAULT_PICTURE_PATH = "Pictures"
-
-_file_lock = Lock()
 
 _FILTER_SEARCH = [
     "imagevenue.com/", 
@@ -63,59 +60,27 @@ DEFAULT_SETTINGS = {
     "auto-download": False
     }
 
-
-class Settings:
-
-    lock = Lock()
-
-    @staticmethod
-    def load():
-        settings = DEFAULT_SETTINGS
-        Settings.lock.acquire()
-        data = load(SETTINGS_PATH)
-        if data:
-            settings = json.loads(data)
-        Settings.lock.release()
-        return settings
-    
-    @staticmethod
-    def save(settings):
-        Settings.lock.acquire()
-        save(SETTINGS_PATH, json.dumps(settings))
-        Settings.lock.release()
-
-
-def check_path_exists():
-    if not os.path.exists(PATH):
-        _file_lock.acquire()
-        os.mkdir(PATH)
-        _file_lock.release()
-
-def delete_file(path):
-    if os.path.exists(path):
-        os.remove(path)
-
-def load(path):
+def load_settings():
     """
-    load(str)
+    load_settings()
     takes in the name of the file to load. Doesnt require full path just the name of the file and extension
     returns loaded json object or None if no file exists
     """
-    data = None
-    check_path_exists()
-    _file_lock.acquire()
-    if os.path.exists(path):
-        with open(path, "r") as fp:
-            data = fp.read()
-    _file_lock.release()
-    return data
+    settings = DEFAULT_SETTINGS
+    _check_path_exists()
+    if os.path.exists(SETTINGS_PATH):
+        with open(SETTINGS_PATH, "r") as fp:
+            settings = json.loads(fp.read())
+    return settings
 
-def save(path, data):
-    _file_lock.acquire()
-    check_path_exists()
-    with open(path, "w") as fp:
-        fp.write(data)
-    _file_lock.release()
+def save_settings(settings):
+    _check_path_exists()
+    with open(SETTINGS_PATH, "w") as fp:
+        fp.write(json.dumps(settings))
+
+def _check_path_exists():
+    if not os.path.exists(PATH):
+        os.mkdir(PATH)
 
 def format_filename(s):
     """Take a string and return a valid filename constructed from the string.
@@ -143,7 +108,7 @@ def assign_unique_name(url, title):
     """
     if not title:
         title = url2pathname(url)
-    settings = Settings.load()
+    settings = load_settings()
     settings["unique_pathname"]["name"] = format_filename(title)
-    Settings.save(settings)
+    save_settings(settings)
 

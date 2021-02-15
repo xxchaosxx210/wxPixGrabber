@@ -15,7 +15,7 @@ from timer import (
 )
 
 import clipboard
-from options import Settings
+import options
 
 from resources.sfx import Sfx
 
@@ -50,7 +50,7 @@ class MainWindow(wx.Frame):
     def on_clipboard(self, text):
         self.dldpanel.addressbar.txt_address.SetValue(text)
         
-        if Settings.load()["auto-download"]:
+        if options.load_settings()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
         else:
             # bring the window to the foreground
@@ -84,7 +84,7 @@ class MainWindow(wx.Frame):
                 self.update_status(msg.thread.upper(), msg.data["message"])
             # All tasks complete
             elif msg.type == "complete":
-                if Settings.load()["notify-done"]:
+                if options.load_settings()["notify-done"]:
                     Sfx.notify.Play()
                 # kill the timer thread
                 timer_quit.set()
@@ -98,7 +98,7 @@ class MainWindow(wx.Frame):
                 self.update_status("COMMANDER", "Press Start to start scanning for images...")
                 self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
                 if msg.data.get("urls", []):
-                    if Settings.load()["auto-download"]:
+                    if options.load_settings()["auto-download"]:
                         # start the download automatically no wait
                         self.dldpanel.on_start_button(None)
 
