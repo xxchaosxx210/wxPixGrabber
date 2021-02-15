@@ -227,7 +227,7 @@ class Grunt(mp.Process):
             # check the validity of the image and save
             try:
                 stats = _download_image(filename, response, self.settings)
-                self.notify_thread(
+                self.comm_queue.put_nowait(
                     Message(
                         thread="grunt", type="stat-update", data={
                             "saved": stats.saved,
@@ -235,7 +235,7 @@ class Grunt(mp.Process):
                             "ignored": stats.ignored}))
             except UnidentifiedImageError:
                 # Couldnt load the Image from Stream
-                self.notify_thread(Message(
+                self.comm_queue.put_nowait(Message(
                                    thread="grunt", type="stat-update", 
                                    data={"saved": 0, "errors": 1, "ignored": 0}))
             return []
@@ -244,12 +244,6 @@ class Grunt(mp.Process):
                 _Log.info(f"PROCESS#{self.thread_index} - Url {response.url} ignored. Storing to cache")
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
-    
-    def notify_thread(self, msg):
-        """
-        Notify the Commander Process
-        """
-        self.comm_queue.put(msg)
     
     def add_url(self, urldata):
         """
@@ -275,7 +269,7 @@ class Grunt(mp.Process):
             urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
         except Exception as err:
             _Log.error(f"PROCESS#{self.thread_index} - {err.__str__()}")
-            self.notify_thread(
+            self.comm_queue.put_nowait(
                     Message(thread="grunt", type="stat-update", 
                             data={"saved": 0, "errors": 1, "ignored": 0}))  
             return []
@@ -284,10 +278,9 @@ class Grunt(mp.Process):
 
     def run(self):
         self.cookiejar = load_cookies(self.settings)
-        GruntMessage = functools.partial(Message, id=self.thread_index, thread="grunt")
         if not self.cancel.is_set():
-            self.notify_thread(
-                GruntMessage(status="ok", type="scanning"))
+            self.comm_queue.put_nowait(
+                Message(thread="grunt", id=self.thread_index, status="ok", type="scanning"))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
@@ -303,11 +296,13 @@ class Grunt(mp.Process):
                                 self.follow_url(level_two_urldata)
 
         if self.cancel.is_set():
-            self.notify_thread(GruntMessage(
-                status="cancelled", type="finished", data={"index": self.thread_index}))
+            self.notify_finished("cancelled")
         else:
-            self.notify_thread(GruntMessage(
-                status="complete", type="finished", data={"index": self.thread_index}))
+            self.notify_finished("complete")
+    
+    def notify_finished(self, status):
+        self.comm_queue.put_nowait(Message(
+                thread="grunt", status=status, type="finished", id=self.thread_index))
 
 
 def _start_max_threads(threads, max_threads, counter):
@@ -457,7 +452,7 @@ def commander_thread(callback, msgbox):
                     if counter < len(grunts):
                         grunts[counter].start()
                         counter += 1
-                        _Log.info(f"PROCESS#{r.data['index']} is {r.status}")
+                        _Log.info(f"PROCESS#{r.id} is {r.status}")
                         if r.status == "complete":
                             callback(r)
                 elif r.type == "stat-update":
