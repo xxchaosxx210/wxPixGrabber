@@ -8,7 +8,6 @@ this will optimize the performance of the scraper searches
 import sqlite3
 import os
 import time
-import threading
 
 from sqlite3 import Error
 
