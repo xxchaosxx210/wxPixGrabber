@@ -7,12 +7,13 @@ from io import BytesIO
 from dataclasses import dataclass
 import logging
 
-_Log = logging.getLogger(__name__)
-
-from webrequest import (
+from web.webrequest import (
     request_from_url,
     load_cookies
 )
+import web.options as options
+import web.parsing as parsing
+import web.cache as cache
 
 # Image
 from PIL import (
@@ -20,9 +21,7 @@ from PIL import (
     UnidentifiedImageError
 )
 
-import options
-import parsing
-import cache
+_Log = logging.getLogger(__name__)
 
 
 class Blacklist:

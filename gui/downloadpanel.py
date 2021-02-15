@@ -10,11 +10,10 @@ from gui.theme import (
     ThemedStaticText
 )
 
-from scraper import Message
+from web.scraper import Message
+import web.options as options
 
 from gui.settingsdialog import SettingsDialog
-
-import options
 
 
 class DownloadPanel(wx.Panel):

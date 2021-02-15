@@ -5,10 +5,11 @@ import logging
 
 from gui.downloadpanel import DownloadPanel
 
-from scraper import (
+from web.scraper import (
     create_commander,
     Message
 )
+import web.options as options
 
 from timer import (
     create_timer_thread,
@@ -16,7 +17,6 @@ from timer import (
 )
 
 import clipboard
-import options
 
 from resources.sfx import Sfx
 
