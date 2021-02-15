@@ -345,6 +345,7 @@ def commander_thread(callback, msgbox):
         task_running: bool = False
         processes: list = None
         quit_thread: mp.Event = None
+        time_counter: float = 0.0
     
     props = Properties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
                        processes=[], quit_thread=mp.Event())
@@ -509,6 +510,19 @@ def commander_thread(callback, msgbox):
                     props.task_running = False
                     props.blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
+                    props.time_counter = 0.0
+                else:
+                    # cancel flag is set. Start counting to timeout
+                    # then start terminating processing
+                    if props.cancel_all.is_set():
+                        if props.time_counter >= props.settings["connection_timeout"]:
+                            # kill any hanging processes
+                            for task in props.processes:
+                                if task.is_alive():
+                                    task.terminate()
+                                    props.counter += 1
+                        else:
+                            props.time_counter += QUEUE_TIMEOUT
 
 def tasks_alive(processes):
     """
