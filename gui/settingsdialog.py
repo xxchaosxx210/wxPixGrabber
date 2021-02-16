@@ -111,11 +111,11 @@ class SettingsDialog(wx.Dialog):
 
         # Save options
         settings["unique_pathname"]["enabled"] = \
-            self.panel.folder_panel.chk_prefixed_name.GetValue()
-        settings["generate_filenames"]["enabled"] = \
             self.panel.folder_panel.chk_unique_path.GetValue()
+        settings["generate_filenames"]["enabled"] = \
+            self.panel.folder_panel.chk_prefixed_name.GetValue()
         settings["generate_filenames"]["name"] = \
-            self.panel.folder_panel.txt_unique_path.GetValue()
+            self.panel.folder_panel.txt_prefixed_name.GetValue()
 
         settings["save_path"] = \
             self.panel.savepath.text.GetValue()
@@ -404,29 +404,40 @@ class SaveOptionsPanel(wx.Panel):
         self.chk_prefixed_name.SetValue(True)
         self.chk_unique_path = wx.CheckBox(self, -1, "Unique path name")
         self.chk_unique_path.SetValue(True)
-        self.txt_unique_path = wx.TextCtrl(self, -1, "image", size=(120, -1))
+        self.txt_prefixed_name = wx.TextCtrl(self, -1, "image", size=(120, -1))
+
+        self.chk_prefixed_name.Bind(wx.EVT_CHECKBOX, self.on_prefix_checkbox, self.chk_prefixed_name)
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Folder Options")
 
         hs = vboxsizer()
-        hs.Add(self.chk_prefixed_name, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.chk_unique_path, 1, wx.ALL|wx.EXPAND, 0)
         box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
         box.AddSpacer(30)
         hs = hboxsizer()
-        hs.Add(self.chk_unique_path, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.chk_prefixed_name, 1, wx.ALL|wx.EXPAND, 0)
         box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
         hs = hboxsizer()
-        hs.Add(self.txt_unique_path, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.txt_prefixed_name, 1, wx.ALL|wx.EXPAND, 0)
         box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
 
         self.SetSizer(box)
-
+    
+    def on_prefix_checkbox(self, evt):
+        if evt.Selection:
+            self.txt_prefixed_name.Enable(True)
+        else:
+            self.txt_prefixed_name.Enable(False)
     
     def set_options(self, unique_path_enabled, 
                     gen_filename_enabled, gen_filename):
-        self.chk_prefixed_name.SetValue(unique_path_enabled)
-        self.chk_unique_path.SetValue(gen_filename_enabled)
-        self.txt_unique_path.SetValue(gen_filename)
+        self.chk_unique_path.SetValue(unique_path_enabled)
+        self.chk_prefixed_name.SetValue(gen_filename_enabled)
+        self.txt_prefixed_name.SetValue(gen_filename)
+        if self.chk_prefixed_name.GetValue():
+            self.txt_prefixed_name.Enable(True)
+        else:
+            self.txt_prefixed_name.Enable(False)
         
 
 class MaxConnectionsPanel(wx.Panel):

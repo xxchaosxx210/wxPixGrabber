@@ -134,9 +134,3 @@ def url_to_filename(url, ext):
                 filename = format_filename(filename + ext)
                 return filename
     return ""
-
-def _test():
-    url_to_filename("http://www.imagebam.com/image/c1e3e01316031805", ".html")
-
-if __name__ == '__main__':
-    _test()
