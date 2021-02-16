@@ -6,6 +6,7 @@ loads and saves text on all platforms
 import os
 import json
 from urllib.request import url2pathname
+import urllib.parse as parse
 import string
 
 VERSION = "0.1"
@@ -112,3 +113,30 @@ def assign_unique_name(url, title):
     settings["unique_pathname"]["name"] = format_filename(title)
     save_settings(settings)
 
+def url_to_filename(url, ext):
+    """
+    url_ro_filename(str, str)
+    strips the url and converts the last path name which is normally the filename
+    and uses the ext if no ext found in the Url. use is_valid_content_type
+    in the parsing.py file to determine what the url content-type is.
+    Returns formatted filename if successful empty string otherwise
+    """
+    presult = parse.urlparse(url)
+    if presult:
+        pathname = url2pathname(getattr(presult, "path", ""))
+        if pathname:
+            split_paths = os.path.split(pathname)
+            if split_paths:
+                filename = split_paths[-1]
+                filename, e = os.path.splitext(filename)
+                if e:
+                    ext = e
+                filename = format_filename(filename + ext)
+                return filename
+    return ""
+
+def _test():
+    url_to_filename("http://www.imagebam.com/image/c1e3e01316031805", ".html")
+
+if __name__ == '__main__':
+    _test()

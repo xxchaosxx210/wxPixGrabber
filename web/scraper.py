@@ -123,7 +123,6 @@ def _response_to_stream(response):
         byte_stream.write(buff)
     return byte_stream
 
-
 def _download_image(filename, response, settings):
     """
     download_image(str, str, object, object)
@@ -154,7 +153,7 @@ def _download_image(filename, response, settings):
     byte_stream.close()
     
     return stats
-    
+
 
 class Grunt(mp.Process):
 
@@ -162,19 +161,19 @@ class Grunt(mp.Process):
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, thread_index, urldata, 
+    def __init__(self, task_index, urldata, 
                  settings, filters, commander_msg, 
                  cancel_event):
         """
         __init__(int, str, **kwargs)
-        thread_index should be a unique number
+        task_index should be a unique number
         this can be used to create a unique filename
         and can also identify the thread
         first thread will be 0 and indexed that way
         url is the universal resource locator to search and parse
         """
         super().__init__()
-        self.thread_index = thread_index
+        self.task_index = task_index
         # grunts starting url
         self.urldata = urldata
         self.settings = settings
@@ -213,15 +212,14 @@ class Grunt(mp.Process):
         elif ext in parsing.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
                 # if so then append thread index and fileindex to make a unique identifier
-                fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
+                fileindex = f"{self.task_index}_{self.fileindex}{ext}"
                 # increment the fileindex for the next image found
                 self.fileindex += 1
                 # append the saved unique name to our file path
                 filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
             else:
-                # if not parse split the url and append the filename
-                # found from the url and use that instead
-                filename = f"test{self.thread_index}{ext}"
+                # generate filename from url
+                filename = options.url_to_filename(response.url, ext)
             # check the validity of the image and save
             try:
                 stats = _download_image(filename, response, self.settings)
@@ -239,7 +237,7 @@ class Grunt(mp.Process):
             return []
         else:
             if not cache.query_ignore(response.url):
-                _Log.info(f"PROCESS#{self.thread_index} - Url {response.url} ignored. Storing to cache")
+                _Log.info(f"PROCESS#{self.task_index} - Url {response.url} ignored. Storing to cache")
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
         return datalist
     
@@ -252,7 +250,7 @@ class Grunt(mp.Process):
         self.comm_queue.put(Message(
             thread="grunt",
             type="blacklist",
-            data={"index": self.thread_index, "urldata": urldata}
+            data={"index": self.task_index, "urldata": urldata}
         ))
         reply = self.msgbox.get()
         return reply.status
@@ -266,7 +264,7 @@ class Grunt(mp.Process):
             resp = request_from_url(urldata, self.cookiejar, self.settings)
             urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
         except Exception as err:
-            _Log.error(f"PROCESS#{self.thread_index} - {err.__str__()}")
+            _Log.error(f"PROCESS#{self.task_index} - {err.__str__()}")
             self.comm_queue.put_nowait(
                     Message(thread="grunt", type="stat-update", 
                             data={"saved": 0, "errors": 1, "ignored": 0}))  
@@ -278,7 +276,7 @@ class Grunt(mp.Process):
         if not self.cancel.is_set():
             self.cookiejar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
-                Message(thread="grunt", id=self.thread_index, status="ok", type="scanning"))
+                Message(thread="grunt", id=self.task_index, status="ok", type="scanning"))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
@@ -300,7 +298,7 @@ class Grunt(mp.Process):
     
     def notify_finished(self, status):
         self.comm_queue.put_nowait(Message(
-                thread="grunt", status=status, type="finished", id=self.thread_index))
+                thread="grunt", status=status, type="finished", id=self.task_index))
 
 
 def _start_max_threads(threads, max_threads, counter):
@@ -387,8 +385,8 @@ def commander_thread(callback, msgbox):
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(props.settings["filters"])
                         _Log.info("Search Filters loaded")
-                        for thread_index, urldata in enumerate(props.scanned_urls):
-                            grunt = Grunt(thread_index, urldata, props.settings, 
+                        for task_index, urldata in enumerate(props.scanned_urls):
+                            grunt = Grunt(task_index, urldata, props.settings, 
                                           filters, msgbox, props.cancel_all)
                             props.processes.append(grunt)
                         

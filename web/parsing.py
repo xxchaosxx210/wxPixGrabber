@@ -23,6 +23,7 @@ class UrlData:
     data: dict = None
     tag: str = ""
 
+
 def compile_filter_list(filter_list):
     return re.compile("|".join(filter_list))
 
