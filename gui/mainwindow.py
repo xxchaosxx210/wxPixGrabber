@@ -18,7 +18,7 @@ from timer import (
 
 import clipboard
 
-from resources.sfx import Sfx
+from resources.sfx import load_sounds
 
 
 _log = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class MainWindow(wx.Frame):
                                           self.commander_msgbox)
         self.commander.start()
 
-        Sfx.load()
+        self.sfx = load_sounds()
 
         # keep a reference to the clipboard, there is a bug in that when the clipboard
         # listener is running, it captures win32 messages before they get to the wx event loop
@@ -60,6 +60,7 @@ class MainWindow(wx.Frame):
         self.clipboard.start()
 
     def on_clipboard(self, text):
+        self.sfx.clipboard.Play()
         self.dldpanel.addressbar.txt_address.SetValue(text)
         if options.load_settings()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
@@ -97,7 +98,7 @@ class MainWindow(wx.Frame):
             # All tasks complete
             elif msg.type == "complete":
                 if options.load_settings()["notify-done"]:
-                    Sfx.notify.Play()
+                    self.sfx.complete.Play()
                     self.Raise()
                 # kill the timer thread
                 timer_quit.set()

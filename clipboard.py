@@ -6,6 +6,7 @@ Windows Clipboard event listener"""
 import wx
 import os
 import re
+import logging
 
 if os.name == "nt":
     from win32 import (
@@ -14,6 +15,8 @@ if os.name == "nt":
         win32clipboard
     )
     import win32.lib.win32con as win32con
+
+_Log = logging.getLogger(__name__)
 
 # Http and Https pattern
 URL_PATTERN = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)')
@@ -129,6 +132,11 @@ class ClipboardListener:
                 win32clipboard.SetClipboardViewer(self.hwnd)
 
 def paste_text(text):
-    if wx.TheClipboard.Open():
-        wx.TheClipboard.SetData(wx.TextDataObject(text))
-        wx.TheClipboard.Close()
+    try:
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(text))
+            wx.TheClipboard.Close()
+            return True
+    except RecursionError as err:
+        _Log.info(f"Error adding to clipboard. {err.__str__()}")
+    return False
