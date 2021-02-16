@@ -15,6 +15,8 @@ import web.options as options
 
 from gui.settingsdialog import SettingsDialog
 
+from clipboard import paste_text
+
 
 class DownloadPanel(wx.Panel):
 
@@ -76,6 +78,9 @@ class DownloadPanel(wx.Panel):
             settings = dlg.get_settings()
             options.save_settings(settings)
         dlg.Destroy()
+        # paste text to the clipboard
+        # stops a bug setting text already added to clipboard before clipboard listener close
+        paste_text("")
         # start up the clipboard listener again
         self.GetParent().clipboard.start()
     

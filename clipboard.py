@@ -127,3 +127,8 @@ class ClipboardListener:
                                         self._wndproc)
             self._next_hwnd = \
                 win32clipboard.SetClipboardViewer(self.hwnd)
+
+def paste_text(text):
+    if wx.TheClipboard.Open():
+        wx.TheClipboard.SetData(wx.TextDataObject(text))
+        wx.TheClipboard.Close()
