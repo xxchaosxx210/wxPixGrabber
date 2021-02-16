@@ -211,10 +211,8 @@ class Grunt(mp.Process):
                               thumbnails_only=False,
                               filters=self.filters)
         elif ext in parsing.IMAGE_EXTS:
-            # check if unique filename has been set in settings
             if self.settings["generate_filenames"]["enabled"]:
-                # if so then append thread index and fileindex
-                # to make a unique identifier
+                # if so then append thread index and fileindex to make a unique identifier
                 fileindex = f"{self.thread_index}_{self.fileindex}{ext}"
                 # increment the fileindex for the next image found
                 self.fileindex += 1
