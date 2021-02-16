@@ -322,10 +322,20 @@ def _add_stats(stats, data):
 
 def commander_thread(callback, msgbox):
     """
-    main handler thread takes in filepath or url
+    commander_thread(function, object)
 
-    Level 1 parser and image finder thread
-    will create grunt threads if any links found on url
+    function callback to main thread, msgbox is a Queue() FIFO object handed
+    down from main thread
+
+    callback(msg)
+    msg is a Message object
+        thread - str calling thread or process can be either main, commander or grunt
+        type   - quit, start, fetch, cancel, message
+        status - depended on the type
+        data   - dict containing extra data depending on the type of message
+
+        example to quit commander: msg = Message(thread="main", type="quit") 
+                                  commander_queue.put(msg)
     """
     # Create the cache table
     cache.initialize_ignore()
@@ -374,9 +384,7 @@ def commander_thread(callback, msgbox):
                         # we dont want these values to change
                         # whilst downloading and saving to file
                         props.settings = dict(options.load_settings())
-
                         cookiejar = load_cookies(props.settings)
-
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(props.settings["filters"])
@@ -505,12 +513,8 @@ def commander_thread(callback, msgbox):
                 # if so cleanup
                 # and notify main thread
                 if len(tasks_alive(props.processes)) == 0 and props.counter >= len(props.processes):
-                    props.cancel_all.clear()
-                    props.processes = []
-                    props.task_running = False
-                    props.blacklist.clear()
                     callback(Message(thread="commander", type="complete"))
-                    props.time_counter = 0.0
+                    _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout
                     # then start terminating processing
@@ -523,6 +527,13 @@ def commander_thread(callback, msgbox):
                                     props.counter += 1
                         else:
                             props.time_counter += QUEUE_TIMEOUT
+
+def _reset_comm_props(properties):
+    properties.cancel_all.clear()
+    properties.processes = []
+    properties.task_running = False
+    properties.blacklist.clear()
+    properties.time_counter = 0.0
 
 def tasks_alive(processes):
     """

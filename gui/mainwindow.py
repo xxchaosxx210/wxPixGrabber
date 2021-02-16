@@ -53,7 +53,6 @@ class MainWindow(wx.Frame):
         # when a Dialog is open. This leads to a bug when I start the listener again it
         # recaptures the last text on the clipboard. so a simple if condition makes sure the
         # text isnt sent to the textctrl address again
-        self._last_text_added = ""
         self.clipboard = \
             clipboard.ClipboardListener(parent=self, 
                                         callback=self.on_clipboard, 
@@ -61,18 +60,13 @@ class MainWindow(wx.Frame):
         self.clipboard.start()
 
     def on_clipboard(self, text):
-        if not self._last_text_added == text:
-            self.dldpanel.addressbar.txt_address.SetValue(text)
-            
-            if options.load_settings()["auto-download"]:
-                self.dldpanel.on_fetch_button(None)
-            else:
-                # bring the window to the foreground
-                self.Raise()
-            self._last_text_added = text
-            _log.info(f"{text} added from Clipboard")
+        self.dldpanel.addressbar.txt_address.SetValue(text)
+        if options.load_settings()["auto-download"]:
+            self.dldpanel.on_fetch_button(None)
         else:
-            _log.info(f"{text} already added from Clipboard")
+            # bring the window to the foreground
+            self.Raise()
+        _log.info(f"{text} added from Clipboard")
 
     
     def _on_timer_callback(self, formatted_time):
