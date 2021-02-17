@@ -134,3 +134,22 @@ def url_to_filename(url, ext):
                 filename = format_filename(filename + ext)
                 return filename
     return ""
+
+def rename_file(path):
+    """
+    rename_file(str)
+    takes a full path of the file and adds a counter
+    to the filename until no file with the name
+    exists
+    returns the full path
+    """
+    splitpath = os.path.split(path)
+    if splitpath:
+        filename = splitpath[-1]
+        name, ext = os.path.splitext(filename)
+        index = 0
+        while os.path.exists(path):
+            filename = f"{name}_{index}{ext}"
+            path = os.path.join(splitpath[0], filename)
+            index += 1
+    return path

@@ -107,9 +107,8 @@ def create_save_path(settings):
         path = settings["save_path"]
     return path
 
-def stream_to_file(path, filename, bytes_stream):
-    full_path = os.path.join(path, filename)
-    with open(full_path, "wb") as fp:
+def stream_to_file(path, bytes_stream):
+    with open(path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
         fp.close()
         return True
@@ -133,13 +132,28 @@ def _download_image(filename, response, settings):
     """
     stats = Stats()
     byte_stream = _response_to_stream(response)
+    # check the image size is within our bounds
     minsize = settings["minimum_image_resolution"]
     image = Image.open(byte_stream)
     width, height = image.size
     if width > minsize["width"] and height > minsize["height"]:
-        # create a new save path and write image toi file
+        # create a new save path and write image to file
         path = create_save_path(settings)
-        if stream_to_file(path, filename, byte_stream):
+        full_path = os.path.join(path, filename)
+        if os.path.exists(full_path):
+            _Log.info(f"{full_path} already exists...")
+            # if file exists then check user settings on what to do
+            if settings["file_exists"] == "rename":
+                full_path = options.rename_file(full_path)
+                _Log.info(f"Renaming to {full_path}")
+            elif settings["file_exists"] == "skip":
+                # close the stream and dont write to disk
+                _Log.info(f"Skipping {full_path}")
+                stats.ignored += 1
+                byte_stream.close()
+                return stats
+        # everything ok. write image to disk
+        if stream_to_file(full_path, byte_stream):
             stats.saved += 1
         else:
             stats.errors += 1
