@@ -137,26 +137,33 @@ def _download_image(filename, response, settings):
     image = Image.open(byte_stream)
     width, height = image.size
     if width > minsize["width"] and height > minsize["height"]:
-        # create a new save path and write image to file
+        # create a new save path
         path = create_save_path(settings)
         full_path = os.path.join(path, filename)
-        if os.path.exists(full_path):
-            _Log.info(f"{full_path} already exists...")
-            # if file exists then check user settings on what to do
-            if settings["file_exists"] == "rename":
-                full_path = options.rename_file(full_path)
-                _Log.info(f"Renaming to {full_path}")
-            elif settings["file_exists"] == "skip":
-                # close the stream and dont write to disk
-                _Log.info(f"Skipping {full_path}")
-                stats.ignored += 1
-                byte_stream.close()
-                return stats
-        # everything ok. write image to disk
-        if stream_to_file(full_path, byte_stream):
-            stats.saved += 1
+        # check byte duplicate
+        _duplicate = options.image_exists(path, response.content)
+        # check filename duplicate
+        if not _duplicate:
+            if os.path.exists(full_path):
+                _Log.info(f"{full_path} already exists...")
+                # if file name exists then check user settings on what to do
+                if settings["file_exists"] == "rename":
+                    full_path = options.rename_file(full_path)
+                    _Log.info(f"Renaming to {full_path}")
+                elif settings["file_exists"] == "skip":
+                    # close the stream and dont write to disk
+                    _Log.info(f"Skipping {full_path}")
+                    stats.ignored += 1
+                    byte_stream.close()
+                    return stats
+            # everything ok. write image to disk
+            if stream_to_file(full_path, byte_stream):
+                stats.saved += 1
+            else:
+                stats.errors += 1
         else:
-            stats.errors += 1
+            _Log.info(f"Bytes duplicate found locally with url {response.url} and {_duplicate}")
+            stats.ignored += 1
     else:
         # add the URl to the cache
         if not cache.query_ignore(response.url):

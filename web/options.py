@@ -8,6 +8,7 @@ import json
 from urllib.request import url2pathname
 import urllib.parse as parse
 import string
+import hashlib
 
 VERSION = "0.1"
 
@@ -153,3 +154,27 @@ def rename_file(path):
             path = os.path.join(splitpath[0], filename)
             index += 1
     return path
+
+def image_exists(path, stream_bytes):
+    """
+    file_exists(str, byte[])
+    loops through each file found in path checks the md5 hash with the stream_bytes hash
+    returns the filename and path if there is a match. None if no match found
+    """
+    files_only = list(filter(
+                          lambda item : os.path.isfile(os.path.join(path, item)), 
+                          os.listdir(path)))
+    for filename in iter(files_only):
+        # remove this line if looking for files other than images
+        if filename.endswith((".jpg", ".gif", ".png", ".tiff", ".bmp", ".jpeg", ".ico", ".tga")):
+            filepath = os.path.join(path, filename)
+            with open(filepath, "rb") as fp:
+                hash1 = hashlib.md5(fp.read())
+                hash2 = hashlib.md5(stream_bytes)
+                result = hash1.digest() == hash2.digest()
+                if result:
+                    fp.close()
+                    return os.path.join(path, filename)
+                fp.close()
+    return None
+                
