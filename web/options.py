@@ -9,6 +9,8 @@ from urllib.request import url2pathname
 import urllib.parse as parse
 import string
 import hashlib
+import mimetypes
+from collections import namedtuple
 
 VERSION = "0.1"
 
@@ -178,4 +180,20 @@ def image_exists(path, stream_bytes):
                     return os.path.join(path, filename)
                 fp.close()
     return None
+
+def load_from_file(url):
+    """
+    bit of a patch to mimick the requests handle using a namedtuple
+    no code broken and fits in ok
+    """
+    fake_request = None
+    if os.path.exists(url):
+        _type, ext = mimetypes.guess_type(url)
+        if "text/html" in _type:
+            with open(url, "r") as fp:
+                html = fp.read()
+                fake_request = namedtuple("Request", ["text", "url", "headers", "close"])(
+                    html, "http://wasfromafile.com", {"Content-Type": _type},
+                    lambda *args: args)
+    return fake_request
                 

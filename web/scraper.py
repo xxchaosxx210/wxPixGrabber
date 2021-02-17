@@ -5,7 +5,6 @@ import functools
 import os
 from io import BytesIO
 from dataclasses import dataclass
-from collections import namedtuple
 import logging
 
 from web.webrequest import (
@@ -438,7 +437,7 @@ def commander_thread(callback, msgbox):
                         cookiejar = load_cookies(props.settings)
                         urldata = parsing.UrlData(r.data["url"], method="GET")
                         try:
-                            webreq = load_from_file(r.data["url"])
+                            webreq = options.load_from_file(r.data["url"])
                             if not webreq:
                                 webreq = request_from_url(urldata, cookiejar, props.settings)
                             ext = parsing.is_valid_content_type(
@@ -545,18 +544,6 @@ def commander_thread(callback, msgbox):
                                     props.counter += 1
                         else:
                             props.time_counter += QUEUE_TIMEOUT
-
-
-def load_from_file(url):
-    req = None
-    if os.path.exists(url):
-        if url.endswith((".html", ".xhtml")):
-            with open(url, "r") as fp:
-                html = fp.read()
-                req = namedtuple("Request", ["text", "url", "headers", "close"])(
-                    html, "http://wasfromafile.com", {"Content-Type": "text/html"},
-                    lambda *args: args)
-    return req
 
 def _reset_comm_props(properties):
     properties.cancel_all.clear()
