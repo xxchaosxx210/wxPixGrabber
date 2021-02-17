@@ -169,8 +169,9 @@ def image_exists(path, stream_bytes):
         if filename.endswith((".jpg", ".gif", ".png", ".tiff", ".bmp", ".jpeg", ".ico", ".tga")):
             filepath = os.path.join(path, filename)
             with open(filepath, "rb") as fp:
-                hash1 = hashlib.md5(fp.read())
-                hash2 = hashlib.md5(stream_bytes)
+                # read the first 1kb
+                hash1 = hashlib.md5(fp.read(1000))
+                hash2 = hashlib.md5(stream_bytes[:1000])
                 result = hash1.digest() == hash2.digest()
                 if result:
                     fp.close()
