@@ -438,11 +438,12 @@ def commander_thread(callback, msgbox):
                         cookiejar = load_cookies(props.settings)
                         urldata = parsing.UrlData(r.data["url"], method="GET")
                         try:
-                            webreq = request_from_url(urldata, cookiejar, props.settings)
-                            # make sure is a text document to parse
+                            webreq = load_from_file(r.data["url"])
+                            if not webreq:
+                                webreq = request_from_url(urldata, cookiejar, props.settings)
                             ext = parsing.is_valid_content_type(
                                                                 r.data["url"], 
-                                                                webreq.headers["Content-type"], 
+                                                                webreq.headers["Content-Type"], 
                                                                 props.settings["images_to_search"])
                             if ext == ".html":
                                 html_doc = webreq.text
@@ -544,6 +545,18 @@ def commander_thread(callback, msgbox):
                                     props.counter += 1
                         else:
                             props.time_counter += QUEUE_TIMEOUT
+
+
+def load_from_file(url):
+    req = None
+    if os.path.exists(url):
+        if url.endswith((".html", ".xhtml")):
+            with open(url, "r") as fp:
+                html = fp.read()
+                req = namedtuple("Request", ["text", "url", "headers", "close"])(
+                    html, "http://wasfromafile.com", {"Content-Type": "text/html"},
+                    lambda *args: args)
+    return req
 
 def _reset_comm_props(properties):
     properties.cancel_all.clear()

@@ -107,7 +107,18 @@ class DownloadPanel(wx.Panel):
         self.ignored.value.SetLabel(str(ignored))
         self.imgsaved.value.SetLabel(str(saved))
         self.errors.value.SetLabel(str(errors))
-
+    
+    def on_btn_open_dir(self, evt):
+        self.GetParent().clipboard.stop()
+        dlg = wx.FileDialog(
+            parent=self, message="Choose an HTML Document to Search",
+            wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
+            style=-wx.FD_FILE_MUST_EXIST|wx.FD_OPEN)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.addressbar.txt_address.SetValue(dlg.GetPaths()[0])
+        dlg.Destroy()
+        paste_text("")
+        self.GetParent().clipboard.start()
 
 class AddressBar(wx.Panel):
 
@@ -116,6 +127,7 @@ class AddressBar(wx.Panel):
 
         self.txt_address = ThemedTextCtrl(self, -1, "")
 
+        btn_open = ThemedButton(self, -1, "Open", size=WX_BUTTON_SIZE)
         btn_fetch = ThemedButton(self, -1, "Fetch", size=WX_BUTTON_SIZE)
         btn_stop = ThemedButton(self, -1, "Cancel", size=WX_BUTTON_SIZE)
         btn_start = ThemedButton(self, -1, "Start", size=WX_BUTTON_SIZE)
@@ -125,9 +137,12 @@ class AddressBar(wx.Panel):
         btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, btn_stop)
         btn_start.Bind(wx.EVT_BUTTON, self.GetParent().on_start_button, btn_start)
         btn_settings.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_settings, btn_settings)
+        btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
 
         hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Download Url")
         hs.Add(self.txt_address, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(btn_open, 0, wx.ALL|wx.EXPAND, 0)
+        hs.AddSpacer(20)
         hs.Add(btn_fetch, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(btn_stop, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(btn_start, 0, wx.ALL|wx.EXPAND, 0)
