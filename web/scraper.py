@@ -360,6 +360,7 @@ def commander_thread(callback, msgbox):
         type="message", 
         data={"message": "Commander thread has loaded. Waiting to scan"}))
     MessageMain = functools.partial(Message, thread="commander", type="message")
+    FetchError = functools.partial(Message, thread="commander", type="fetch", status="error")
 
     @dataclass
     class Properties:
@@ -473,10 +474,10 @@ def commander_thread(callback, msgbox):
                                     callback(MessageMain(data={"message": "No links found :("}))
                             webreq.close()
                         except Exception as err:
-                            _Log.error(f"Commander web request failed - {err.__str__()}")
+                            _Log.error(f"Commander web request failed - ")
+                            callback(FetchError(data={"message": f"{err.__str__()}"}))
                     else:
-                        callback(MessageMain(
-                            data={"message": "Still scanning for images please press cancel to start a new scan"}))
+                        callback(FetchError(data={"message": "Tasks still running"}))
 
                 elif r.type == "cancel":
                     props.cancel_all.set()

@@ -124,6 +124,10 @@ class MainWindow(wx.Frame):
                     if options.load_settings()["auto-download"]:
                         # start the download automatically no wait
                         self.dldpanel.on_start_button(None)
+            # fetch error
+            elif msg.type == "fetch" and msg.status == "error":
+                self.sfx.error.Play()
+                self.update_status("COMMANDER", msg.data["message"])
 
             # fetch has started
             elif msg.type == "fetch" and msg.status == "started":
