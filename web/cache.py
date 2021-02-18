@@ -17,8 +17,6 @@ import logging
 
 _Log = logging.getLogger(__name__)
 
-SQL_FILENAME = os.path.join(options.PATH, "cache.db")
-
 CACHE_TABLE = """CREATE TABLE IF NOT EXISTS ignored (
     url text NOT NULL,
     reason text NOT NULL,
@@ -39,25 +37,25 @@ QUERY_URL_IGNORE = "SELECT * FROM ignored WHERE url=?"
 
 
 def initialize_ignore():
-    conn = _create_connection(SQL_FILENAME)
+    conn = _create_connection(options.SQL_PATH)
     if conn:
         _create_table(conn, CACHE_TABLE)
         conn.close()  
 
 def add_ignore(url, reason, width, height):
-    conn = _create_connection(SQL_FILENAME)
+    conn = _create_connection(options.SQL_PATH)
     if conn:
         _add_entry(conn, url, reason, width, height)
         conn.close()
     
 def delete_ignore(url):
-    conn = _create_connection(SQL_FILENAME)
+    conn = _create_connection(options.SQL_PATH)
     if conn:
         _delete_entries(conn, url)
         
 def query_ignore(url):
     rows = []
-    conn = _create_connection(SQL_FILENAME)
+    conn = _create_connection(options.SQL_PATH)
     if conn:
         cur = conn.cursor()
         cur.execute(QUERY_URL_IGNORE, (url,))

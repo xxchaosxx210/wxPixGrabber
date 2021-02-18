@@ -1,4 +1,5 @@
 import wx
+import os
 from wx.lib import masked
 
 import wx.lib.scrolledpanel as scrolled
@@ -9,6 +10,8 @@ from gui.theme import (
     vboxsizer,
     DIALOG_BORDER
 )
+
+from web.options import SQL_PATH
 
 STATICBOX_BORDER = 5
 
@@ -30,11 +33,12 @@ class SettingsDialog(wx.Dialog):
         hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 0)
         hs.AddSpacer(5)
         vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
-        vs.AddSpacer(5)
+        vs.AddSpacer(20)
 
         hs = hboxsizer()
         hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 0)
         vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        vs.AddSpacer(5)
 
         self.SetSizer(vs)
 
@@ -190,10 +194,12 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.formsearch_panel = FormSearchPanel(self, -1)
         self.notify_panel = NotifyPanel(self, -1)
         self.filter_panel = FilterPanel(self, -1, size=(-1, 200))
+        self.cache_panel = CachePanel(self, -1)
 
         vs = vboxsizer()
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.max_connections, 1, wx.EXPAND|wx.ALL, 0)
         hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.timeout, 0, wx.EXPAND|wx.ALL, 0)
@@ -201,11 +207,13 @@ class SettingsPanel(scrolled.ScrolledPanel):
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.auto_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.minsize_panel, 0, wx.EXPAND|wx.ALL, 0)
         hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.thumb_panel, 0, wx.EXPAND|wx.ALL, 0)
@@ -213,45 +221,59 @@ class SettingsPanel(scrolled.ScrolledPanel):
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.savepath, 1, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.folder_panel, 1, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.cookie_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.imgformat_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.formsearch_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.fileexist_panel, 1, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.notify_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
         hs.Add(self.filter_panel, 1, wx.EXPAND|wx.ALL, 0)
         hs.AddStretchSpacer(1)
         vs.Add(hs, 1, wx.EXPAND|wx.ALL , 0)
-        #vs.AddSpacer(DIALOG_BORDER)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.AddSpacer(DIALOG_BORDER)
+        hs.Add(self.cache_panel, 1, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        vs.AddSpacer(DIALOG_BORDER)
 
         self.SetSizer(vs)
         self.Fit()
@@ -617,6 +639,24 @@ class FilterPanel(wx.Panel):
         index = self.listbox.GetSelection()
         if index is not wx.NOT_FOUND:
             self.listbox.Delete(index)
+
+
+class CachePanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        
+        btn_delete = wx.Button(self, -1, "Clear Cache")
+        self.Bind(wx.EVT_BUTTON, self.on_clear_cache, btn_delete)
+        bmp = wx.Bitmap(".\\resources\\delete.png", wx.BITMAP_TYPE_PNG)
+        btn_delete.SetBitmap(bmp, wx.LEFT)
+        btn_delete.SetBitmapMargins((2, 2))
+        btn_delete.SetInitialSize()
+    
+    def on_clear_cache(self, evt):
+        if os.path.exists(SQL_PATH):
+            os.remove(SQL_PATH)
+            wx.MessageBox("Cache has been cleared", "Cleared Cache")
 
 
 class OkCancelPanel(wx.Panel):

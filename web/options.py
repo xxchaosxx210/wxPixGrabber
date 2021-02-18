@@ -27,6 +27,8 @@ LOG_PATH = os.path.join(PATH, "log.txt")
 SETTINGS_PATH = os.path.join(PATH, "settings.json")
 DEFAULT_PICTURE_PATH = "Pictures"
 
+SQL_PATH = os.path.join(PATH, "cache.db")
+
 _FILTER_SEARCH = [
     "imagevenue.com/", 
     "imagebam.com/", 
