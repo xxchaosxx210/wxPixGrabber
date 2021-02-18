@@ -451,8 +451,9 @@ def commander_thread(callback, msgbox):
                                 soup = parsing.parse_html(html_doc)
                                 # get the url title
                                 # amd add a unique path name to the save path
+                                html_title = getattr(soup.find("title"), "text", "")
                                 options.assign_unique_name(
-                                    webreq.url, getattr(soup.find("title"), "text", ""))
+                                    webreq.url, html_title)
                                 # scrape links and images from document
                                 props.scanned_urls = []
                                 # find images and links
@@ -468,7 +469,8 @@ def commander_thread(callback, msgbox):
                                                      filters=filters) > 0:
                                     callback(
                                         Message(thread="commander", type="fetch", 
-                                                     status="finished", data={"urls": props.scanned_urls}))
+                                                     status="finished", data={"urls": props.scanned_urls,
+                                                     "title": html_title}))
                                 else:
                                     # Nothing found notify main thread
                                     callback(MessageMain(data={"message": "No links found :("}))

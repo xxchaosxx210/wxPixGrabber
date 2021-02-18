@@ -104,43 +104,20 @@ class MainWindow(wx.Frame):
                 self.update_status(msg.thread.upper(), msg.data["message"])
             # All tasks complete
             elif msg.type == "complete":
-                if options.load_settings()["notify-done"]:
-                    self.sfx.complete.Play()
-                    self.Raise()
-                # kill the timer thread
-                timer_quit.set()
-                self.update_status("COMMANDER", "All tasks have completed")
-                self.dldpanel.progressbar.reset_progress(0)
-                self.dldpanel.addressbar.txt_address.SetValue("")
-                self.dldpanel.addressbar.btn_fetch.Enable(True)
-                self.dldpanel.addressbar.btn_start.Enable(True)
+                self._on_scraping_complete()
             # fetch has completed
             elif msg.type == "fetch" and msg.status == "finished":
-                # Set the progress bar maximum range
-                self.update_status("COMMANDER", f"{len(msg.data['urls'])} Links found")
-                self.update_status("COMMANDER", "Press Start to start scanning for images...")
-                self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
-                if msg.data.get("urls", []):
-                    if options.load_settings()["auto-download"]:
-                        # start the download automatically no wait
-                        self.dldpanel.on_start_button(None)
+                self._on_fetch_finished(msg)
             # fetch error
             elif msg.type == "fetch" and msg.status == "error":
                 self.sfx.error.Play()
                 self.update_status("COMMANDER", msg.data["message"])
-
             # fetch has started
             elif msg.type == "fetch" and msg.status == "started":
                 self.status.SetValue("")
             # started download and loading threads
             elif msg.type == "searching" and msg.status == "start":
-                timer_quit.clear()
-                self.dldpanel.resetstats()
-                create_timer_thread(self._on_timer_callback).start()
-                self.update_status(msg.thread.upper(), "Starting threads...")
-                self.dldpanel.addressbar.btn_fetch.Enable(False)
-                self.dldpanel.addressbar.btn_start.Enable(False)
-            
+                self._on_start_scraping(msg)
             # error stat update
             elif msg.type == "stat-update":
                 stats = msg.data["stats"]
@@ -154,6 +131,37 @@ class MainWindow(wx.Frame):
             # finished task
             elif msg.type == "finished" and msg.status == "complete":
                 self.dldpanel.progressbar.increment()
+    
+    def _on_start_scraping(self, msg):
+        timer_quit.clear()
+        self.dldpanel.resetstats()
+        create_timer_thread(self._on_timer_callback).start()
+        self.update_status(msg.thread.upper(), "Starting threads...")
+        self.dldpanel.addressbar.btn_fetch.Enable(False)
+        self.dldpanel.addressbar.btn_start.Enable(False)
+    
+    def _on_scraping_complete(self):
+        if options.load_settings()["notify-done"]:
+            self.sfx.complete.Play()
+            self.Raise()
+        # kill the timer thread
+        timer_quit.set()
+        self.update_status("COMMANDER", "All tasks have completed")
+        self.dldpanel.progressbar.reset_progress(0)
+        self.dldpanel.addressbar.txt_address.SetValue("")
+        self.dldpanel.addressbar.btn_fetch.Enable(True)
+        self.dldpanel.addressbar.btn_start.Enable(True)
+    
+    def _on_fetch_finished(self, msg):
+        # Set the progress bar maximum range
+        self.update_status("COMMANDER", f"{len(msg.data['urls'])} Links found")
+        self.update_status("COMMANDER", "Press Start to start scanning for images...")
+        self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+        self.SetTitle(msg.data["title"])
+        if msg.data.get("urls", []):
+            if options.load_settings()["auto-download"]:
+                # start the download automatically no wait
+                self.dldpanel.on_start_button(None)
 
     def handler_callback(self, msg):
         """Sends the message from background thread to main thread
