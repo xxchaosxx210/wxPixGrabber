@@ -32,8 +32,11 @@ class MainWindow(wx.Frame):
     def __init__(self, **kw):
         super().__init__(**kw)
 
+        self.bitmaps = load_bitmaps()
+        self.sounds = load_wavs()
+
         icon = wx.EmptyIcon()
-        icon.CopyFromBitmap(wx.Bitmap(".\\resources\\icon.png", wx.BITMAP_TYPE_PNG))
+        icon.CopyFromBitmap(self.bitmaps["icon"])
         self.SetIcon(icon)
 
         self.dldpanel = DownloadPanel(parent=self)
@@ -50,9 +53,6 @@ class MainWindow(wx.Frame):
         self.commander = create_commander(self.handler_callback, 
                                           self.commander_msgbox)
         self.commander.start()
-
-        self.sounds = load_wavs()
-        self.bitmaps = load_bitmaps()
 
         # keep a reference to the clipboard, there is a bug in that when the clipboard
         # listener is running, it captures win32 messages before they get to the wx event loop

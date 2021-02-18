@@ -21,6 +21,8 @@ class DownloadPanel(wx.Panel):
     def __init__(self, **kwargs):
         super(DownloadPanel, self).__init__(**kwargs)
 
+        self.bitmaps = kwargs["parent"].bitmaps
+
         self.addressbar = AddressBar(self, -1)
         self.statusbox = StatusPanel(self, -1)
         self.errors = StatsPanel(parent=self, stat_name="Errors:", stat_value="0")
@@ -122,16 +124,12 @@ class AddressBar(wx.Panel):
 
         self.txt_address = ThemedTextCtrl(self, -1, "")
 
-        bitmap = wx.Bitmap(".\\resources\\html-file.png", wx.BITMAP_TYPE_PNG)
-        btn_open = wx.BitmapButton(self, -1, bitmap)
-        bitmap = wx.Bitmap(".\\resources\\fetch.png", wx.BITMAP_TYPE_PNG)
-        self.btn_fetch = wx.BitmapButton(self, -1, bitmap)
-        bitmap = wx.Bitmap(".\\resources\\cancel.png", wx.BITMAP_TYPE_PNG)
-        self.btn_stop = wx.BitmapButton(self, -1, bitmap)
-        bitmap = wx.Bitmap(".\\resources\\start.png", wx.BITMAP_TYPE_PNG)
-        self.btn_start = wx.BitmapButton(self, -1, bitmap)
-        bitmap = wx.Bitmap(".\\resources\\settings.png", wx.BITMAP_TYPE_PNG)
-        btn_settings = wx.BitmapButton(self, -1, bitmap)
+        bitmaps = self.GetParent().bitmaps
+        btn_open = wx.BitmapButton(self, -1, bitmaps["html-file"])
+        self.btn_fetch = wx.BitmapButton(self, -1, bitmaps["fetch"])
+        self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
+        self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
+        btn_settings = wx.BitmapButton(self, -1, bitmaps["settings"])
 
         self.btn_fetch.Bind(wx.EVT_BUTTON, self.GetParent().on_fetch_button, self.btn_fetch)
         self.btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, self.btn_stop)
