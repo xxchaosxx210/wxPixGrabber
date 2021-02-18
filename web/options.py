@@ -12,6 +12,8 @@ import hashlib
 import mimetypes
 from collections import namedtuple
 
+IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
+
 VERSION = "0.1"
 
 # Get settings folder path
@@ -141,12 +143,13 @@ def url_to_filename(url, ext):
     return ""
 
 def rename_file(path):
-    """
-    rename_file(str)
-    takes a full path of the file and adds a counter
-    to the filename until no file with the name
-    exists
-    returns the full path
+    """checks the file for a match in the path. Creates a unique filename until no match is found
+
+    Args:
+        path (str): the path of the filename to be checked
+
+    Returns:
+        str: returns the new path name
     """
     splitpath = os.path.split(path)
     if splitpath:
@@ -160,27 +163,23 @@ def rename_file(path):
     return path
 
 def image_exists(path, stream_bytes):
+    """scans the path for images and checks the checksum of the stream_bytes and file_bytes
+
+    Args:
+        path (str): The path to scan for images
+        stream_bytes (b): byte stream of image
+
+    Returns:
+        str: returns the file path if their is a match. None of no match found
     """
-    file_exists(str, byte[])
-    loops through each file found in path checks the md5 hash with the stream_bytes hash
-    returns the filename and path if there is a match. None if no match found
-    """
-    files_only = list(filter(
-                          lambda item : os.path.isfile(os.path.join(path, item)), 
-                          os.listdir(path)))
-    for filename in iter(files_only):
-        # remove this line if looking for files other than images
-        if filename.endswith((".jpg", ".gif", ".png", ".tiff", ".bmp", ".jpeg", ".ico", ".tga")):
-            filepath = os.path.join(path, filename)
-            with open(filepath, "rb") as fp:
-                # read the first 1kb
-                hash1 = hashlib.md5(fp.read(1000))
-                hash2 = hashlib.md5(stream_bytes[:1000])
-                result = hash1.digest() == hash2.digest()
-                if result:
-                    fp.close()
-                    return os.path.join(path, filename)
-                fp.close()
+    with os.scandir(path) as it:
+        for entry in it:
+            if entry.is_file() and entry.name.endswith(IMAGE_EXTS):
+                with open(entry.path, "rb") as fp:
+                    hash1 = hashlib.md5(fp.read(1000)).digest()
+                    hash2 = hashlib.md5(stream_bytes[:1000]).digest()
+                    if hash1 == hash2:
+                        return entry.path
     return None
 
 def load_from_file(url):
@@ -198,4 +197,3 @@ def load_from_file(url):
                     html, "http://wasfromafile.com", {"Content-Type": _type},
                     lambda *args: args)
     return fake_request
-                
