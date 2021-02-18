@@ -29,6 +29,10 @@ class MainWindow(wx.Frame):
     def __init__(self, **kw):
         super().__init__(**kw)
 
+        icon = wx.EmptyIcon()
+        icon.CopyFromBitmap(wx.Bitmap(".\\resources\\icon.png", wx.BITMAP_TYPE_PNG))
+        self.SetIcon(icon)
+
         self.dldpanel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
         vs.Add(self.dldpanel, 1, wx.EXPAND|wx.ALL, 0)
@@ -105,6 +109,8 @@ class MainWindow(wx.Frame):
                 self.update_status("COMMANDER", "All tasks have completed")
                 self.dldpanel.progressbar.reset_progress(0)
                 self.dldpanel.addressbar.txt_address.SetValue("")
+                self.dldpanel.addressbar.btn_fetch.Enable(True)
+                self.dldpanel.addressbar.btn_start.Enable(True)
             # fetch has completed
             elif msg.type == "fetch" and msg.status == "finished":
                 # Set the progress bar maximum range
@@ -125,6 +131,8 @@ class MainWindow(wx.Frame):
                 self.dldpanel.resetstats()
                 create_timer_thread(self._on_timer_callback).start()
                 self.update_status(msg.thread.upper(), "Starting threads...")
+                self.dldpanel.addressbar.btn_fetch.Enable(False)
+                self.dldpanel.addressbar.btn_start.Enable(False)
             
             # error stat update
             elif msg.type == "stat-update":

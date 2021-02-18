@@ -403,7 +403,7 @@ def commander_thread(callback, msgbox):
                         cookiejar = load_cookies(props.settings)
                         # notify main thread so can intialize UI
                         callback(MessageMain(type="searching", status="start"))
-                        filters = parsing.compile_filter_list(props.settings["filters"])
+                        filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
                         _Log.info("Search Filters loaded")
                         for task_index, urldata in enumerate(props.scanned_urls):
                             grunt = Grunt(task_index, urldata, props.settings, 
@@ -457,7 +457,7 @@ def commander_thread(callback, msgbox):
                                 # find images and links
                                 # set the include_form to False on level 1 scan
                                 # compile our filter matches only add those from the filter list
-                                filters = parsing.compile_filter_list(props.settings["filters"])
+                                filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=props.scanned_urls,

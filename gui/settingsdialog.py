@@ -26,11 +26,14 @@ class SettingsDialog(wx.Dialog):
         vs = vboxsizer()
 
         hs = hboxsizer()
-        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 10)
+        hs.AddSpacer(5)
+        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 0)
+        hs.AddSpacer(5)
         vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        vs.AddSpacer(5)
 
         hs = hboxsizer()
-        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 10)
+        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 0)
         vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(vs)
@@ -44,6 +47,11 @@ class SettingsDialog(wx.Dialog):
         self.load_settings(settings)
     
     def load_settings(self, settings):
+
+        filtered_search = settings.get("filter-search", {"enabled": True, "filters": ["imagevenue.com/"]})
+        self.panel.filter_panel.checkbox.SetValue(filtered_search["enabled"])
+        [self.panel.filter_panel.listbox.Append(item) for item in filtered_search["filters"]]
+
         self.panel.auto_panel.checkbox.SetValue(
             settings.get("auto-download", False))
 
@@ -90,6 +98,12 @@ class SettingsDialog(wx.Dialog):
     
     def get_settings(self):
         settings = self.settings
+
+        # filtered search
+        settings["filter-search"]["filters"] \
+            = self.panel.filter_panel.listbox.GetItems()
+        settings["filter-search"]["enabled"] = \
+            self.panel.filter_panel.checkbox.GetValue()
 
         # notify
         settings["notify-done"] = \
@@ -164,6 +178,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.fileexist_panel = FileAlreadyExistPanel(self, -1)
         self.formsearch_panel = FormSearchPanel(self, -1)
         self.notify_panel = NotifyPanel(self, -1)
+        self.filter_panel = FilterPanel(self, -1, size=(-1, 200))
 
         vs = vboxsizer()
 
@@ -220,6 +235,12 @@ class SettingsPanel(scrolled.ScrolledPanel):
         hs.Add(self.notify_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
+        hs.Add(self.filter_panel, 1, wx.EXPAND|wx.ALL, 0)
+        hs.AddStretchSpacer(1)
+        vs.Add(hs, 1, wx.EXPAND|wx.ALL , 0)
+        #vs.AddSpacer(DIALOG_BORDER)
 
         self.SetSizer(vs)
         self.Fit()
@@ -547,6 +568,44 @@ class TimeoutPanel(wx.Panel):
     def set_timeout(self, timeout):
         if timeout > 0 and timeout <= 60:
             self.choice.SetSelection(timeout)
+
+
+class FilterPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.listbox = wx.ListBox(self, -1, choices=[], style=wx.LB_SINGLE|wx.LB_SORT)
+        self.textctrl = wx.TextCtrl(self, -1, "")
+        self.checkbox = wx.CheckBox(self, -1, "Enable")
+        btn_remove = wx.Button(self, -1, "Delete")
+        btn_add = wx.Button(self, -1, "Add")
+        btn_add.Bind(wx.EVT_BUTTON, self.on_add, btn_add)
+        btn_remove.Bind(wx.EVT_BUTTON, self.on_remove, btn_remove)
+
+        sbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Filters")
+        hs = hboxsizer()
+        hs.Add(self.listbox, 1, wx.ALL|wx.EXPAND, 0)
+        sbox.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        hs = hboxsizer()
+        hs.Add(self.textctrl, 1, wx.ALL|wx.EXPAND, 0)
+        sbox.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        hs = hboxsizer()
+        hs.Add(btn_remove, 0, wx.ALIGN_CENTER, 0)
+        hs.Add(btn_add, 0, wx.ALIGN_CENTER, 0)
+        hs.Add(self.checkbox, 0, wx.ALIGN_CENTER, 0)
+        sbox.Add(hs, 0, wx.ALIGN_CENTER, 0)
+        self.SetSizer(sbox)
+    
+    def on_add(self, evt):
+        text = self.textctrl.GetValue()
+        if text:
+            self.listbox.Append(text)
+    
+    def on_remove(self, evt):
+        index = self.listbox.GetSelection()
+        if index is not wx.NOT_FOUND:
+            self.listbox.Delete(index)
 
 
 class OkCancelPanel(wx.Panel):
