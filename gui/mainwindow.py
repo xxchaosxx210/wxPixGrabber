@@ -18,7 +18,10 @@ from timer import (
 
 import clipboard
 
-from resources.sfx import load_sounds
+from resources.globals import (
+    load_wavs,
+    load_bitmaps
+)
 
 
 _log = logging.getLogger(__name__)
@@ -48,7 +51,8 @@ class MainWindow(wx.Frame):
                                           self.commander_msgbox)
         self.commander.start()
 
-        self.sfx = load_sounds()
+        self.sounds = load_wavs()
+        self.bitmaps = load_bitmaps()
 
         # keep a reference to the clipboard, there is a bug in that when the clipboard
         # listener is running, it captures win32 messages before they get to the wx event loop
@@ -70,7 +74,7 @@ class MainWindow(wx.Frame):
             text (str): the text recieved from the Clipboard listener
         """
         if options.load_settings()["notify-done"]:
-            self.sfx.clipboard.Play()
+            self.sounds["clipboard"].Play()
         self.dldpanel.addressbar.txt_address.SetValue(text)
         if options.load_settings()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
@@ -110,7 +114,7 @@ class MainWindow(wx.Frame):
                 self._on_fetch_finished(msg)
             # fetch error
             elif msg.type == "fetch" and msg.status == "error":
-                self.sfx.error.Play()
+                self.sounds["error"].Play()
                 self.update_status("COMMANDER", msg.data["message"])
             # fetch has started
             elif msg.type == "fetch" and msg.status == "started":
@@ -142,7 +146,7 @@ class MainWindow(wx.Frame):
     
     def _on_scraping_complete(self):
         if options.load_settings()["notify-done"]:
-            self.sfx.complete.Play()
+            self.sounds["complete"].Play()
             self.Raise()
         # kill the timer thread
         timer_quit.set()
