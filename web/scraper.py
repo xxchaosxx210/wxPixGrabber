@@ -477,7 +477,7 @@ def commander_thread(callback, msgbox):
                             webreq.close()
                         except Exception as err:
                             _Log.error(f"Commander web request failed - ")
-                            callback(FetchError(data={"message": f"{err.__str__()}"}))
+                            callback(FetchError(data={"message": f"{str(err)}"}))
                     else:
                         callback(FetchError(data={"message": "Tasks still running"}))
 
