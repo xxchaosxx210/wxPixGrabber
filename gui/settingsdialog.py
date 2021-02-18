@@ -47,6 +47,11 @@ class SettingsDialog(wx.Dialog):
         self.load_settings(settings)
     
     def load_settings(self, settings):
+        """Initializes the Settings wxControls from the settings dict
+
+        Args:
+            settings (dict): The settings json loaded from the settings.json file
+        """
 
         filtered_search = settings.get("filter-search", {"enabled": True, "filters": ["imagevenue.com/"]})
         self.panel.filter_panel.checkbox.SetValue(filtered_search["enabled"])
@@ -97,6 +102,12 @@ class SettingsDialog(wx.Dialog):
             settings.get("connection_timeout", 5))
     
     def get_settings(self):
+        """Like load_settings but in reverse. Should be called
+        if the Dialog returns wx.ID_OK and save the returned settings json
+
+        Returns:
+            str: settings json object
+        """
         settings = self.settings
 
         # filtered search

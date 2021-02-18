@@ -55,8 +55,8 @@ class MainWindow(wx.Frame):
         # for some reason messages are not being passed onto Dialog windows
         # so Dialogs are unresponsive so I patched it by closing the clipboard listener
         # when a Dialog is open. This leads to a bug when I start the listener again it
-        # recaptures the last text on the clipboard. so a simple if condition makes sure the
-        # text isnt sent to the textctrl address again
+        # recaptures the last text on the clipboard. I found the best way around this is
+        # to send an empty string to the clipboard
         self.clipboard = \
             clipboard.ClipboardListener(parent=self, 
                                         callback=self.on_clipboard, 
@@ -64,7 +64,13 @@ class MainWindow(wx.Frame):
         self.clipboard.start()
 
     def on_clipboard(self, text):
-        self.sfx.clipboard.Play()
+        """Function handler which recieves text from the Cllpboard
+
+        Args:
+            text (str): the text recieved from the Clipboard listener
+        """
+        if options.load_settings()["notify-done"]:
+            self.sfx.clipboard.Play()
         self.dldpanel.addressbar.txt_address.SetValue(text)
         if options.load_settings()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
@@ -81,19 +87,16 @@ class MainWindow(wx.Frame):
             pass
     
     def on_close_window(self, evt):
-        """
-        close the running thread and exit
-        """
         timer_quit.set()
         self.commander_msgbox.put(Message(thread="main", type="quit"))
         self.commander.join()
         evt.Skip()
     
     def message_from_thread(self, msg):
-        """
-        msg - Message
-            thread - the name of the calling thread. Either: grunt or commander
-            type   - the type of message
+        """Message from the background thread
+
+        Args:
+            msg (Message): is a Message object from web.scraper.py
         """
         if msg.thread == "commander":
             # message
@@ -149,18 +152,20 @@ class MainWindow(wx.Frame):
                 self.dldpanel.progressbar.increment()
 
     def handler_callback(self, msg):
-        """
-        sends the message from background thread to the main thread.
-        I wanted to keep the GUI code seperate from the scraper module
+        """Sends the message from background thread to main thread
+
+        Args:
+            msg (Message): A Message class found in web.scraper.py
         """
         wx.CallAfter(self.message_from_thread, msg)
     
     def update_status(self, name, text):
-        """
-        takes in a name of type of message
-        display the text with a time code
-        will replace this with a listctrl in
-        the future
+        """displays output to the status textctrl
+        doesn't allow more than 100MB of text in the buffer
+
+        Args:
+            name (str): The name of the Thread or Process that is sending the update
+            text (text): The message of the update to display in the textctrl
         """
         status = self.status.GetValue()
         if len(status) > 100000:

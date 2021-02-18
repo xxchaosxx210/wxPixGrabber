@@ -2,9 +2,7 @@ import wx
 
 from gui.theme import (
     WX_BORDER,
-    WX_BUTTON_SIZE,
     ThemedTextCtrl,
-    ThemedButton,
     vboxsizer,
     hboxsizer,
     ThemedStaticText
@@ -56,6 +54,8 @@ class DownloadPanel(wx.Panel):
         self.SetSizer(vs)
     
     def resetstats(self):
+        """Resets the Stats labels
+        """
         self.errors.value.SetLabel("0")
         self.imgsaved.value.SetLabel("0")
         self.ignored.value.SetLabel("0")
@@ -97,11 +97,6 @@ class DownloadPanel(wx.Panel):
     def on_stop_button(self, evt):
         self.GetParent().commander_msgbox.put_nowait(
             Message(thread="main", type="cancel"))
-    
-    def reset(self):
-        self.imgsaved.value.SetLabel("0")
-        self.errors.value.SetLabel("0")
-        self.ignored.value.SetLabel("0")
     
     def update_stats(self, saved, ignored, errors):
         self.ignored.value.SetLabel(str(ignored))

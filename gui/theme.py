@@ -8,7 +8,6 @@ hboxsizer = partial(wx.BoxSizer, wx.HORIZONTAL)
 vboxsizer = partial(wx.BoxSizer, wx.VERTICAL)
 
 WX_BORDER = 5
-WX_BUTTON_SIZE = (68, 30)
 
 DIALOG_BORDER = 30
 
