@@ -5,10 +5,9 @@ import logging
 
 from gui.downloadpanel import DownloadPanel
 
-from web.scraper import (
-    create_commander,
-    Message
-)
+from web.commander import create_commander
+from web.types import Message
+
 import web.options as options
 
 from timer import (

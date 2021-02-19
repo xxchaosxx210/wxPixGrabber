@@ -8,7 +8,7 @@ from gui.theme import (
     ThemedStaticText
 )
 
-from web.scraper import Message
+from web.types import Message
 import web.options as options
 
 from gui.settingsdialog import SettingsDialog

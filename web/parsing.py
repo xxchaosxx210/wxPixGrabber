@@ -1,89 +1,17 @@
 import re
-import os
-from dataclasses import dataclass
 from urllib import parse
-
-import web.mime as mime
-
 from bs4 import BeautifulSoup
 import logging
 
+from web.types import (
+    UrlData,
+    image_ext_pattern
+)
+
 _Log = logging.getLogger(__name__)
-
-html_ext = ".html"
-
-IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
-
-_image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
-
-
-@dataclass
-class UrlData:
-    url: str
-    method: str = "GET"
-    action: str = ""
-    data: dict = None
-    tag: str = ""
-
 
 def compile_filter_list(filter_list):
     return re.compile("|".join(filter_list))
-
-def is_valid_content_type(url, content_type, valid_types):
-    """Checks the MIME type to make sure it matches with a valid type either HTML or Image
-    if an application/octet-stream is encountered the extension is used from the Url instead
-
-    Args:
-        url (str): The Source of the MIME type
-        content_type (str): MIME type
-        valid_types (dict): key, value pair of extension without the dot and boolean whether its valid.
-                            example: {'jpg': True}, will only include jpg mime types and ignore other image formats
-
-    Returns:
-        [str]: returns the ext if a match is found or empty string if no match found
-    """
-
-    # check file attachement first and get its type
-    if mime.is_octet_stream(content_type):
-        # file attachemnt use the extension from the url
-        try:
-            content_type = mime.guess_mime_from_ext(os.path.splitext(url)[1])
-        except IndexError as err:
-            _Log.error(f"{err.__str__()}, {url}")
-
-    ext = ""
-    # HTML
-    if mime.is_html(content_type):
-        ext = ".html"
-    # JPEG
-    elif mime.is_jpeg(content_type):
-        if valid_types.get("jpg", False):
-            ext = ".jpg"
-    # PNG
-    elif mime.is_png(content_type):
-        if valid_types.get("png", False):
-            ext = ".png"
-    # BITMAP
-    elif mime.is_bitmap(content_type):
-        if valid_types.get("bmp", False):
-            ext = ".bmp"
-    # GIF
-    elif mime.is_gif(content_type):
-        if valid_types.get("gif", False):
-            ext = ".gif"
-    # ICON
-    elif mime.is_icon(content_type):
-        if valid_types.get("ico", False):
-            ext = ".ico"
-    # TIFF
-    elif mime.is_tiff(content_type):
-        if valid_types.get("tiff", False):
-            ext = ".tiff"
-    # TGA 
-    elif mime.is_tga(content_type):
-        if valid_types.get("tga", False):
-            ext = ".tga"
-    return ext
 
 def _construct_query_from_form(form):
     """looks for input tags from soup
@@ -178,7 +106,7 @@ def sort_soup(url, soup, urls, include_forms,
             _appendlink(url, imgtag.get("src", ""), urls, "img", filters)
 
     # search images in meta data
-    for metatag in soup.find_all("meta", content=_image_ext_pattern):
+    for metatag in soup.find_all("meta", content=image_ext_pattern):
         _appendlink(url, metatag.get("content", ""), urls, "img", filters)
     
     return len(urls)

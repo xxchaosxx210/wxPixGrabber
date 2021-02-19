@@ -12,7 +12,7 @@ import hashlib
 import mimetypes
 from collections import namedtuple
 
-IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
+from web.types import IMAGE_EXTS
 
 VERSION = "0.1"
 
