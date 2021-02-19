@@ -3,7 +3,7 @@ from urllib import parse
 from bs4 import BeautifulSoup
 import logging
 
-from web.types import (
+from crawler.types import (
     UrlData,
     image_ext_pattern
 )

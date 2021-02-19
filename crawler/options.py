@@ -12,7 +12,7 @@ import hashlib
 import mimetypes
 from collections import namedtuple
 
-from web.types import IMAGE_EXTS
+from crawler.types import IMAGE_EXTS
 
 VERSION = "0.1"
 

@@ -2,11 +2,19 @@ import requests
 import browser_cookie3
 from http.cookiejar import CookieJar
 
-import web.cache as cache
+import crawler.cache as cache
 
 FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
 
 def load_cookies(settings):
+    """Load Cookies from Installed Web Browser
+
+    Args:
+        settings (dict): The settings dict loaded from options.py
+
+    Returns:
+        object: cookiejar. Default CookieJar is used by default
+    """
     cookies = settings["cookies"]
     if cookies["firefox"]:
         cj = browser_cookie3.firefox()
@@ -21,10 +29,18 @@ def load_cookies(settings):
     return cj
 
 def request_from_url(urldata, cj, settings):
-    """
-    request_from_url(str)
+    """sends a post or get request to Url
 
-    gets the request from url and returns the requests object
+    Args:
+        urldata (object): UrlData object which contains method (POST or GET) and url to request from 
+        cj (object): Cookie Jar. use load_cookies before using this function
+        settings (dict): settings dict from options.py
+
+    Raises:
+        AttributeError: if url exists in the ignore database then raises this exception
+
+    Returns:
+        object: requests handle object (read requests pypi for more information onto how to use it)
     """
     # check the cache first before connecting
 

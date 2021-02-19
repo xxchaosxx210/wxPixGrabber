@@ -5,10 +5,10 @@ import logging
 
 from gui.downloadpanel import DownloadPanel
 
-from web.commander import create_commander
-from web.types import Message
+from crawler.commander import create_commander
+from crawler.types import Message
 
-import web.options as options
+import crawler.options as options
 
 from timer import (
     create_timer_thread,

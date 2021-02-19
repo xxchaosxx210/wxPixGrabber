@@ -8,8 +8,8 @@ from gui.theme import (
     ThemedStaticText
 )
 
-from web.types import Message
-import web.options as options
+from crawler.types import Message
+import crawler.options as options
 
 from gui.settingsdialog import SettingsDialog
 

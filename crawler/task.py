@@ -9,19 +9,19 @@ from PIL import (
     UnidentifiedImageError
 )
 
-import web.parsing as parsing
-import web.options as options
-import web.cache as cache
-import web.mime as mime
+import crawler.parsing as parsing
+import crawler.options as options
+import crawler.cache as cache
+import crawler.mime as mime
 
-from web.types import (
+from crawler.types import (
     Message,
     Stats,
     IMAGE_EXTS,
     HTML_EXT
 )
 
-from web.webrequest import (
+from crawler.webrequest import (
     request_from_url,
     load_cookies
 )

@@ -11,7 +11,7 @@ from gui.theme import (
     DIALOG_BORDER
 )
 
-from web.options import SQL_PATH
+from crawler.options import SQL_PATH
 
 STATICBOX_BORDER = 5
 

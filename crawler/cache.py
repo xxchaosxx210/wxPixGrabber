@@ -10,7 +10,7 @@ import time
 
 from sqlite3 import Error
 
-import web.options as options
+import crawler.options as options
 
 import logging
 

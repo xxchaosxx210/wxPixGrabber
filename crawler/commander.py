@@ -5,16 +5,16 @@ import multiprocessing as mp
 import queue
 from dataclasses import dataclass
 
-import web.cache as cache
-import web.parsing as parsing
-import web.options as options
-import web.mime as mime
+import crawler.cache as cache
+import crawler.parsing as parsing
+import crawler.options as options
+import crawler.mime as mime
 
-from web.task import (
+from crawler.task import (
     Grunt
 )
 
-from web.types import (
+from crawler.types import (
     Message,
     Blacklist,
     Stats,
@@ -22,7 +22,7 @@ from web.types import (
     HTML_EXT
 )
 
-from web.webrequest import (
+from crawler.webrequest import (
     request_from_url,
     load_cookies
 )
