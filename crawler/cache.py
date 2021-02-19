@@ -36,23 +36,49 @@ QUERY_URL_IGNORE = "SELECT * FROM ignored WHERE url=?"
 
 
 def initialize_ignore():
+    """
+    Creates the ignore table if one doesnt exist
+    """
     conn = _create_connection(options.SQL_PATH)
     if conn:
         _create_table(conn, CACHE_TABLE)
         conn.close()  
 
 def add_ignore(url, reason, width, height):
+    """Add an entry into ignore table
+
+    Args:
+        url (str): the url being added
+        reason (str): The reason as to why its being added to the ignore list
+        width (int): The width of the file if there isnt one then 0 is added
+        height (int): The height. Same as width
+
+        Note: A timestamp is also added to the entry
+    """
     conn = _create_connection(options.SQL_PATH)
     if conn:
         _add_entry(conn, url, reason, width, height)
         conn.close()
     
 def delete_ignore(url):
+    """Delete entry with a url that matches in the database
+
+    Args:
+        url (str): The url to be deleted
+    """
     conn = _create_connection(options.SQL_PATH)
     if conn:
         _delete_entries(conn, url)
         
 def query_ignore(url):
+    """Checks if a url is in the database
+
+    Args:
+        url (str): The url to be searched
+
+    Returns:
+        [str]: returns an iterator of urls that match None is nothing found
+    """
     rows = []
     conn = _create_connection(options.SQL_PATH)
     if conn:
@@ -122,10 +148,3 @@ def _create_table(conn, sql_table):
         cur.execute(sql_table)
     except Error as err:
         _Log.error(err.__str__())
-
-def _test():
-    initialize_ignore()
-    _Log.info(query_ignore("https://imgbox.com/images/imgbox.png"))
-
-if __name__ == '__main__':
-    _test()
