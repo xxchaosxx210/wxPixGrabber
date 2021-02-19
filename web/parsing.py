@@ -3,6 +3,8 @@ import os
 from dataclasses import dataclass
 from urllib import parse
 
+import web.mime as mime
+
 from bs4 import BeautifulSoup
 import logging
 
@@ -28,38 +30,59 @@ def compile_filter_list(filter_list):
     return re.compile("|".join(filter_list))
 
 def is_valid_content_type(url, content_type, valid_types):
+    """Checks the MIME type to make sure it matches with a valid type either HTML or Image
+    if an application/octet-stream is encountered the extension is used from the Url instead
+
+    Args:
+        url (str): The Source of the MIME type
+        content_type (str): MIME type
+        valid_types (dict): key, value pair of extension without the dot and boolean whether its valid.
+                            example: {'jpg': True}, will only include jpg mime types and ignore other image formats
+
+    Returns:
+        [str]: returns the ext if a match is found or empty string if no match found
     """
-    is_valid_content_type(str, str, dict)
-    checks if mimetype is an image and matches valid images
-    url           - the url of the content-type
-    content_type  - is a string found in the headers['Content-Type'] dict
-    valid_types   - a dict containing valid files for searching
-    returns an empty string if not valid or a file extension related to the file type
-    will always return a valid file extension if html document
-    """
-    ext = ""
-    if 'text/html' in content_type:
-        ext = ".html"
-    elif content_type == 'image/gif' and valid_types["gif"]:
-        ext = ".gif"
-    elif content_type == 'image/png' and valid_types["png"]:
-        ext = ".png"
-    elif content_type == 'image/ico' and valid_types["ico"]:
-        ext = ".ico"
-    elif content_type == 'image/jpeg' and valid_types["jpg"]:
-        ext = ".jpg"
-    elif content_type == 'image/tiff' and valid_types["tiff"]:
-        ext = ".tiff"
-    elif content_type == 'image/tga' and valid_types["tga"]:
-        ext = ".tga"
-    elif content_type == 'image/bmp' and valid_types["bmp"]:
-        ext = ".bmp"
-    elif content_type == 'application/octet-stream':
+
+    # check file attachement first and get its type
+    if mime.is_octet_stream(content_type):
         # file attachemnt use the extension from the url
         try:
-            ext = os.path.splitext(url)[1]
+            content_type = mime.guess_mime_from_ext(os.path.splitext(url)[1])
         except IndexError as err:
             _Log.error(f"{err.__str__()}, {url}")
+
+    ext = ""
+    # HTML
+    if mime.is_html(content_type):
+        ext = ".html"
+    # JPEG
+    elif mime.is_jpeg(content_type):
+        if valid_types.get("jpg", False):
+            ext = ".jpg"
+    # PNG
+    elif mime.is_png(content_type):
+        if valid_types.get("png", False):
+            ext = ".png"
+    # BITMAP
+    elif mime.is_bitmap(content_type):
+        if valid_types.get("bmp", False):
+            ext = ".bmp"
+    # GIF
+    elif mime.is_gif(content_type):
+        if valid_types.get("gif", False):
+            ext = ".gif"
+    # ICON
+    elif mime.is_icon(content_type):
+        if valid_types.get("ico", False):
+            ext = ".ico"
+    # TIFF
+    elif mime.is_tiff(content_type):
+        if valid_types.get("tiff", False):
+            ext = ".tiff"
+    # TGA 
+    elif mime.is_tga(content_type):
+        if valid_types.get("tga", False):
+            ext = ".tga"
     return ext
 
 def _construct_query_from_form(form):
