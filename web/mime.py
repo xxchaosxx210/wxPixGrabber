@@ -24,7 +24,7 @@ def guess_mime_from_ext(extension):
     Returns:
         [str]: The mime type associated with the extension. Or unknown if none found
     """
-    return extensions.get(extension, "")
+    return extensions.get(extension, "unknown")
 
 def is_jpeg(mime_type):
     return mime_type in TYPES_JPEG

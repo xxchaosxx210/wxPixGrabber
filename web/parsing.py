@@ -86,8 +86,13 @@ def is_valid_content_type(url, content_type, valid_types):
     return ext
 
 def _construct_query_from_form(form):
-    """
-    looks for input types within form tags
+    """looks for input tags from soup
+
+    Args:
+        form (object): soup object normally a form tag as input tags are placed within them
+
+    Returns:
+        dict: returns name, value key pair of input tags found 
     """
     inputs = form.find_all("input")
     data = {}
@@ -98,8 +103,14 @@ def _construct_query_from_form(form):
     return data
 
 def process_form(url, form):
-    """
-    creates a UrlData object from form tag
+    """constructs a UrlData object from form tag tree
+
+    Args:
+        url (str): the url associated with the form tag. The action value will be joined to the Url to complete the form request
+        form (object): The form tag tree parsed from BeautifulSoup
+
+    Returns:
+        [object]: formed UrlData is returned containing submit_url, action, method (GET or POST), data and the tagname 
     """
     action = form.attrs.get("action", "")
     req_type = form.attrs.get("method", "POST")
@@ -110,20 +121,29 @@ def process_form(url, form):
 def parse_html(html):
     return BeautifulSoup(html, features="html.parser")
 
-def sort_soup(url,
-              soup, 
-              urls,
-              include_forms,
-              images_only, 
-              thumbnails_only,
-              filters):
+def sort_soup(url, soup, urls, include_forms,
+              images_only, thumbnails_only, filters):
+    """Filters for Anchor, Image and Forms in the HTML soup object
+
+    Args:
+        url (str): The Url source of the soup being passed
+        soup (object): The HTML soup object constructed from BeautifulSoup
+        urls (list): The list container that will contain UrlData objects that have been filtered
+        include_forms (bool): Add Form Tags and Input within the sort
+        images_only (bool): Search only for images. Ignore Anchor tags
+        thumbnails_only (bool): Only include anchor href if img tag within its tree
+        filters (object): Compiled regular expression pattern. Only add links with filter matches
+
+    Returns:
+        int: the length of urls found. 0 if none found
     """
-    sort_soup(str, str, list, bool, bool)
-    searches for images, forms and anchor tags in BeatifulSoup object
-    stores them in urls and returns then size of the urls list
-    urls is a list of UrlData objects
-    returns tuple (int, str) length of urls and title name
-    """
+
+    # sort_soup(str, str, list, bool, bool)
+    # searches for images, forms and anchor tags in BeatifulSoup object
+    # stores them in urls and returns then size of the urls list
+    # urls is a list of UrlData objects
+    # returns tuple (int, str) length of urls and title name
+
     if include_forms:
         # scan forms
         for form in soup.find_all("form"):

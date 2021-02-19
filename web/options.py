@@ -170,20 +170,20 @@ def image_exists(path, stream_bytes):
         stream_bytes (b): byte stream of image
 
     Returns:
-        str: returns the file path if their is a match. None of no match found
+        str: returns the file path if their is a match. None if no match found
     """
     with os.scandir(path) as it:
         for entry in it:
+            # check entry is an image first
             if entry.is_file() and entry.name.endswith(IMAGE_EXTS):
-                # improve performance check the file size first
-                stat = entry.stat()
-                stream_size = stream_bytes.__len__()
-                if stat.st_size == stream_size:
+                # improve performance, check the file size first from stats
+                if entry.stat().st_size == stream_bytes.__len__():
                     # if sizes match then read file check the md5 hash
                     with open(entry.path, "rb") as fp:
                         hash1 = hashlib.md5(fp.read()).digest()
                         hash2 = hashlib.md5(stream_bytes).digest()
                         if hash1 == hash2:
+                            # weve got a duplicate return the pathname
                             return entry.path
     return None
 
