@@ -175,11 +175,16 @@ def image_exists(path, stream_bytes):
     with os.scandir(path) as it:
         for entry in it:
             if entry.is_file() and entry.name.endswith(IMAGE_EXTS):
-                with open(entry.path, "rb") as fp:
-                    hash1 = hashlib.md5(fp.read(1000)).digest()
-                    hash2 = hashlib.md5(stream_bytes[:1000]).digest()
-                    if hash1 == hash2:
-                        return entry.path
+                # improve performance check the file size first
+                stat = entry.stat()
+                stream_size = stream_bytes.__len__()
+                if stat.st_size == stream_size:
+                    # if sizes match then read file check the md5 hash
+                    with open(entry.path, "rb") as fp:
+                        hash1 = hashlib.md5(fp.read()).digest()
+                        hash2 = hashlib.md5(stream_bytes).digest()
+                        if hash1 == hash2:
+                            return entry.path
     return None
 
 def load_from_file(url):
