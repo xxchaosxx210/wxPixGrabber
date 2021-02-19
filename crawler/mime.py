@@ -2,6 +2,22 @@ __description__ = "checks mime type and returns true"
 __version__ = "0.1"
 
 import os
+import re
+
+EXT_JPG = ".jpg"
+EXT_JPEG = ".jpeg"
+EXT_BMP = ".bmp"
+EXT_PNG = ".png"
+EXT_GIF = ".gif"
+EXT_TIF = ".tif"
+EXT_TIFF = ".tiff"
+EXT_ICON = ".ico"
+EXT_TGA = ".tga"
+EXT_OCTET_STREAM = ".bin"
+EXT_HTML = ".html"
+
+IMAGE_EXTS = (EXT_JPG, EXT_BMP, EXT_JPEG, EXT_PNG, EXT_GIF, EXT_TIFF, EXT_TIF, EXT_TGA, EXT_ICON)
+image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
 
 TYPES_BITMAP = ('image/bmp', "image/x-windows-bmp")
 TYPE_GIF = "image/gif"
@@ -13,9 +29,19 @@ TYPE_PNG = "image/png"
 TYPE_TGA = "image/tga"
 TYPES_TIFF = ("image/tiff", "image/x-tiff")
 
-extensions = {".jpg": TYPES_JPEG[0], ".jpeg": TYPES_JPEG[0], ".bmp": TYPES_BITMAP[0], ".gif": TYPE_GIF,
-              ".html": TYPE_HTML, ".ico": TYPE_ICON, ".bin": TYPE_OCTET_STREAM, ".a": TYPE_OCTET_STREAM,
-              ".png": TYPE_PNG, ".tga": TYPE_TGA, ".tiff": TYPES_TIFF[0], ".tif": TYPES_TIFF[0]}
+extensions = {
+    EXT_JPG: TYPES_JPEG[0], 
+    EXT_JPEG: TYPES_JPEG[0], 
+    EXT_BMP: TYPES_BITMAP[0], 
+    EXT_GIF: TYPE_GIF,
+    EXT_HTML: TYPE_HTML, 
+    EXT_ICON: TYPE_ICON, 
+    EXT_OCTET_STREAM: TYPE_OCTET_STREAM,
+    ".a": TYPE_OCTET_STREAM,
+    EXT_PNG: TYPE_PNG, 
+    EXT_TGA: TYPE_TGA, 
+    EXT_TIFF: TYPES_TIFF[0], 
+    EXT_TIF: TYPES_TIFF[0]}
 
 def guess_mime_from_ext(extension):
     """get the content-type from the file extension
@@ -79,33 +105,33 @@ def is_valid_content_type(url, content_type, valid_types):
     ext = ""
     # HTML
     if is_html(content_type):
-        ext = ".html"
+        ext = EXT_HTML
     # JPEG
     elif is_jpeg(content_type):
         if valid_types.get("jpg", False):
-            ext = ".jpg"
+            ext = EXT_JPG
     # PNG
     elif is_png(content_type):
         if valid_types.get("png", False):
-            ext = ".png"
+            ext = EXT_PNG
     # BITMAP
     elif is_bitmap(content_type):
         if valid_types.get("bmp", False):
-            ext = ".bmp"
+            ext = EXT_BMP
     # GIF
     elif is_gif(content_type):
         if valid_types.get("gif", False):
-            ext = ".gif"
+            ext = EXT_GIF
     # ICON
     elif is_icon(content_type):
         if valid_types.get("ico", False):
-            ext = ".ico"
+            ext = EXT_ICON
     # TIFF
     elif is_tiff(content_type):
         if valid_types.get("tiff", False):
-            ext = ".tiff"
+            ext = EXT_TIFF
     # TGA 
     elif is_tga(content_type):
         if valid_types.get("tga", False):
-            ext = ".tga"
+            ext = EXT_TGA
     return ext

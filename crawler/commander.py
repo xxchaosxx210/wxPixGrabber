@@ -10,16 +10,14 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.mime as mime
 
-from crawler.task import (
-    Grunt
-)
+from crawler.task import Grunt
 
 from crawler.types import (
     Message,
     Blacklist,
     Stats,
     UrlData,
-    HTML_EXT
+    EXT_HTML
 )
 
 from crawler.webrequest import (
@@ -68,7 +66,12 @@ def create_commander(callback, msgbox):
                             kwargs={"callback": callback, "msgbox": msgbox})
 
 def _thread(callback, msgbox):
-    # Create the cache table
+    """main task handler thread
+
+    Args:
+        callback (function): The function callback to the main thread
+        msgbox (object): the atomic Queue object to recieve messages from
+    """
     cache.initialize_ignore()
     callback(Message(
         thread="commander", 
@@ -160,7 +163,7 @@ def _thread(callback, msgbox):
                                                              r.data["url"], 
                                                              webreq.headers["Content-Type"], 
                                                              props.settings["images_to_search"])
-                            if ext == HTML_EXT:
+                            if ext == EXT_HTML:
                                 html_doc = webreq.text
                                 # parse the html
                                 soup = parsing.parse_html(html_doc)

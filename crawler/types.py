@@ -1,10 +1,4 @@
 from dataclasses import dataclass
-import re
-
-HTML_EXT = ".html"
-IMAGE_EXTS = (".jpg", ".bmp", ".jpeg", ".png", ".gif", ".tiff", ".ico")
-image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
-
 
 @dataclass
 class UrlData:

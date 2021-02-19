@@ -18,7 +18,7 @@ from crawler.types import (
     Message,
     Stats,
     IMAGE_EXTS,
-    HTML_EXT
+    EXT_HTML
 )
 
 from crawler.webrequest import (
@@ -162,7 +162,7 @@ class Grunt(mp.Process):
             response.headers.get("Content-Type", ""),
             self.settings["images_to_search"]
         )
-        if HTML_EXT == ext:
+        if EXT_HTML == ext:
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
