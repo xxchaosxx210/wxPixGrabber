@@ -39,11 +39,11 @@ def _add_stats(stats, data):
     stats.ignored += data["ignored"]
     return stats
 
-def tasks_alive(processes):
+def tasks_alive(tasks):
     """
     returns a list of task processes that are still alive
     """
-    return list(filter(lambda grunt : grunt.is_alive(), processes))
+    return list(filter(lambda grunt : grunt.is_alive(), tasks))
 
 def _reset_comm_props(properties):
     properties.cancel_all.clear()
