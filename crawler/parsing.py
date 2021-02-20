@@ -3,10 +3,8 @@ from urllib import parse
 from bs4 import BeautifulSoup
 import logging
 
-from crawler.types import (
-    UrlData,
-    image_ext_pattern
-)
+from crawler.types import UrlData
+from crawler.mime import image_ext_pattern
 
 _Log = logging.getLogger(__name__)
 

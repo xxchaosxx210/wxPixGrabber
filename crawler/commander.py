@@ -16,8 +16,7 @@ from crawler.types import (
     Message,
     Blacklist,
     Stats,
-    UrlData,
-    EXT_HTML
+    UrlData
 )
 
 from crawler.webrequest import (
@@ -163,7 +162,7 @@ def _thread(callback, msgbox):
                                                              r.data["url"], 
                                                              webreq.headers["Content-Type"], 
                                                              props.settings["images_to_search"])
-                            if ext == EXT_HTML:
+                            if ext == mime.EXT_HTML:
                                 html_doc = webreq.text
                                 # parse the html
                                 soup = parsing.parse_html(html_doc)

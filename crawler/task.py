@@ -16,9 +16,7 @@ import crawler.mime as mime
 
 from crawler.types import (
     Message,
-    Stats,
-    IMAGE_EXTS,
-    EXT_HTML
+    Stats
 )
 
 from crawler.webrequest import (
@@ -162,7 +160,7 @@ class Grunt(mp.Process):
             response.headers.get("Content-Type", ""),
             self.settings["images_to_search"]
         )
-        if EXT_HTML == ext:
+        if mime.EXT_HTML == ext:
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
@@ -173,7 +171,7 @@ class Grunt(mp.Process):
                               images_only=True, 
                               thumbnails_only=False,
                               filters=self.filters)
-        elif ext in IMAGE_EXTS:
+        elif ext in mime.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
                 # if so then append thread index and fileindex to make a unique identifier
                 fileindex = f"{self.task_index}_{self.fileindex}{ext}"
