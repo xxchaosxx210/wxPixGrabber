@@ -1,11 +1,9 @@
 import wx
 import time
-import multiprocessing as mp
 import logging
 
 from gui.downloadpanel import DownloadPanel
 
-from crawler.commander import create_commander
 from crawler.types import Message
 
 import crawler.options as options
@@ -15,14 +13,6 @@ from timer import (
     timer_quit
 )
 
-import clipboard
-
-from resources.globals import (
-    load_wavs,
-    load_bitmaps
-)
-
-
 _log = logging.getLogger(__name__)
 
 
@@ -31,11 +21,10 @@ class MainWindow(wx.Frame):
     def __init__(self, **kw):
         super().__init__(**kw)
 
-        self.bitmaps = load_bitmaps()
-        self.sounds = load_wavs()
+        self.app = wx.GetApp()
 
         icon = wx.EmptyIcon()
-        icon.CopyFromBitmap(self.bitmaps["icon"])
+        icon.CopyFromBitmap(self.app.bitmaps["icon"])
         self.SetIcon(icon)
 
         self.dldpanel = DownloadPanel(parent=self)
@@ -48,24 +37,6 @@ class MainWindow(wx.Frame):
 
         self.status = self.dldpanel.statusbox.txt_status
 
-        self.commander_msgbox = mp.Queue()
-        self.commander = create_commander(self.handler_callback, 
-                                          self.commander_msgbox)
-        self.commander.start()
-
-        # keep a reference to the clipboard, there is a bug in that when the clipboard
-        # listener is running, it captures win32 messages before they get to the wx event loop
-        # for some reason messages are not being passed onto Dialog windows
-        # so Dialogs are unresponsive so I patched it by closing the clipboard listener
-        # when a Dialog is open. This leads to a bug when I start the listener again it
-        # recaptures the last text on the clipboard. I found the best way around this is
-        # to send an empty string to the clipboard
-        self.clipboard = \
-            clipboard.ClipboardListener(parent=self, 
-                                        callback=self.on_clipboard, 
-                                        url_only=True)
-        self.clipboard.start()
-
     def on_clipboard(self, text):
         """Function handler which recieves text from the Cllpboard
 
@@ -73,7 +44,7 @@ class MainWindow(wx.Frame):
             text (str): the text recieved from the Clipboard listener
         """
         if options.load_settings()["notify-done"]:
-            self.sounds["clipboard"].Play()
+            self.app.sounds["clipboard"].Play()
         self.dldpanel.addressbar.txt_address.SetValue(text)
         if options.load_settings()["auto-download"]:
             self.dldpanel.on_fetch_button(None)
@@ -91,8 +62,8 @@ class MainWindow(wx.Frame):
     
     def on_close_window(self, evt):
         timer_quit.set()
-        self.commander_msgbox.put(Message(thread="main", type="quit"))
-        self.commander.join()
+        self.app.commander.queue.put(Message(thread="main", type="quit"))
+        self.app.commander.thread.join()
         evt.Skip()
     
     def message_from_thread(self, msg):
@@ -113,7 +84,7 @@ class MainWindow(wx.Frame):
                 self._on_fetch_finished(msg)
             # fetch error
             elif msg.type == "fetch" and msg.status == "error":
-                self.sounds["error"].Play()
+                self.app.sounds["error"].Play()
                 self.update_status("COMMANDER", msg.data["message"])
             # fetch has started
             elif msg.type == "fetch" and msg.status == "started":
@@ -145,7 +116,7 @@ class MainWindow(wx.Frame):
     
     def _on_scraping_complete(self):
         if options.load_settings()["notify-done"]:
-            self.sounds["complete"].Play()
+            self.app.sounds["complete"].Play()
             self.Raise()
         # kill the timer thread
         timer_quit.set()

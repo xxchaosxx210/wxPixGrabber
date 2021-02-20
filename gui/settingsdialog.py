@@ -20,7 +20,8 @@ class SettingsDialog(wx.Dialog):
 
     def __init__(self, parent, id, title, size, pos, style, name, settings):
         super().__init__()
-        self.bitmaps = parent.bitmaps
+        self.app = wx.GetApp()
+        self.bitmaps = self.app.bitmaps
         self.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
         self.Create(parent, id, title, pos, size, style, name)
 
@@ -628,10 +629,12 @@ class CachePanel(wx.Panel):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
+
+        app = wx.GetApp()
         
         btn_delete = wx.Button(self, -1, "Clear Cache")
         self.Bind(wx.EVT_BUTTON, self.on_clear_cache, btn_delete)
-        btn_delete.SetBitmap(self.GetParent().GetParent().bitmaps["delete"], wx.LEFT)
+        btn_delete.SetBitmap(app.bitmaps["delete"], wx.LEFT)
         btn_delete.SetBitmapMargins((2, 2))
         btn_delete.SetInitialSize()
     

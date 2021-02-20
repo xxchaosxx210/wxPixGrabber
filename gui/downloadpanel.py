@@ -21,7 +21,7 @@ class DownloadPanel(wx.Panel):
     def __init__(self, **kwargs):
         super(DownloadPanel, self).__init__(**kwargs)
 
-        self.bitmaps = kwargs["parent"].bitmaps
+        self.app = wx.GetApp()
 
         self.addressbar = AddressBar(self, -1)
         self.statusbox = StatusPanel(self, -1)
@@ -65,7 +65,7 @@ class DownloadPanel(wx.Panel):
     def on_btn_settings(self, evt):
         # if listening for clipboard events then
         # dialog won't recive window messages
-        self.GetParent().clipboard.stop()
+        self.app.clipboard.stop()
         dlg = SettingsDialog(parent=self.GetParent(),
                              id= -1,
                              title="Settings",
@@ -84,20 +84,20 @@ class DownloadPanel(wx.Panel):
         # stops a bug setting text already added to clipboard before clipboard listener close
         paste_text("")
         # start up the clipboard listener again
-        self.GetParent().clipboard.start()
+        self.app.clipboard.start()
     
     def on_fetch_button(self, evt):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
-            self.GetParent().commander_msgbox.put_nowait(
+            self.app.commander.queue.put_nowait(
                 Message(thread="main", type="fetch", data=data))
 
     def on_start_button(self, evt):
-        self.GetParent().commander_msgbox.put_nowait(
+        self.app.commander.queue.put_nowait(
                 Message(thread="main", type="start"))
 
     def on_stop_button(self, evt):
-        self.GetParent().commander_msgbox.put_nowait(
+        self.app.commander.queue.put_nowait(
             Message(thread="main", type="cancel"))
     
     def update_stats(self, saved, ignored, errors):
@@ -106,7 +106,7 @@ class DownloadPanel(wx.Panel):
         self.errors.value.SetLabel(str(errors))
     
     def on_btn_open_dir(self, evt):
-        self.GetParent().clipboard.stop()
+        self.app.clipboard.stop()
         dlg = wx.FileDialog(
             parent=self, message="Choose an HTML Document to Search",
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
@@ -115,7 +115,7 @@ class DownloadPanel(wx.Panel):
             self.addressbar.txt_address.SetValue(dlg.GetPaths()[0])
         dlg.Destroy()
         paste_text("")
-        self.GetParent().clipboard.start()
+        self.app.clipboard.start()
 
 class AddressBar(wx.Panel):
 
@@ -124,7 +124,7 @@ class AddressBar(wx.Panel):
 
         self.txt_address = ThemedTextCtrl(self, -1, "")
 
-        bitmaps = self.GetParent().bitmaps
+        bitmaps = wx.GetApp().bitmaps
         btn_open = wx.BitmapButton(self, -1, bitmaps["html-file"])
         self.btn_fetch = wx.BitmapButton(self, -1, bitmaps["fetch"])
         self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])

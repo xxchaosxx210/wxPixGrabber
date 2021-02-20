@@ -26,6 +26,13 @@ from crawler.webrequest import (
 
 _Log = logging.getLogger(__name__)
 
+
+@dataclass
+class Commander:
+    thread: threading.Thread
+    queue: mp.Queue
+
+
 def _add_stats(stats, data):
     stats.saved += data["saved"]
     stats.errors += data["errors"]
@@ -54,15 +61,19 @@ def _start_max_threads(threads, max_threads, counter):
             counter += 1
     return counter
 
-def create_commander(callback, msgbox):
+def create_commander(callback):
+    """main handler for starting and keeping track of worker processes
+
+    Args:
+        callback (function): function callback to respond to the main thread
+
+    Returns:
+        [object]: returns a Commander dataclass 
     """
-    create the main handler thread.
-    this thread will stay iterating for the
-    remainder of the programs life cycle
-    msgbox is a queue.Queue() object
-    """
-    return threading.Thread(target=_thread, 
-                            kwargs={"callback": callback, "msgbox": msgbox})
+    msgqueue = mp.Queue()
+    return Commander(
+        threading.Thread(target=_thread, kwargs={"callback": callback, "msgbox": msgqueue}),
+        msgqueue)
 
 def _thread(callback, msgbox):
     """main task handler thread
@@ -71,13 +82,12 @@ def _thread(callback, msgbox):
         callback (function): The function callback to the main thread
         msgbox (object): the atomic Queue object to recieve messages from
     """
+    # create an ignore table in the sqlite file
     cache.initialize_ignore()
-    callback(Message(
-        thread="commander", 
-        type="message", 
-        data={"message": "Commander thread has loaded. Waiting to scan"}))
     MessageMain = functools.partial(Message, thread="commander", type="message")
     FetchError = functools.partial(Message, thread="commander", type="fetch", status="error")
+
+    callback(MessageMain(data={"message": "Commander thread has loaded. Waiting to scan"}))
 
     @dataclass
     class Properties:
