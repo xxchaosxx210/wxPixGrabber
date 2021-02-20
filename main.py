@@ -7,6 +7,10 @@ import os
 
 import clipboard
 
+import multiprocessing as mp
+import threading
+import queue
+
 from resources.globals import (
     load_wavs,
     load_bitmaps
@@ -35,7 +39,9 @@ class PixGrabberApp(wx.App):
         self.sounds = load_wavs()
 
     def _initialize_threads(self):
-        self.commander = create_commander(self.window.handler_callback)
+        self.queue = mp.Queue()
+        threading.Thread(target=self.commander_message_handler).start()
+        self.commander = create_commander(self.queue)
         self.commander.thread.start()
 
         # keep a reference to the clipboard, there is a bug in that when the clipboard
@@ -50,6 +56,19 @@ class PixGrabberApp(wx.App):
                                         callback=self.window.on_clipboard, 
                                         url_only=True)
         self.clipboard.start()
+    
+    def commander_message_handler(self):
+        quit = mp.Event()
+        while not quit.is_set():
+            try:
+                msg = self.queue.get()
+                if msg.thread == "commander" and msg.type == "quit":
+                        quit.set()
+                else:
+                    # pass the message to the callback
+                    wx.CallAfter(self.window.message_from_thread, msg)
+            except queue.Empty:
+                pass
 
 
 def _main():

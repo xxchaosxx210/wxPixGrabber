@@ -136,14 +136,6 @@ class MainWindow(wx.Frame):
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
                 self.dldpanel.on_start_button(None)
-
-    def handler_callback(self, msg):
-        """Sends the message from background thread to main thread
-
-        Args:
-            msg (Message): A Message class found in web.scraper.py
-        """
-        wx.CallAfter(self.message_from_thread, msg)
     
     def update_status(self, name, text):
         """displays output to the status textctrl

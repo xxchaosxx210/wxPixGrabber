@@ -61,25 +61,25 @@ def _start_max_tasks(tasks, max_tasks, counter):
             counter += 1
     return counter
 
-def create_commander(callback):
+def create_commander(main_queue):
     """main handler for starting and keeping track of worker tasks
 
     Args:
-        callback (function): function callback to respond to the main thread
+        main_queue (object): atomic Queue object used to send messages to main thread
 
     Returns:
         [object]: returns a Commander dataclass 
     """
     msgqueue = mp.Queue()
     return Commander(
-        threading.Thread(target=_thread, kwargs={"callback": callback, "msgbox": msgqueue}),
+        threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msgqueue}),
         msgqueue)
 
-def _thread(callback, msgbox):
+def _thread(main_queue, msgbox):
     """main task handler thread
 
     Args:
-        callback (function): The function callback to the main thread
+        main_queue (object): atomic Queue object used to send messages to main thread
         msgbox (object): the atomic Queue object to recieve messages from
     """
     # create an ignore table in the sqlite file
@@ -87,7 +87,7 @@ def _thread(callback, msgbox):
     MessageMain = functools.partial(Message, thread="commander", type="message")
     FetchError = functools.partial(Message, thread="commander", type="fetch", status="error")
 
-    callback(MessageMain(data={"message": "Commander thread has loaded. Waiting to scan"}))
+    main_queue.put_nowait(MessageMain(data={"message": "Commander thread has loaded. Waiting to scan"}))
 
     @dataclass
     class Properties:
@@ -115,7 +115,7 @@ def _thread(callback, msgbox):
             if r.thread == "main":
                 if r.type == "quit":
                     props.cancel_all.set()
-                    callback(Message(thread="commander", type="quit"))
+                    main_queue.put(Message(thread="commander", type="quit"))
                     props.quit_thread.set()
                 elif r.type == "start":
                     if not props.task_running:
@@ -130,7 +130,7 @@ def _thread(callback, msgbox):
                         props.settings = dict(options.load_settings())
                         cookiejar = load_cookies(props.settings)
                         # notify main thread so can intialize UI
-                        callback(MessageMain(type="searching", status="start"))
+                        main_queue.put_nowait(MessageMain(type="searching", status="start"))
                         filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
                         _Log.info("Search Filters loaded")
                         for task_index, urldata in enumerate(props.scanned_urls):
@@ -156,11 +156,11 @@ def _thread(callback, msgbox):
                     if not props.task_running:
                         props.cancel_all.clear()
                         # Load settings
-                        callback(Message(thread="commander", type="fetch", status="started"))
+                        main_queue.put_nowait(Message(thread="commander", type="fetch", status="started"))
                         # Load the settings
                         props.settings = options.load_settings()
                         # get the document from the URL
-                        callback(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
+                        main_queue.put_nowait(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
                         cookiejar = load_cookies(props.settings)
                         urldata = UrlData(r.data["url"], method="GET")
@@ -194,19 +194,19 @@ def _thread(callback, msgbox):
                                                      images_only=False, 
                                                      thumbnails_only=True,
                                                      filters=filters) > 0:
-                                    callback(
+                                    main_queue.put_nowait(
                                         Message(thread="commander", type="fetch", 
                                                      status="finished", data={"urls": props.scanned_urls,
                                                      "title": html_title}))
                                 else:
                                     # Nothing found notify main thread
-                                    callback(MessageMain(data={"message": "No links found :("}))
+                                    main_queue.put_nowait(MessageMain(data={"message": "No links found :("}))
                             webreq.close()
                         except Exception as err:
                             _Log.error(f"Commander web request failed - ")
-                            callback(FetchError(data={"message": f"{str(err)}"}))
+                            main_queue.put_nowait(FetchError(data={"message": f"{str(err)}"}))
                     else:
-                        callback(FetchError(data={"message": "Tasks still running"}))
+                        main_queue.put_nowait(FetchError(data={"message": "Tasks still running"}))
 
                 elif r.type == "cancel":
                     props.cancel_all.set()
@@ -222,11 +222,11 @@ def _thread(callback, msgbox):
                         props.counter += 1
                         _Log.info(f"TASK#{r.id} is {r.status}")
                         if r.status == "complete":
-                            callback(r)
+                            main_queue.put_nowait(r)
                 elif r.type == "stat-update":
                     # add stats up and notify main thread
                     _add_stats(stats, r.data)
-                    callback(Message(thread="commander", 
+                    main_queue.put_nowait(Message(thread="commander", 
                                      type="stat-update", data={"stats": stats}))
                 elif r.type == "blacklist":
                     # check the props.blacklist with urldata and notify Grunt process
@@ -244,10 +244,10 @@ def _thread(callback, msgbox):
                     ))
                 else:
                     # something pass onto main thread
-                    callback(r)
+                    main_queue.put_nowait(r)
                     
             elif r.thread == "settings":
-                callback(MessageMain(data=r.data))
+                main_queue.put_nowait(MessageMain(data=r.data))
 
         except queue.Empty:
             pass
@@ -260,7 +260,7 @@ def _thread(callback, msgbox):
                 # if so cleanup
                 # and notify main thread
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
-                    callback(Message(thread="commander", type="complete"))
+                    main_queue.put_nowait(Message(thread="commander", type="complete"))
                     _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout
