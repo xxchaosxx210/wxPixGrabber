@@ -41,20 +41,20 @@ def _add_stats(stats, data):
 
 def tasks_alive(tasks):
     """
-    returns a list of task processes that are still alive
+    returns a list of tasks that are still alive
     """
     return list(filter(lambda grunt : grunt.is_alive(), tasks))
 
 def _reset_comm_props(properties):
     properties.cancel_all.clear()
-    properties.processes = []
+    properties.tasks = []
     properties.task_running = False
     properties.blacklist.clear()
     properties.time_counter = 0.0
 
-def _start_max_threads(threads, max_threads, counter):
-    for th in threads:
-        if counter >= max_threads:
+def _start_max_tasks(tasks, max_tasks, counter):
+    for th in tasks:
+        if counter >= max_tasks:
             break
         else:
             th.start()
@@ -62,7 +62,7 @@ def _start_max_threads(threads, max_threads, counter):
     return counter
 
 def create_commander(callback):
-    """main handler for starting and keeping track of worker processes
+    """main handler for starting and keeping track of worker tasks
 
     Args:
         callback (function): function callback to respond to the main thread
@@ -97,12 +97,12 @@ def _thread(callback, msgbox):
         blacklist: Blacklist = None
         cancel_all: mp.Event = None
         task_running: bool = False
-        processes: list = None
+        tasks: list = None
         quit_thread: mp.Event = None
         time_counter: float = 0.0
     
     props = Properties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
-                       processes=[], quit_thread=mp.Event())
+                       tasks=[], quit_thread=mp.Event())
     
     QUEUE_TIMEOUT = 0.1
 
@@ -119,7 +119,7 @@ def _thread(callback, msgbox):
                     props.quit_thread.set()
                 elif r.type == "start":
                     if not props.task_running:
-                        props.processes = []
+                        props.tasks = []
                         props.task_running = True
                         stats = Stats()
                         props.blacklist.clear()
@@ -136,21 +136,21 @@ def _thread(callback, msgbox):
                         for task_index, urldata in enumerate(props.scanned_urls):
                             grunt = Grunt(task_index, urldata, props.settings, 
                                           filters, msgbox, props.cancel_all)
-                            props.processes.append(grunt)
+                            props.tasks.append(grunt)
                         
-                        _Log.info(f"Processes loaded - {len(props.processes)} processes")
+                        _Log.info(f"Tasks loaded - {len(props.tasks)} tasks")
                             
-                        # reset the threads counter this is used to keep track of
-                        # threads that have been  started once a running thread has been notified
-                        # this thread counter is incremenetet counter is checked with length of props.processes
-                        # once the counter has reached length then then all threads have been complete
+                        # reset the tasks counter this is used to keep track of
+                        # tasks that have been  started once a running thread has been notified
+                        # this thread counter is incremenetet counter is checked with length of props.tasks
+                        # once the counter has reached length then then all tasks have been complete
                         props.counter = 0
                         max_connections = round(int(props.settings["max_connections"]))
-                        props.counter = _start_max_threads(props.processes, max_connections, props.counter)
+                        props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
 
                         _Log.info(
                             f"""Process Counter set to 0. Max Connections = \
-                                {max_connections}. Current running Processes = {len(tasks_alive(props.processes))}""")
+                                {max_connections}. Current running tasks = {len(tasks_alive(props.tasks))}""")
 
                 elif r.type == "fetch":                
                     if not props.task_running:
@@ -214,13 +214,13 @@ def _thread(callback, msgbox):
             elif r.thread == "grunt":
                 if r.type == "finished":
                     # one grunt is gone start another
-                    if props.counter < len(props.processes):
+                    if props.counter < len(props.tasks):
                         if not props.cancel_all.is_set():
-                            props.processes[props.counter].start()
+                            props.tasks[props.counter].start()
                         else:
-                            props.processes[props.counter].run()
+                            props.tasks[props.counter].run()
                         props.counter += 1
-                        _Log.info(f"PROCESS#{r.id} is {r.status}")
+                        _Log.info(f"TASK#{r.id} is {r.status}")
                         if r.status == "complete":
                             callback(r)
                 elif r.type == "stat-update":
@@ -232,7 +232,7 @@ def _thread(callback, msgbox):
                     # check the props.blacklist with urldata and notify Grunt process
                     # if no duplicate and added then True returned
                     process_index = r.data["index"]
-                    grunt = props.processes[process_index]
+                    grunt = props.tasks[process_index]
                     if not props.blacklist.exists(r.data["urldata"]):
                         props.blacklist.add(r.data["urldata"])
                         blacklist_added = True
@@ -254,12 +254,12 @@ def _thread(callback, msgbox):
 
         finally:
             if props.task_running:
-                # check if all props.processes are finished
+                # check if all props.tasks are finished
                 # and that the grunt props.counter is greater or
-                # equal to the size of grunt threads 
+                # equal to the size of grunt tasks 
                 # if so cleanup
                 # and notify main thread
-                if len(tasks_alive(props.processes)) == 0 and props.counter >= len(props.processes):
+                if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
                     callback(Message(thread="commander", type="complete"))
                     _reset_comm_props(props)
                 else:
@@ -267,8 +267,8 @@ def _thread(callback, msgbox):
                     # then start terminating processing
                     if props.cancel_all.is_set():
                         if props.time_counter >= props.settings["connection_timeout"]:
-                            # kill any hanging processes
-                            for task in props.processes:
+                            # kill any hanging tasks
+                            for task in props.tasks:
                                 if task.is_alive():
                                     task.terminate()
                                     props.counter += 1
