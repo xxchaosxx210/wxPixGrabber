@@ -1,14 +1,17 @@
 import wx
 import threading
 import queue
+import logging
 from collections import namedtuple
 from dataclasses import dataclass
 
-# set the frame rate
-_FRAME_RATE = 1/60 # 60 FPS
+
+_Log = logging.getLogger(__name__)
 
 # defines the spacing between the lines
 _LINE_SPACING = 20
+
+_FRAME_RATE = 1/60
 
 def _define_size(abouttext, dc):
     """gets the size of the line in pixel count and sets maximum scoll x
@@ -97,6 +100,10 @@ class AboutPanel(wx.Panel):
     def __init__(self, parent, id, text):
         super().__init__(parent=parent, id=id)
 
+        # Set the FrameRate to the Monitor Refresh rate
+        # videomode = wx.Display().GetCurrentMode()
+        # self._frame_rate = 1/videomode.refresh
+
         self._app = wx.GetApp()
         self._buffer = wx.EmptyBitmap(*self.GetSize())
 
@@ -159,9 +166,11 @@ class AboutPanel(wx.Panel):
             starting_y = starting_y + line.height + _LINE_SPACING
         
         # cooleffect
-        self._cooleffect.height = lines_height + 20
+        # Set the height of the rectangle plus extra spacing around the text
+        self._cooleffect.height = lines_height + _LINE_SPACING
+        # Get the largest line width and set the rectangle width to that plus spacing
         line_widths = list(map(lambda line : line.width, self._lines))
-        self._cooleffect.width = max(line_widths)
+        self._cooleffect.width = max(line_widths) + _LINE_SPACING
         self._cooleffect.min_x = round((self._width/2) - (self._cooleffect.width/2))
         self._cooleffect.y = round((self._height/2) - (self._cooleffect.height/2))
         self._cooleffect.x = self._width
@@ -204,8 +213,12 @@ class AboutPanel(wx.Panel):
         dc.SelectObject(self._buffer)
         self._draw(wx.GCDC(dc))
         del dc
-        self.Refresh()
-        self.Update()
+        # may cause error if dialog has been deleted
+        try:
+            self.Refresh()
+            self.Update()
+        except RuntimeError as err:
+            _Log.error(err.__str__())
 
     def _draw(self, dc):
         dc.Clear()
