@@ -33,7 +33,7 @@ class _AboutText:
         self.max_x = round(int(width/2) - int(self.width/2))
 
 
-class AboutDialog(wx.Dialog):
+class AnimatedDialog(wx.Dialog):
 
     def __init__(self, parent=None, id=-1, title="About", 
                  text=["My Program", "Paul Millar", 

@@ -11,7 +11,7 @@ from gui.theme import (
     DIALOG_BORDER
 )
 
-from gui.about import AboutDialog
+from gui.about import AnimatedDialog
 
 from crawler.options import SQL_PATH
 
@@ -276,7 +276,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.SetupScrolling()
     
     def _on_about_dialog(self, evt):
-        dlg = AboutDialog(parent=self.GetParent(), 
+        dlg = AnimatedDialog(parent=self.GetParent(), 
         text=["PixGrabber", "Paul Millar", "Scrapes images from the Web", "0.1"])
         dlg.ShowModal()
         dlg.Destroy()
