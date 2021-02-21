@@ -18,7 +18,7 @@ _RANDOM_SPEED_RANGE = (3, 6)
 
 class _AboutText:
 
-    def __init__(self, text=""):
+    def __init__(self, font, text=""):
         self.x = 0
         self.y = 0
         self.width = 0
@@ -26,9 +26,11 @@ class _AboutText:
         self.text = text
         self.max_x = 0
         self.velocity = random.randint(*_RANDOM_SPEED_RANGE)
+        self.font = font
     
     def define_size(self, dc):
-        self.width, self.height = dc.GetTextExtent(self.text)
+        text_size = dc.GetFullTextExtent(self.text, self.font)
+        self.width, self.height = (text_size[0], text_size[1])
         width, height = dc.Size
         self.max_x = round(int(width/2) - int(self.width/2))
 
@@ -78,11 +80,19 @@ class AboutPanel(wx.Panel):
         self._app = wx.GetApp()
         self._buffer = wx.EmptyBitmap(*self.GetSize())
 
+        h1_font = wx.Font(pointSize=12, family=wx.FONTFAMILY_DECORATIVE,
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=True,
+        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+
+        h2_font = wx.Font(pointSize=10, family=wx.FONTFAMILY_DECORATIVE,
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
+        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+
         self._text = namedtuple("TextGroup", ["name", "author", "description", "version"])(
-            _AboutText(text[0]),
-            _AboutText(f"Developed by {text[1]}"),
-            _AboutText(text[2]),
-            _AboutText(f"Version - {text[3]}"))
+            _AboutText(h1_font, text[0]),
+            _AboutText(h2_font, f"Developed by {text[1]}"),
+            _AboutText(h2_font, text[2]),
+            _AboutText(h2_font, f"Version - {text[3]}"))
 
         self.Bind(wx.EVT_PAINT, self._on_paint, self)
         self.Bind(wx.EVT_SIZE, self._on_size, self)
@@ -150,4 +160,5 @@ class AboutPanel(wx.Panel):
         dc.SetPen(wx.BLACK_PEN)
         # draw text here
         for line in self._text:
+            dc.SetFont(line.font)
             dc.DrawText(line.text, line.x, line.y)
