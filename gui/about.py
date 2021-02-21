@@ -209,14 +209,16 @@ class AboutPanel(wx.Panel):
     
     def _update_frame(self):
         self._update_positions()
-        dc = wx.MemoryDC()
+        #dc = wx.MemoryDC()
+        #dc.SelectObject(self._buffer)
+        dc = wx.BufferedDC()
         dc.SelectObject(self._buffer)
         self._draw(wx.GCDC(dc))
         del dc
         # may cause error if dialog has been deleted
         try:
             self.Refresh()
-            self.Update()
+            #self.Update()
         except RuntimeError as err:
             _Log.error(err.__str__())
 
