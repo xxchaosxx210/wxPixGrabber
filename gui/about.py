@@ -11,7 +11,7 @@ _Log = logging.getLogger(__name__)
 # defines the spacing between the lines
 _LINE_SPACING = 20
 
-_FRAME_RATE = 1/60
+_FRAME_RATE = 1/90
 
 def _define_size(abouttext, dc):
     """gets the size of the line in pixel count and sets maximum scoll x
@@ -106,6 +106,8 @@ class AboutPanel(wx.Panel):
 
         self._app = wx.GetApp()
         self._buffer = wx.EmptyBitmap(*self.GetSize())
+        self._background_brush = wx.Brush(self.GetBackgroundColour())
+        self._background_pen = wx.Pen(self.GetBackgroundColour())
 
         h1_font = wx.Font(pointSize=12, family=wx.FONTFAMILY_DECORATIVE,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=True,
@@ -124,8 +126,8 @@ class AboutPanel(wx.Panel):
 
         self._lines = namedtuple("TextGroup", ["name", "author", "description", "version"])(*lines)
 
-        self._cooleffect = CoolEffect(colour=wx.Colour(0, 0, 0, 10),
-                                      border=wx.Colour(0, 0, 0, 100))
+        self._cooleffect = CoolEffect(colour=wx.Colour(255, 255, 255, 255),
+                                      border=wx.Colour(200, 200, 200, 255))
 
         self.Bind(wx.EVT_PAINT, self._on_paint, self)
         self.Bind(wx.EVT_SIZE, self._on_size, self)
@@ -225,12 +227,16 @@ class AboutPanel(wx.Panel):
     def _draw(self, dc):
         dc.Clear()
         dc.SetBackground(wx.WHITE_BRUSH)
-        dc.SetBrush(wx.WHITE_BRUSH)
-        dc.SetPen(wx.WHITE_PEN)
-        dc.DrawRectangle(0, 0, self._width, self._height)
+        dc.SetBrush(self._background_brush)
+        dc.SetPen(self._background_pen)
+        #dc.DrawRectangle(0, 0, self._width, self._height)
+        dc.GradientFillLinear(self.GetRect(), wx.Colour(230, 247, 255, 255), wx.Colour(204, 239, 255, 255), wx.TOP)
         # Draw the cooleffect
         dc.SetBrush(wx.Brush(self._cooleffect.colour))
         dc.SetPen(wx.Pen(self._cooleffect.border, width=2))
+        # rect = wx.Rect(self._cooleffect.x, self._cooleffect.y, 
+        #                self._cooleffect.width, self._cooleffect.height)
+        #dc.GradientFillLinear(rect, wx.Colour(230, 247, 255, 255), wx.Colour(204, 239, 255, 255), wx.BOTTOM)
         dc.DrawRectangle(self._cooleffect.x, self._cooleffect.y, 
                          self._cooleffect.width, self._cooleffect.height)
         dc.SetBrush(wx.BLACK_BRUSH)

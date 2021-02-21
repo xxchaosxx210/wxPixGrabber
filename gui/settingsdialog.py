@@ -13,7 +13,10 @@ from gui.theme import (
 
 from gui.about import AnimatedDialog
 
-from crawler.options import SQL_PATH
+from crawler.options import (
+    SQL_PATH,
+    VERSION
+)
 
 STATICBOX_BORDER = 5
 
@@ -277,7 +280,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
     
     def _on_about_dialog(self, evt):
         dlg = AnimatedDialog(parent=self.GetParent(), 
-        text=["PixGrabber", "Paul Millar", "Scrapes images from the Web", "0.1"])
+        text=["PixGrabber", "Paul Millar", "", VERSION])
         dlg.ShowModal()
         dlg.Destroy()
 
