@@ -11,6 +11,8 @@ from gui.theme import (
     DIALOG_BORDER
 )
 
+from gui.about import AboutDialog
+
 from crawler.options import SQL_PATH
 
 STATICBOX_BORDER = 5
@@ -180,6 +182,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.about_btn = wx.Button(self, -1, "About", size=(68, -1))
         self.max_connections = MaxConnectionsPanel(self, -1)
         self.timeout = TimeoutPanel(self, -1)
         self.auto_panel = AutoDownload(self, -1)
@@ -195,7 +198,14 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.filter_panel = FilterPanel(self, -1, size=(-1, 200))
         self.cache_panel = CachePanel(self, -1)
 
+        self.about_btn.Bind(wx.EVT_BUTTON, self._on_about_dialog, self.about_btn)
+
         vs = vboxsizer()
+
+        hs = hboxsizer()
+        hs.Add(self.about_btn, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
         hs.Add(self.max_connections, 1, wx.EXPAND|wx.ALL, 0)
@@ -264,6 +274,11 @@ class SettingsPanel(scrolled.ScrolledPanel):
 
         self.SetAutoLayout(1)
         self.SetupScrolling()
+    
+    def _on_about_dialog(self, evt):
+        dlg = AboutDialog(parent=self.GetParent())
+        dlg.ShowModal()
+        dlg.Destroy()
 
 
 class AutoDownload(wx.Panel):

@@ -56,13 +56,13 @@ class PixGrabberApp(wx.App):
                                         callback=self.window.on_clipboard, 
                                         url_only=True)
         self.clipboard.start()
-    
+     
     def commander_message_handler(self):
         quit = mp.Event()
         while not quit.is_set():
             try:
                 msg = self.queue.get()
-                if msg.thread == "commander" and msg.type == "quit":
+                if msg.thread == "commander" and msg.type == "quit": 
                         quit.set()
                 else:
                     # pass the message to the callback
@@ -72,6 +72,8 @@ class PixGrabberApp(wx.App):
 
 
 def _main():
+    # pyinstaller requires this. Otherwise multiple windows are spawned
+    mp.freeze_support()
     app = PixGrabberApp()
     app.window.Show()
     app.MainLoop()
