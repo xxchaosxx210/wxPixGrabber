@@ -11,7 +11,7 @@ _Log = logging.getLogger(__name__)
 # defines the spacing between the lines
 _LINE_SPACING = 20
 
-_FRAME_RATE = 1/90
+_FRAME_RATE = 1/60
 
 def _define_size(abouttext, dc):
     """gets the size of the line in pixel count and sets maximum scoll x
@@ -36,7 +36,7 @@ class LineText:
     height: int = 0
     text: str = ''
     max_x: int = 0
-    velocity: int = 5
+    velocity: int = 8
     font: wx.Font = None
     finished_scrolling: bool = False
 
@@ -54,7 +54,7 @@ class CoolEffect:
     min_x: int = 0
     colour: wx.Colour = None
     border: wx.Colour = None
-    velocity: int = 6
+    velocity: int = 7
     finished_scrolling: bool = False
 
 
