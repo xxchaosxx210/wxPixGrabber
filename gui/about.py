@@ -1,13 +1,15 @@
 import wx
+import os
 import threading
 import queue
 import logging
 from collections import namedtuple
 from dataclasses import dataclass
 
-# Import our C compiled classes
-from gui.about_c import C_LineText as LineText
-from gui.about_c import C_BackgroundBox as CoolEffect
+if os.name == "nt":
+    # Import our C compiled classes
+    from gui.about_c import C_LineText as LineText
+    from gui.about_c import C_BackgroundBox as CoolEffect
 
 _Log = logging.getLogger(__name__)
 
@@ -28,39 +30,7 @@ def _define_size(abouttext, dc):
     abouttext.width, abouttext.height = (text_size[0], text_size[1])
     width, height = dc.Size
     abouttext.max_x = round(int(width/2) - int(abouttext.width/2))
-
-
-# @dataclass
-# class LineText:
-#     """coords and properties for the line text being scrolled
-#     """
-#     x: int = 0
-#     y: int = 0
-#     width: int = 0
-#     height: int = 0
-#     text: str = ''
-#     max_x: int = 0
-#     velocity: int = 8
-#     font: wx.Font = None
-#     finished_scrolling: int = 0
-
-
-# @dataclass
-# class CoolEffect:
-
-#     """this holds the rect coords, colour and scrolling variables for the scrolling rectangle
-#     """
-
-#     x: int = 0
-#     y: int = 0
-#     width: int = 20
-#     height: int = 0
-#     min_x: int = 0
-#     colour: wx.Colour = None
-#     border: wx.Colour = None
-#     velocity: int = 7
-#     finished_scrolling: int = 0
-
+    
 
 class AnimatedDialog(wx.Dialog):
 
@@ -280,5 +250,6 @@ class AboutPanel(wx.Panel):
         dc.SetBrush(wx.BLACK_BRUSH)
         dc.SetPen(wx.BLACK_PEN)
         for line in self._lines:
-            dc.SetFont(line.font)
-            dc.DrawText(line.text, line.x, line.y)
+            if line.text:
+                dc.SetFont(line.font)
+                dc.DrawText(line.text, line.x, line.y)
