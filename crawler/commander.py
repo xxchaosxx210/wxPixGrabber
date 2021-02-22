@@ -12,10 +12,11 @@ import crawler.mime as mime
 
 from crawler.task import Grunt
 
+from crawler.constants import CStats as Stats
+
 from crawler.types import (
     Message,
     Blacklist,
-    Stats,
     UrlData
 )
 

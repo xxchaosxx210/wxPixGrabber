@@ -51,8 +51,8 @@ class Message:
     data: dict = None
 
 
-@dataclass
-class Stats:
-    saved: int = 0
-    errors: int = 0
-    ignored: int = 0
+# @dataclass
+# class Stats:
+#     saved: int = 0
+#     errors: int = 0
+#     ignored: int = 0

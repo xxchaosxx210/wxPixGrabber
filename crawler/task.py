@@ -14,10 +14,9 @@ import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
 
-from crawler.types import (
-    Message,
-    Stats
-)
+from crawler.types import Message
+
+from crawler.constants import CStats as Stats
 
 from crawler.webrequest import (
     request_from_url,
