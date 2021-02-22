@@ -104,24 +104,28 @@ class AboutPanel(wx.Panel):
         # videomode = wx.Display().GetCurrentMode()
         # self._frame_rate = 1/videomode.refresh
 
-        self._app = wx.GetApp()
-        self._buffer = wx.EmptyBitmap(*self.GetSize())
+        self._create_buffer()
+        self._initialize_colours()
         self._background_brush = wx.Brush(self.GetBackgroundColour())
         self._background_pen = wx.Pen(self.GetBackgroundColour())
 
-        h1_font = wx.Font(pointSize=12, family=wx.FONTFAMILY_DECORATIVE,
-        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=True,
+        h1_font = wx.Font(pointSize=16, family=wx.FONTFAMILY_DECORATIVE,
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
         faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
 
-        h2_font = wx.Font(pointSize=10, family=wx.FONTFAMILY_DECORATIVE,
+        h2_font = wx.Font(pointSize=11, family=wx.FONTFAMILY_SCRIPT,
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
+        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+
+        h3_font = wx.Font(pointSize=9, family=wx.FONTFAMILY_SCRIPT,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
         faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
 
         lines = (
             LineText(font=h1_font, text=text[0]),
             LineText(font=h2_font, text=f"Developed by {text[1]}"),
-            LineText(font=h2_font, text=text[2]),
-            LineText(font=h2_font, text=f"Version - {text[3]}")
+            LineText(font=h3_font, text=text[2]),
+            LineText(font=h3_font, text=f"Version - {text[3]}")
         )
 
         self._lines = namedtuple("TextGroup", ["name", "author", "description", "version"])(*lines)
@@ -131,6 +135,11 @@ class AboutPanel(wx.Panel):
 
         self.Bind(wx.EVT_PAINT, self._on_paint, self)
         self.Bind(wx.EVT_SIZE, self._on_size, self)
+    
+    def _initialize_colours(self):
+        colour = self.GetBackgroundColour()
+        self._grad1_colour = colour
+        self._grad2_colour = wx.Colour(colour.red - 50, colour.blue - 50, colour.green - 50, colour.alpha)
     
     def start_animation(self, evt):
         """Start the animation thread and creates an atomic queue
@@ -152,14 +161,25 @@ class AboutPanel(wx.Panel):
         if self._thread.is_alive():
             self._queue.put("quit")
         evt.Skip()
+    
+    def _create_buffer(self):
+        self._buffer = wx.Bitmap()
+        self._buffer.Create(self.GetSize(), wx.BITMAP_SCREEN_DEPTH)
 
     def _on_size(self, evt):
-        self._buffer = wx.EmptyBitmap(*evt.GetSize())
+        self._create_buffer()
         self._width, self._height = evt.GetSize()
         dc = wx.ClientDC(self)
+
+        # Get the dialog and resize if text is longer than the dialog
+        dlg = self.GetParent()
+        dlgsize = dlg.GetSize()
         for line in self._lines:
             _define_size(line, dc)
+            if line.width > dlgsize[0]:
+                dlg.SetSize((line.width+(_LINE_SPACING), dlgsize[1]))
             line.x = 0 - line.width
+
         # define the Y starting position
         lines_height = (line.height * len(self._lines)) + (_LINE_SPACING * len(self._lines))
         starting_y = round((self._height/2) - (lines_height/2))
@@ -173,28 +193,41 @@ class AboutPanel(wx.Panel):
         # Get the largest line width and set the rectangle width to that plus spacing
         line_widths = list(map(lambda line : line.width, self._lines))
         self._cooleffect.width = max(line_widths) + _LINE_SPACING
+        # Set the x bounds of our box
         self._cooleffect.min_x = round((self._width/2) - (self._cooleffect.width/2))
         self._cooleffect.y = round((self._height/2) - (self._cooleffect.height/2))
+        # start the box at the right side off screen
         self._cooleffect.x = self._width
     
     def _on_paint(self, evt):
+        # this method gets called when Refresh is called
         dc = wx.PaintDC(self)
         dc.DrawBitmap(self._buffer, 0, 0)
     
     def _update_positions(self):
+        # Update the text lines and background box positions before rendering next frame
+
+        # make sure all lines are still within their maximum range
         lines_still_scrolling = list(filter(lambda line : not line.finished_scrolling, self._lines))
         if not lines_still_scrolling and self._cooleffect.finished_scrolling:
+            # no more positions to alter, quit the frame loop
             self._queue.put("quit")
 
+        # loop through lines of text increasing the x position to the right of the screen
         for line in self._lines:
+            # check we're in bounds. If not then flag no more scrolling
             if line.x < line.max_x:
                 line.x += line.velocity
             else:
+                # reseat the x position slightly so it fits centre
+                line.x = line.max_x
                 line.finished_scrolling = True
         
+        # scroll our background box
         if self._cooleffect.x > self._cooleffect.min_x:
             self._cooleffect.x -= self._cooleffect.velocity
         else:
+            # box has stopped
             self._cooleffect.finished_scrolling = True
         
     def _animation_loop(self):
@@ -207,41 +240,37 @@ class AboutPanel(wx.Panel):
             except queue.Empty:
                 # update next frame animation
                 wx.CallAfter(self._update_frame)
+        # paint last frame before leaving
         wx.CallAfter(self._update_frame)
     
     def _update_frame(self):
-        self._update_positions()
-        #dc = wx.MemoryDC()
-        #dc.SelectObject(self._buffer)
-        dc = wx.BufferedDC()
-        dc.SelectObject(self._buffer)
-        self._draw(wx.GCDC(dc))
-        del dc
-        # may cause error if dialog has been deleted
+        # may cause runtime error if dialog has been deleted
         try:
+            # update our lines and box positions
+            self._update_positions()
+            # draw to memory
+            dc = wx.BufferedDC()
+            dc.SelectObject(self._buffer)
+            self._draw(wx.GCDC(dc))
+            del dc
+            # blit the screen
             self.Refresh()
-            #self.Update()
         except RuntimeError as err:
             _Log.error(err.__str__())
 
     def _draw(self, dc):
         dc.Clear()
-        dc.SetBackground(wx.WHITE_BRUSH)
-        dc.SetBrush(self._background_brush)
-        dc.SetPen(self._background_pen)
-        #dc.DrawRectangle(0, 0, self._width, self._height)
-        dc.GradientFillLinear(self.GetRect(), wx.Colour(230, 247, 255, 255), wx.Colour(204, 239, 255, 255), wx.TOP)
-        # Draw the cooleffect
+        # Give a nice gradient fill for our background
+        dc.GradientFillLinear(self.GetRect(), 
+                              self._grad1_colour, self._grad2_colour, wx.TOP)
+        # Draw the background box
         dc.SetBrush(wx.Brush(self._cooleffect.colour))
         dc.SetPen(wx.Pen(self._cooleffect.border, width=2))
-        # rect = wx.Rect(self._cooleffect.x, self._cooleffect.y, 
-        #                self._cooleffect.width, self._cooleffect.height)
-        #dc.GradientFillLinear(rect, wx.Colour(230, 247, 255, 255), wx.Colour(204, 239, 255, 255), wx.BOTTOM)
         dc.DrawRectangle(self._cooleffect.x, self._cooleffect.y, 
                          self._cooleffect.width, self._cooleffect.height)
+        # draw the lines
         dc.SetBrush(wx.BLACK_BRUSH)
         dc.SetPen(wx.BLACK_PEN)
-        # draw text here
         for line in self._lines:
             dc.SetFont(line.font)
             dc.DrawText(line.text, line.x, line.y)
