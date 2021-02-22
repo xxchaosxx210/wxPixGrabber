@@ -5,13 +5,17 @@ import logging
 from collections import namedtuple
 from dataclasses import dataclass
 
+# Import our C compiled classes
+from gui.about_c import C_LineText as LineText
+from gui.about_c import C_BackgroundBox as CoolEffect
 
 _Log = logging.getLogger(__name__)
 
 # defines the spacing between the lines
 _LINE_SPACING = 20
 
-_FRAME_RATE = 1/60
+# default
+_FRAME_RATE = 1/30
 
 def _define_size(abouttext, dc):
     """gets the size of the line in pixel count and sets maximum scoll x
@@ -26,36 +30,36 @@ def _define_size(abouttext, dc):
     abouttext.max_x = round(int(width/2) - int(abouttext.width/2))
 
 
-@dataclass
-class LineText:
-    """coords and properties for the line text being scrolled
-    """
-    x: int = 0
-    y: int = 0
-    width: int = 0
-    height: int = 0
-    text: str = ''
-    max_x: int = 0
-    velocity: int = 8
-    font: wx.Font = None
-    finished_scrolling: bool = False
+# @dataclass
+# class LineText:
+#     """coords and properties for the line text being scrolled
+#     """
+#     x: int = 0
+#     y: int = 0
+#     width: int = 0
+#     height: int = 0
+#     text: str = ''
+#     max_x: int = 0
+#     velocity: int = 8
+#     font: wx.Font = None
+#     finished_scrolling: int = 0
 
 
-@dataclass
-class CoolEffect:
+# @dataclass
+# class CoolEffect:
 
-    """this holds the rect coords, colour and scrolling variables for the scrolling rectangle
-    """
+#     """this holds the rect coords, colour and scrolling variables for the scrolling rectangle
+#     """
 
-    x: int = 0
-    y: int = 0
-    width: int = 20
-    height: int = 0
-    min_x: int = 0
-    colour: wx.Colour = None
-    border: wx.Colour = None
-    velocity: int = 7
-    finished_scrolling: bool = False
+#     x: int = 0
+#     y: int = 0
+#     width: int = 20
+#     height: int = 0
+#     min_x: int = 0
+#     colour: wx.Colour = None
+#     border: wx.Colour = None
+#     velocity: int = 7
+#     finished_scrolling: int = 0
 
 
 class AnimatedDialog(wx.Dialog):
@@ -101,8 +105,9 @@ class AboutPanel(wx.Panel):
         super().__init__(parent=parent, id=id)
 
         # Set the FrameRate to the Monitor Refresh rate
-        # videomode = wx.Display().GetCurrentMode()
-        # self._frame_rate = 1/videomode.refresh
+        global _FRAME_RATE
+        videomode = wx.Display().GetCurrentMode()
+        _FRAME_RATE = 1/videomode.refresh
 
         self._create_buffer()
         self._initialize_colours()
@@ -208,7 +213,7 @@ class AboutPanel(wx.Panel):
         # Update the text lines and background box positions before rendering next frame
 
         # make sure all lines are still within their maximum range
-        lines_still_scrolling = list(filter(lambda line : not line.finished_scrolling, self._lines))
+        lines_still_scrolling = list(filter(lambda line : line.finished_scrolling == 0, self._lines))
         if not lines_still_scrolling and self._cooleffect.finished_scrolling:
             # no more positions to alter, quit the frame loop
             self._queue.put("quit")
@@ -221,17 +226,18 @@ class AboutPanel(wx.Panel):
             else:
                 # reseat the x position slightly so it fits centre
                 line.x = line.max_x
-                line.finished_scrolling = True
+                line.finished_scrolling = 1
         
         # scroll our background box
         if self._cooleffect.x > self._cooleffect.min_x:
             self._cooleffect.x -= self._cooleffect.velocity
         else:
             # box has stopped
-            self._cooleffect.finished_scrolling = True
+            self._cooleffect.finished_scrolling = 1
         
     def _animation_loop(self):
         quit = threading.Event()
+        counter = 0
         while not quit.is_set():
             try:
                 msg = self._queue.get(timeout=_FRAME_RATE)
@@ -240,9 +246,11 @@ class AboutPanel(wx.Panel):
             except queue.Empty:
                 # update next frame animation
                 wx.CallAfter(self._update_frame)
+                counter += 1
         # paint last frame before leaving
         wx.CallAfter(self._update_frame)
-    
+        _Log.info(f"Counter took {counter} Loops to complete animation")
+
     def _update_frame(self):
         # may cause runtime error if dialog has been deleted
         try:
