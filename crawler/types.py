@@ -34,21 +34,21 @@ class Blacklist:
         return index >= 0
 
 
-@dataclass
-class Message:
-    """
-    for message handling sending to and from threads
-    thread - thread name
-    type   - the type of message
-    id     - the thread index
-    status - the types status
-    data   - extra data. Depends on message type
-    """
-    type: str
-    thread: str
-    id: int = 0
-    status: str = ""
-    data: dict = None
+# @dataclass
+# class Message:
+#     """
+#     for message handling sending to and from threads
+#     thread - thread name
+#     type   - the type of message
+#     id     - the thread index
+#     status - the types status
+#     data   - extra data. Depends on message type
+#     """
+#     type: str
+#     thread: str
+#     id: int = 0
+#     status: str = ""
+#     data: dict = None
 
 
 # @dataclass

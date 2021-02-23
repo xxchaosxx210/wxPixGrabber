@@ -17,6 +17,7 @@ from resources.globals import (
 )
 
 from crawler.commander import create_commander
+import crawler.constants as const
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
@@ -62,7 +63,7 @@ class PixGrabberApp(wx.App):
         while not quit.is_set():
             try:
                 msg = self.queue.get()
-                if msg.thread == "commander" and msg.type == "quit": 
+                if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT: 
                         quit.set()
                 else:
                     # pass the message to the callback

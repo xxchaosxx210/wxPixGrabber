@@ -8,7 +8,8 @@ from gui.theme import (
     ThemedStaticText
 )
 
-from crawler.types import Message
+from crawler.constants import CMessage as Message
+import crawler.constants as const
 import crawler.options as options
 
 from gui.settingsdialog import SettingsDialog
@@ -90,15 +91,15 @@ class DownloadPanel(wx.Panel):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
             self.app.commander.queue.put_nowait(
-                Message(thread="main", type="fetch", data=data))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, id=0, status=const.STATUS_OK, data=data))
 
     def on_start_button(self, evt):
         self.app.commander.queue.put_nowait(
-                Message(thread="main", type="start"))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data=None, id=0))
 
     def on_stop_button(self, evt):
         self.app.commander.queue.put_nowait(
-            Message(thread="main", type="cancel"))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data=None, id=0, status=const.STATUS_OK))
     
     def update_stats(self, saved, ignored, errors):
         self.ignored.value.SetLabel(str(ignored))

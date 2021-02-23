@@ -14,7 +14,9 @@ import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
 
-from crawler.types import Message
+from crawler.constants import CMessage as Message
+
+import crawler.constants as const
 
 from crawler.constants import CStats as Stats
 
@@ -186,15 +188,17 @@ class Grunt(mp.Process):
                 stats = download_image(filename, response, self.settings)
                 self.comm_queue.put_nowait(
                     Message(
-                        thread="grunt", type="stat-update", data={
+                        thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, data={
                             "saved": stats.saved,
                             "errors": stats.errors,
-                            "ignored": stats.ignored}))
+                            "ignored": stats.ignored},
+                            id=self.task_index, status=const.STATUS_OK))
             except UnidentifiedImageError:
                 # Couldnt load the Image from Stream
                 self.comm_queue.put_nowait(Message(
-                                   thread="grunt", type="stat-update", 
-                                   data={"saved": 0, "errors": 1, "ignored": 0}))
+                                   thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, 
+                                   data={"saved": 0, "errors": 1, "ignored": 0},
+                                   id=self.task_index, status=const.STATUS_ERROR))
             return []
         else:
             if not cache.query_ignore(response.url):
@@ -209,12 +213,13 @@ class Grunt(mp.Process):
         returns True if no entry found
         """
         self.comm_queue.put(Message(
-            thread="grunt",
-            type="blacklist",
-            data={"index": self.task_index, "urldata": urldata}
+            thread=const.THREAD_TASK,
+            event=const.EVENT_BLACKLIST,
+            data={"index": self.task_index, "urldata": urldata},
+            id=self.task_index, status=const.STATUS_OK
         ))
         reply = self.msgbox.get()
-        return reply.status
+        return reply.data["added"]
     
     def follow_url(self, urldata):
         """
@@ -227,8 +232,9 @@ class Grunt(mp.Process):
         except Exception as err:
             _Log.error(f"PROCESS#{self.task_index} - {err.__str__()}")
             self.comm_queue.put_nowait(
-                    Message(thread="grunt", type="stat-update", 
-                            data={"saved": 0, "errors": 1, "ignored": 0}))  
+                    Message(thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, 
+                            data={"saved": 0, "errors": 1, "ignored": 0},
+                            id=self.task_index, status=const.STATUS_ERROR))  
             return []
         resp.close()
         return urllist
@@ -237,7 +243,8 @@ class Grunt(mp.Process):
         if not self.cancel.is_set():
             self.cookiejar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
-                Message(thread="grunt", id=self.task_index, status="ok", type="scanning"))
+                Message(thread=const.THREAD_TASK, 
+                id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data=None))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
@@ -253,10 +260,11 @@ class Grunt(mp.Process):
                                 self.follow_url(level_two_urldata)
 
         if self.cancel.is_set():
-            self.notify_finished("cancelled")
+            self.notify_finished(const.STATUS_ERROR)
         else:
-            self.notify_finished("complete")
+            self.notify_finished(const.STATUS_OK)
     
     def notify_finished(self, status):
         self.comm_queue.put_nowait(Message(
-                thread="grunt", status=status, type="finished", id=self.task_index))
+                thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED, 
+                id=self.task_index, data=None))

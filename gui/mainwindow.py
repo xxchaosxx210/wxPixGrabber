@@ -4,7 +4,8 @@ import logging
 
 from gui.downloadpanel import DownloadPanel
 
-from crawler.types import Message
+from crawler.constants import CMessage as Message
+import crawler.constants as const
 
 import crawler.options as options
 
@@ -62,7 +63,8 @@ class MainWindow(wx.Frame):
     
     def on_close_window(self, evt):
         timer_quit.set()
-        self.app.commander.queue.put(Message(thread="main", type="quit"))
+        self.app.commander.queue.put(Message(
+            thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data=None, status=const.STATUS_OK))
         self.app.commander.thread.join()
         evt.Skip()
     
@@ -72,45 +74,45 @@ class MainWindow(wx.Frame):
         Args:
             msg (Message): is a Message object from web.scraper.py
         """
-        if msg.thread == "commander":
+        if msg.thread == const.THREAD_COMMANDER:
             # message
-            if msg.type == "message":
-                self.update_status(msg.thread.upper(), msg.data["message"])
+            if msg.event == const.EVENT_MESSAGE:
+                self.update_status("COMMANDER", msg.data["message"])
             # All tasks complete
-            elif msg.type == "complete":
+            elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
             # fetch has completed
-            elif msg.type == "fetch" and msg.status == "finished":
+            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
             # fetch error
-            elif msg.type == "fetch" and msg.status == "error":
+            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
                 self.app.sounds["error"].Play()
                 self.update_status("COMMANDER", msg.data["message"])
             # fetch has started
-            elif msg.type == "fetch" and msg.status == "started":
+            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_START:
                 self.status.SetValue("")
             # started download and loading threads
-            elif msg.type == "searching" and msg.status == "start":
+            elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
             # error stat update
-            elif msg.type == "stat-update":
+            elif msg.event == const.EVENT_STAT_UPDATE:
                 stats = msg.data["stats"]
                 self.dldpanel.update_stats(stats.saved, stats.ignored, stats.errors)
         
-        elif msg.thread == "grunt":
+        elif msg.thread == const.THREAD_TASK:
             # saved and ok
-            if msg.type == "image" and msg.status == "ok":
+            if msg.event == const.EVENT_IMAGE and msg.status == const.STATUS_OK:
                 #self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
                 self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
             # finished task
-            elif msg.type == "finished" and msg.status == "complete":
+            elif msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
                 self.dldpanel.progressbar.increment()
     
     def _on_start_scraping(self, msg):
         timer_quit.clear()
         self.dldpanel.resetstats()
         create_timer_thread(self._on_timer_callback).start()
-        self.update_status(msg.thread.upper(), "Starting threads...")
+        self.update_status("COMMANDER", "Starting threads...")
         self.dldpanel.addressbar.btn_fetch.Enable(False)
         self.dldpanel.addressbar.btn_start.Enable(False)
     

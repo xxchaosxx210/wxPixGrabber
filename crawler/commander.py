@@ -1,7 +1,7 @@
 import functools
 import threading
 import logging
-import multiprocessing as mp
+import multiprocessing as mp 
 import queue
 from dataclasses import dataclass
 
@@ -13,9 +13,11 @@ import crawler.mime as mime
 from crawler.task import Grunt
 
 from crawler.constants import CStats as Stats
+from crawler.constants import CMessage as Message
+from crawler.constants import CommanderProperties
+import crawler.constants as const
 
 from crawler.types import (
-    Message,
     Blacklist,
     UrlData
 )
@@ -49,7 +51,7 @@ def tasks_alive(tasks):
 def _reset_comm_props(properties):
     properties.cancel_all.clear()
     properties.tasks = []
-    properties.task_running = False
+    properties.task_running = 0
     properties.blacklist.clear()
     properties.time_counter = 0.0
 
@@ -85,24 +87,13 @@ def _thread(main_queue, msgbox):
     """
     # create an ignore table in the sqlite file
     cache.initialize_ignore()
-    MessageMain = functools.partial(Message, thread="commander", type="message")
-    FetchError = functools.partial(Message, thread="commander", type="fetch", status="error")
 
-    main_queue.put_nowait(MessageMain(data={"message": "Commander thread has loaded. Waiting to scan"}))
-
-    @dataclass
-    class Properties:
-        settings: dict
-        scanned_urls: list
-        counter: int = 0
-        blacklist: Blacklist = None
-        cancel_all: mp.Event = None
-        task_running: bool = False
-        tasks: list = None
-        quit_thread: mp.Event = None
-        time_counter: float = 0.0
+    main_queue.put_nowait(Message(
+        thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+        status=const.STATUS_OK, id=0,
+        data={"message": "Commander thread has loaded. Waiting to scan"}))
     
-    props = Properties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
+    props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
                        tasks=[], quit_thread=mp.Event())
     
     QUEUE_TIMEOUT = 0.1
@@ -113,15 +104,16 @@ def _thread(main_queue, msgbox):
                 r = msgbox.get(timeout=QUEUE_TIMEOUT)
             else:
                 r = msgbox.get(timeout=None)
-            if r.thread == "main":
-                if r.type == "quit":
+            if r.thread == const.THREAD_MAIN:
+                if r.event == const.EVENT_QUIT:
                     props.cancel_all.set()
-                    main_queue.put(Message(thread="commander", type="quit"))
+                    main_queue.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
+                                   id=0, data=None))
                     props.quit_thread.set()
-                elif r.type == "start":
+                elif r.event == const.EVENT_START:
                     if not props.task_running:
                         props.tasks = []
-                        props.task_running = True
+                        props.task_running = 1
                         stats = Stats()
                         props.blacklist.clear()
                         # load the settings from file
@@ -131,7 +123,9 @@ def _thread(main_queue, msgbox):
                         props.settings = dict(options.load_settings())
                         cookiejar = load_cookies(props.settings)
                         # notify main thread so can intialize UI
-                        main_queue.put_nowait(MessageMain(type="searching", status="start"))
+                        main_queue.put_nowait(
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0, status=const.STATUS_OK,
+                                    data=None))
                         filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
                         _Log.info("Search Filters loaded")
                         for task_index, urldata in enumerate(props.scanned_urls):
@@ -153,18 +147,21 @@ def _thread(main_queue, msgbox):
                             f"""Process Counter set to 0. Max Connections = \
                                 {max_connections}. Current running tasks = {len(tasks_alive(props.tasks))}""")
 
-                elif r.type == "fetch":                
+                elif r.event == const.EVENT_FETCH:                
                     if not props.task_running:
                         props.cancel_all.clear()
                         # Load settings
-                        main_queue.put_nowait(Message(thread="commander", type="fetch", status="started"))
+                        main_queue.put_nowait(Message(
+                            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
+                            status=const.STATUS_START, id=0, data=None))
                         # Load the settings
                         props.settings = options.load_settings()
-                        # get the document from the URL
-                        main_queue.put_nowait(MessageMain(data={"message": f"Connecting to {r.data['url']}"}))
                         # Load the cookiejar
                         cookiejar = load_cookies(props.settings)
                         urldata = UrlData(r.data["url"], method="GET")
+                        main_queue.put_nowait(Message(
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+                                status=const.STATUS_OK, id=0, data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
                             webreq = options.load_from_file(r.data["url"])
                             if not webreq:
@@ -196,24 +193,30 @@ def _thread(main_queue, msgbox):
                                                      thumbnails_only=True,
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
-                                        Message(thread="commander", type="fetch", 
-                                                     status="finished", data={"urls": props.scanned_urls,
+                                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
+                                                     status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
                                                      "title": html_title}))
                                 else:
                                     # Nothing found notify main thread
-                                    main_queue.put_nowait(MessageMain(data={"message": "No links found :("}))
+                                    main_queue.put_nowait(
+                                        Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("}, status=const.STATUS_OK,
+                                                event=const.EVENT_MESSAGE))
                             webreq.close()
                         except Exception as err:
                             _Log.error(f"Commander web request failed - ")
-                            main_queue.put_nowait(FetchError(data={"message": f"{str(err)}"}))
+                            main_queue.put_nowait(Message(
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
+                                id=0, data={"message": err.__str__()}))
                     else:
-                        main_queue.put_nowait(FetchError(data={"message": "Tasks still running"}))
+                        main_queue.put_nowait(Message(
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
+                                id=0, data={"message": "Tasks still running"}))
 
-                elif r.type == "cancel":
+                elif r.event == const.EVENT_CANCEL:
                     props.cancel_all.set()
 
-            elif r.thread == "grunt":
-                if r.type == "finished":
+            elif r.thread == const.THREAD_TASK:
+                if r.event == const.EVENT_FINISHED:
                     # one grunt is gone start another
                     if props.counter < len(props.tasks):
                         if not props.cancel_all.is_set():
@@ -222,14 +225,15 @@ def _thread(main_queue, msgbox):
                             props.tasks[props.counter].run()
                         props.counter += 1
                         _Log.info(f"TASK#{r.id} is {r.status}")
-                        if r.status == "complete":
+                        if r.status == const.STATUS_OK:
                             main_queue.put_nowait(r)
-                elif r.type == "stat-update":
+                elif r.event == const.EVENT_STAT_UPDATE:
                     # add stats up and notify main thread
                     _add_stats(stats, r.data)
-                    main_queue.put_nowait(Message(thread="commander", 
-                                     type="stat-update", data={"stats": stats}))
-                elif r.type == "blacklist":
+                    main_queue.put_nowait(Message(thread=const.THREAD_COMMANDER, 
+                                     event=const.EVENT_STAT_UPDATE, id=0, status=const.STATUS_OK,
+                                     data={"stats": stats}))
+                elif r.event == const.EVENT_BLACKLIST:
                     # check the props.blacklist with urldata and notify Grunt process
                     # if no duplicate and added then True returned
                     process_index = r.data["index"]
@@ -240,16 +244,12 @@ def _thread(main_queue, msgbox):
                     else:
                         blacklist_added = False
                     grunt.msgbox.put(Message(
-                        thread="commander", type="blacklist",
-                        status=blacklist_added
+                        thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
+                        status=const.STATUS_OK, data={"added": blacklist_added}, id=0
                     ))
                 else:
                     # something pass onto main thread
                     main_queue.put_nowait(r)
-                    
-            elif r.thread == "settings":
-                main_queue.put_nowait(MessageMain(data=r.data))
-
         except queue.Empty:
             pass
 
@@ -261,7 +261,9 @@ def _thread(main_queue, msgbox):
                 # if so cleanup
                 # and notify main thread
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
-                    main_queue.put_nowait(Message(thread="commander", type="complete"))
+                    main_queue.put_nowait(Message(
+                        thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE,
+                        id=0, status=const.STATUS_OK, data=None))
                     _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout
