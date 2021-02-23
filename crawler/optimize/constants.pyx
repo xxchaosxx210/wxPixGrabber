@@ -41,22 +41,7 @@ cdef class CommanderProperties:
         self.tasks = tasks
         self.quit_thread = quit_thread
         self.time_counter = time_counter
-
-
-cdef class CUrlData:
-    cpdef public object url
-    cpdef public object method
-    cpdef public object action
-    cpdef public object data
-    cpdef public object tag
-
-    def __init__(self, url, method, action, data, tag):
-        self.url = url
-        self.method = method
-        self.action = action
-        self.data = data
-        self.tag = tag
-
+        
 
 cdef class CMessage:
     cdef public int event
