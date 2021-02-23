@@ -19,7 +19,6 @@ STATUS_OK = 1
 STATUS_ERROR = -1
 STATUS_START = 12
 
-
 cdef class CommanderProperties:
     cpdef public object settings
     cpdef public object scanned_urls
