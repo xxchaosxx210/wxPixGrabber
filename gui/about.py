@@ -4,7 +4,6 @@ import threading
 import queue
 import logging
 from collections import namedtuple
-from dataclasses import dataclass
 
 if os.name == "nt":
     # Import our C compiled classes

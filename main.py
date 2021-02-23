@@ -57,6 +57,9 @@ class PixGrabberApp(wx.App):
                                         callback=self.window.on_clipboard, 
                                         url_only=True)
         self.clipboard.start()
+
+        # this will be our server process
+        self.server = None
      
     def commander_message_handler(self):
         quit = mp.Event()
@@ -70,7 +73,6 @@ class PixGrabberApp(wx.App):
                     wx.CallAfter(self.window.message_from_thread, msg)
             except queue.Empty:
                 pass
-
 
 def _main():
     # pyinstaller requires this. Otherwise multiple windows are spawned

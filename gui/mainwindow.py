@@ -16,17 +16,14 @@ from timer import (
 
 _log = logging.getLogger(__name__)
 
-
 class MainWindow(wx.Frame):
 
     def __init__(self, **kw):
         super().__init__(**kw)
 
         self.app = wx.GetApp()
-
-        icon = wx.EmptyIcon()
-        icon.CopyFromBitmap(self.app.bitmaps["icon"])
-        self.SetIcon(icon)
+        self._create_statusbar()
+        self._load_icon()
 
         self.dldpanel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -37,6 +34,16 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
 
         self.status = self.dldpanel.statusbox.txt_status
+    
+    def _create_statusbar(self):
+        self.sbar = wx.StatusBar(parent=self, id=-1)
+        self.sbar.SetFieldsCount(1)
+        self.SetStatusBar(self.sbar)
+    
+    def _load_icon(self):
+        icon = wx.Icon()
+        icon.CopyFromBitmap(self.app.bitmaps["icon"])
+        self.SetIcon(icon)
 
     def on_clipboard(self, text):
         """Function handler which recieves text from the Cllpboard
@@ -152,3 +159,4 @@ class MainWindow(wx.Frame):
             status = ""
         status += f"[{time.ctime(time.time())}]{name}: {text}\n" 
         self.status.SetValue(status)
+        
