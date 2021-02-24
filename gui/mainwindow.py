@@ -91,13 +91,11 @@ class MainWindow(wx.Frame):
             # fetch has completed
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
+                self.status.SetValue("")
             # fetch error
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
                 self.app.sounds["error"].Play()
-                self.update_status("COMMANDER", msg.data["message"])
-            # fetch has started
-            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_START:
-                self.status.SetValue("")
+                self.update_status("COMMANDER", msg.data["message"])     
             # started download and loading threads
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
@@ -109,7 +107,6 @@ class MainWindow(wx.Frame):
         elif msg.thread == const.THREAD_TASK:
             # saved and ok
             if msg.event == const.EVENT_IMAGE and msg.status == const.STATUS_OK:
-                #self.update_status("IMAGE_SAVED", f"{msg.data['pathname']}, {msg.data['url']}")
                 self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
             # finished task
             elif msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:

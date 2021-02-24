@@ -77,6 +77,15 @@ def create_commander(main_queue):
         threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msgqueue}),
         msgqueue)
 
+def _init_start(properties):
+    properties.tasks = []
+    properties.task_running = 1
+    properties.blacklist.clear()
+    properties.settings = options.load_settings()
+    cj = load_cookies(properties.settings)
+    filters = parsing.compile_filter_list(properties.settings["filter-search"]["filters"])
+    return (Stats(), cj, filters)
+
 def _thread(main_queue, msgbox):
     """main task handler thread
 
@@ -110,29 +119,13 @@ def _thread(main_queue, msgbox):
                                    id=0, data=None))
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
-                    if not props.task_running:
-                        props.tasks = []
-                        props.task_running = 1
-                        stats = Stats()
-                        props.blacklist.clear()
-                        # load the settings from file
-                        # create a new instance of it in memory
-                        # we dont want these values to change
-                        # whilst downloading and saving to file
-                        props.settings = dict(options.load_settings())
-                        cookiejar = load_cookies(props.settings)
-                        # notify main thread so can intialize UI
-                        main_queue.put_nowait(
-                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0, status=const.STATUS_OK,
-                                    data=None))
-                        filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
-                        _Log.info("Search Filters loaded")
+                    if not props.task_running:        
+                        stats, cookiejar, filters = _init_start(props)
+                    
                         for task_index, urldata in enumerate(props.scanned_urls):
                             grunt = Grunt(task_index, urldata, props.settings, 
                                           filters, msgbox, props.cancel_all)
                             props.tasks.append(grunt)
-                        
-                        _Log.info(f"Tasks loaded - {len(props.tasks)} tasks")
                             
                         # reset the tasks counter this is used to keep track of
                         # tasks that have been  started once a running thread has been notified
@@ -141,21 +134,14 @@ def _thread(main_queue, msgbox):
                         props.counter = 0
                         max_connections = round(int(props.settings["max_connections"]))
                         props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
-
-                        _Log.info(
-                            f"""Process Counter set to 0. Max Connections = \
-                                {max_connections}. Current running tasks = {len(tasks_alive(props.tasks))}""")
-
-                elif r.event == const.EVENT_FETCH:                
+                        # notify main thread so can intialize UI
+                        main_queue.put_nowait(
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0, status=const.STATUS_OK,
+                                    data=None))
+                elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
                         props.cancel_all.clear()
-                        # Load settings
-                        main_queue.put_nowait(Message(
-                            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
-                            status=const.STATUS_START, id=0, data=None))
-                        # Load the settings
                         props.settings = options.load_settings()
-                        # Load the cookiejar
                         cookiejar = load_cookies(props.settings)
                         urldata = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
@@ -196,7 +182,6 @@ def _thread(main_queue, msgbox):
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
                                                      "title": html_title}))
                                 else:
-                                    # Nothing found notify main thread
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("}, status=const.STATUS_OK,
                                                 event=const.EVENT_MESSAGE))
@@ -218,11 +203,6 @@ def _thread(main_queue, msgbox):
                 if r.event == const.EVENT_SERVER_READY:
                     if props.task_running == 0:
                         props.cancel_all.clear()
-                        # Load settings
-                        main_queue.put_nowait(Message(
-                            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
-                            status=const.STATUS_START, id=0, data=None))
-                        # Load the settings
                         props.settings = options.load_settings()
                         soup = parsing.parse_html(r.data["html"])
                         props.scanned_urls = []
@@ -236,37 +216,10 @@ def _thread(main_queue, msgbox):
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
                                                      "title": html_title}))
-                            props.tasks = []
-                            props.task_running = 1
-                            stats = Stats()
-                            props.blacklist.clear()
-                            props.settings = dict(options.load_settings())
-                            cookiejar = load_cookies(props.settings)
-                            # notify main thread so can intialize UI
-                            main_queue.put_nowait(
-                                Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0, status=const.STATUS_OK,
-                                        data=None))
-                            filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
-                            _Log.info("Search Filters loaded")
-                            for task_index, urldata in enumerate(props.scanned_urls):
-                                grunt = Grunt(task_index, urldata, props.settings, 
-                                            filters, msgbox, props.cancel_all)
-                                props.tasks.append(grunt)
-                            
-                            _Log.info(f"Tasks loaded - {len(props.tasks)} tasks")
-                                
-                            # reset the tasks counter this is used to keep track of
-                            # tasks that have been  started once a running thread has been notified
-                            # this thread counter is incremenetet counter is checked with length of props.tasks
-                            # once the counter has reached length then then all tasks have been complete
-                            props.counter = 0
-                            max_connections = round(int(props.settings["max_connections"]))
-                            props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
-
-                            _Log.info(
-                                f"""Process Counter set to 0. Max Connections = \
-                                    {max_connections}. Current running tasks = {len(tasks_alive(props.tasks))}""")
-                            
+                            # Start the scan
+                            msgbox.put_nowait(
+                                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, 
+                                status=const.STATUS_OK, data=None, id=0))                         
                         else:
                             # Nothing found notify main thread
                             main_queue.put_nowait(
