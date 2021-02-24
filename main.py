@@ -18,6 +18,7 @@ from resources.globals import (
 
 from crawler.commander import create_commander
 import crawler.constants as const
+from crawler.server import server_process
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
@@ -45,6 +46,10 @@ class PixGrabberApp(wx.App):
         self.commander = create_commander(self.queue)
         self.commander.thread.start()
 
+        # start the server
+        self.server = mp.Process(target=server_process, kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
+        self.server.start()
+
         # keep a reference to the clipboard, there is a bug in that when the clipboard
         # listener is running, it captures win32 messages before they get to the wx event loop
         # for some reason messages are not being passed onto Dialog windows
@@ -58,16 +63,16 @@ class PixGrabberApp(wx.App):
                                         url_only=True)
         self.clipboard.start()
 
-        # this will be our server process
-        self.server = None
-     
     def commander_message_handler(self):
         quit = mp.Event()
         while not quit.is_set():
             try:
                 msg = self.queue.get()
-                if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT: 
+                if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT:
+                        self.server.terminate()
                         quit.set()
+                elif msg.thread == const.THREAD_SERVER and msg.event == const.EVENT_SERVER_READY:
+                    self.commander.queue.put_nowait(msg)
                 else:
                     # pass the message to the callback
                     wx.CallAfter(self.window.message_from_thread, msg)

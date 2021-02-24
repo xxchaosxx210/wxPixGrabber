@@ -33,6 +33,7 @@ class Blacklist:
             index = -1
         return index >= 0
 
+# Replaced this code with C extension classes in Cython
 
 # @dataclass
 # class Message:
