@@ -232,6 +232,10 @@ def _thread(main_queue, msgbox):
                         if parsing.sort_soup(url=r.data["url"], soup=soup, 
                                              urls=props.scanned_urls, include_forms=False,
                                              images_only=False, thumbnails_only=True, filters=filters) > 0:
+                            main_queue.put_nowait(
+                                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
+                                                     status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
+                                                     "title": html_title}))
                             props.tasks = []
                             props.task_running = 1
                             stats = Stats()
