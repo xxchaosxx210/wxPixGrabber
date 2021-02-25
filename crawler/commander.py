@@ -175,7 +175,7 @@ def _thread(main_queue, msgbox):
                                                      urls=props.scanned_urls,
                                                      include_forms=False,
                                                      images_only=False, 
-                                                     thumbnails_only=True,
+                                                     thumbnails_only=props.settings.get("thumbnails_only", True),
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 

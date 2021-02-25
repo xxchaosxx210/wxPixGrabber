@@ -91,7 +91,7 @@ class MainWindow(wx.Frame):
             # fetch has completed
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
-                self.status.SetValue("")
+                self.dldpanel.addressbar.txt_address.SetValue("")
             # fetch error
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
                 self.app.sounds["error"].Play()

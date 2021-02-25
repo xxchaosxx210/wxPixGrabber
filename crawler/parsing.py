@@ -2,6 +2,7 @@ import re
 from urllib import parse
 from bs4 import BeautifulSoup
 import logging
+import os
 
 from crawler.types import UrlData
 from crawler.mime import image_ext_pattern
@@ -119,7 +120,23 @@ def _appendlink(full_url, src, url_data_list, tag, filters):
     to the urllist
     """
     if src:
-        url = parse.urljoin(full_url, src)
+        parsed_src = parse.urlparse(src)
+        if not parsed_src.netloc:
+            # if no net location then add it from source url
+            url = parse.urljoin(full_url, src)
+            parsed_src = parse.urlparse(url)
+        else:
+            url = src
+        # parse the source URl
+        parsed_url = parse.urlparse(full_url)
+        if parsed_src.netloc == parsed_url.netloc:
+            if parsed_src.path == parsed_url.path:
+                return
+            # same net location so make sure we dont search paths before the tree like the root index
+            lensrc = len(list(filter(lambda item : item, parsed_src.path.split("/"))))
+            lenurl = len(list(filter(lambda item : item, parsed_url.path.split("/"))))
+            if lensrc <= lenurl:
+                return
         # Filter the URL
         if filters.search(url):
             # make sure we dont have a duplicate
