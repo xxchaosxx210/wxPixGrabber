@@ -5,8 +5,6 @@ from gui.mainwindow import MainWindow
 import logging
 import os
 
-import clipboard
-
 import multiprocessing as mp
 import threading
 import queue
@@ -49,19 +47,6 @@ class PixGrabberApp(wx.App):
         # start the server
         self.server = mp.Process(target=server_process, kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
         self.server.start()
-
-        # keep a reference to the clipboard, there is a bug in that when the clipboard
-        # listener is running, it captures win32 messages before they get to the wx event loop
-        # for some reason messages are not being passed onto Dialog windows
-        # so Dialogs are unresponsive so I patched it by closing the clipboard listener
-        # when a Dialog is open. This leads to a bug when I start the listener again it
-        # recaptures the last text on the clipboard. I found the best way around this is
-        # to send an empty string to the clipboard
-        self.clipboard = \
-            clipboard.ClipboardListener(parent=self.window, 
-                                        callback=self.window.on_clipboard, 
-                                        url_only=True)
-        self.clipboard.start()
 
     def commander_message_handler(self):
         quit = mp.Event()

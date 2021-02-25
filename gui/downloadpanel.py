@@ -15,8 +15,6 @@ import crawler.options as options
 from gui.settingsdialog import SettingsDialog
 from gui.about import AnimatedDialog
 
-from clipboard import paste_text
-
 
 class DownloadPanel(wx.Panel):
 
@@ -65,9 +63,6 @@ class DownloadPanel(wx.Panel):
         self.ignored.value.SetLabel("0")
 
     def on_btn_settings(self, evt):
-        # if listening for clipboard events then
-        # dialog won't recive window messages
-        self.app.clipboard.stop()
         dlg = SettingsDialog(parent=self.GetParent(),
                              id= -1,
                              title="Settings",
@@ -77,16 +72,10 @@ class DownloadPanel(wx.Panel):
                              name="settings_dialog",
                              settings=options.load_settings())
         dlg.CenterOnParent()
-
         if dlg.ShowModal() == wx.ID_OK:
             settings = dlg.get_settings()
             options.save_settings(settings)
         dlg.Destroy()
-        # paste text to the clipboard
-        # stops a bug setting text already added to clipboard before clipboard listener close
-        paste_text("")
-        # start up the clipboard listener again
-        self.app.clipboard.start()
     
     def on_fetch_button(self, evt):
         if self.addressbar.txt_address.GetValue():
@@ -108,7 +97,6 @@ class DownloadPanel(wx.Panel):
         self.errors.value.SetLabel(str(errors))
     
     def on_btn_open_dir(self, evt):
-        self.app.clipboard.stop()
         dlg = wx.FileDialog(
             parent=self, message="Choose an HTML Document to Search",
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
@@ -116,17 +104,12 @@ class DownloadPanel(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             self.addressbar.txt_address.SetValue(dlg.GetPaths()[0])
         dlg.Destroy()
-        paste_text("")
-        self.app.clipboard.start()
     
     def on_btn_about(self, evt):
-        self.app.clipboard.stop()
         dlg = AnimatedDialog(self, -1, "About", 
                             ["PixGrabber", "Paul Millar", "", options.VERSION])
         dlg.ShowModal()
         dlg.Destroy()
-        paste_text("")
-        self.app.clipboard.start()
 
     def on_mouse_enter(self, text):
         self.app.window.sbar.SetStatusText(text)

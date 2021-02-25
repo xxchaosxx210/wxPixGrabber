@@ -44,23 +44,6 @@ class MainWindow(wx.Frame):
         icon = wx.Icon()
         icon.CopyFromBitmap(self.app.bitmaps["icon"])
         self.SetIcon(icon)
-
-    def on_clipboard(self, text):
-        """Function handler which recieves text from the Cllpboard
-
-        Args:
-            text (str): the text recieved from the Clipboard listener
-        """
-        if options.load_settings()["notify-done"]:
-            self.app.sounds["clipboard"].Play()
-        self.dldpanel.addressbar.txt_address.SetValue(text)
-        if options.load_settings()["auto-download"]:
-            self.dldpanel.on_fetch_button(None)
-        else:
-            # bring the window to the foreground
-            self.Raise()
-        _log.info(f"{text} added from Clipboard")
-
     
     def _on_timer_callback(self, formatted_time):
         try:

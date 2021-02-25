@@ -11,12 +11,7 @@ from gui.theme import (
     DIALOG_BORDER
 )
 
-from gui.about import AnimatedDialog
-
-from crawler.options import (
-    SQL_PATH,
-    VERSION
-)
+from crawler.options import SQL_PATH
 
 STATICBOX_BORDER = 5
 

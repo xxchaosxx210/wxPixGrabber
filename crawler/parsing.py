@@ -2,7 +2,6 @@ import re
 from urllib import parse
 from bs4 import BeautifulSoup
 import logging
-import os
 
 from crawler.types import UrlData
 from crawler.mime import image_ext_pattern
