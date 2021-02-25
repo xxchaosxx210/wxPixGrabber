@@ -39,12 +39,13 @@ class PixGrabberApp(wx.App):
         self.sounds = load_wavs()
 
     def _initialize_threads(self):
+        # Setup the message Queues amd start the background thread
         self.queue = mp.Queue()
         threading.Thread(target=self.commander_message_handler).start()
         self.commander = create_commander(self.queue)
         self.commander.thread.start()
 
-        # start the server
+        # start the server for handling our Web Browser extension requests
         self.server = mp.Process(target=server_process, kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
         self.server.start()
 
