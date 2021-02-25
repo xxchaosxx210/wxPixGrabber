@@ -9,6 +9,17 @@ from crawler.mime import image_ext_pattern
 _Log = logging.getLogger(__name__)
 
 def compile_filter_list(filter_settings):
+    """compiles a filter list into a regular expression pattern.
+    Call this before, calling sort soup
+
+    Args:
+        filter_settings (dict): holds keys -
+                                enabled (bool): if this is enabled then filters list is compiled and used else a wildcard expression will be used instead
+                                filters (list): a list of words to add to the search pattern
+
+    Returns:
+        [re.Pattern]: a compiled regular expression pattern
+    """
     if filter_settings["enabled"]:
         return re.compile("|".join(filter_settings["filters"]))
     # search for everything
@@ -114,12 +125,14 @@ def sort_soup(url, soup, urls, include_forms,
 
 
 def _appendlink(full_url, src, url_data_list, tag, filters):
-    """
-    _appendlink(str, str, list)
-    joins the url to the src and then uses a filter pattern
-    to search for matches. If a match is found then it is checked
-    in the urllist for conflicts if none found then it appends
-    to the urllist
+    """appends Url to url_data_list if all patterns and filters match
+
+    Args:
+        full_url (str): The Url of the HTML source
+        src (str): The Url to append
+        url_data_list (list): Global list of UrlData dicts. The src will appened to this list of all patterns match 
+        tag (str): The tag the src was found in..ie <a> or <img>
+        filters (re.Pattern): compiled filter object used to match patterns
     """
     if src:
         parsed_src = parse.urlparse(src)

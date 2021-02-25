@@ -42,8 +42,13 @@ def _add_stats(stats, data):
     return stats
 
 def tasks_alive(tasks):
-    """
-    returns a list of tasks that are still alive
+    """checks how many tasks are still running
+
+    Args:
+        tasks (list): The list of Tasks to check
+
+    Returns:
+        [list]: returns all active running tasks
     """
     return list(filter(lambda grunt : grunt.is_alive(), tasks))
 
@@ -55,6 +60,8 @@ def _reset_comm_props(properties):
     properties.time_counter = 0.0
 
 def _start_max_tasks(tasks, max_tasks, counter):
+    # This function will be called to start the Process Pool
+    # returns an integer to how many Tasks have been started
     for th in tasks:
         if counter >= max_tasks:
             break
@@ -78,6 +85,7 @@ def create_commander(main_queue):
         msgqueue)
 
 def _init_start(properties):
+    # intialize commander threads variables and return new objects
     properties.tasks = []
     properties.task_running = 1
     properties.blacklist.clear()
@@ -202,14 +210,16 @@ def _thread(main_queue, msgbox):
             elif r.thread == const.THREAD_SERVER:
                 if r.event == const.EVENT_SERVER_READY:
                     if props.task_running == 0:
+                        # Initialize and load settings
                         props.cancel_all.clear()
-                        props.settings = options.load_settings()
-                        soup = parsing.parse_html(r.data["html"])
                         props.scanned_urls = []
+                        props.settings = options.load_settings()
+                        # Parse the HTML sent from the Server and assign a unique Path name if required
+                        soup = parsing.parse_html(r.data["html"])
                         html_title = getattr(soup.find("title"), "text", "")
                         options.assign_unique_name("", html_title)
+                        # Setup Search filters and find matches within forms, links and images
                         filters = parsing.compile_filter_list(props.settings["filter-search"])
-
                         if parsing.sort_soup(url=r.data["url"], soup=soup, 
                                              urls=props.scanned_urls, include_forms=False, images_only=False, 
                                              thumbnails_only=props.settings.get("thumbnails_only", True), 
@@ -218,7 +228,7 @@ def _thread(main_queue, msgbox):
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
                                                      "title": html_title}))
-                            # Start the scan
+                            # Message ourselves and start the search
                             msgbox.put_nowait(
                                 Message(thread=const.THREAD_MAIN, event=const.EVENT_START, 
                                 status=const.STATUS_OK, data=None, id=0))                         
