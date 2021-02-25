@@ -50,6 +50,8 @@ class PixGrabberApp(wx.App):
         self.server.start()
 
     def commander_message_handler(self):
+        """handles messages sent from the commander thread and task processes
+        """
         quit = mp.Event()
         while not quit.is_set():
             try:
@@ -60,7 +62,7 @@ class PixGrabberApp(wx.App):
                 elif msg.thread == const.THREAD_SERVER and msg.event == const.EVENT_SERVER_READY:
                     self.commander.queue.put_nowait(msg)
                 else:
-                    # pass the message to the callback
+                    # Pass the message to the GUI Thread
                     wx.CallAfter(self.window.message_from_thread, msg)
             except queue.Empty:
                 pass
