@@ -188,7 +188,7 @@ def _thread(main_queue, msgbox):
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
-                                                     "title": html_title}))
+                                                     "title": html_title, "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("}, status=const.STATUS_OK,

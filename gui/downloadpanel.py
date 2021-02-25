@@ -25,6 +25,7 @@ class DownloadPanel(wx.Panel):
 
         self.addressbar = AddressBar(self, -1)
         self.statusbox = StatusPanel(self, -1)
+        self.treeview = StatusTreeView(self, -1)
         self.errors = StatsPanel(parent=self, stat_name="Errors:", stat_value="0")
         self.ignored = StatsPanel(parent=self, stat_name="Ignored:", stat_value="0")
         self.imgsaved = StatsPanel(parent=self, stat_name="Saved:", stat_value="0")
@@ -38,6 +39,10 @@ class DownloadPanel(wx.Panel):
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(self.statusbox, 1, wx.EXPAND|wx.ALL, WX_BORDER)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
+
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.treeview, 1, wx.EXPAND|wx.ALL, WX_BORDER)
         vs.Add(hs, 1, wx.EXPAND|wx.ALL, WX_BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
@@ -192,6 +197,43 @@ class StatusPanel(wx.Panel):
         box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(box)
+
+
+class StatusTreeView(wx.TreeCtrl):
+
+    def __init__(self, parent, id):
+        super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
+        self.app = wx.GetApp()
+        self.imagelist = wx.ImageList(16, 16)
+        self._link_bmp = self.imagelist.Add(self.app.bitmaps["web"])
+        self._img_bmp = self.imagelist.Add(self.app.bitmaps["image"])
+        self.SetImageList(self.imagelist)
+
+    def populate(self, url, links):
+        """Gets called after Fetch job
+
+        Args:
+            url (str): The source Url gets added as root
+            links (list): UrlData objects
+        """
+        self.DeleteAllItems()
+        self.root = self.AddRoot(url)
+        self.SetItemData(self.root, None)
+        self.SetItemImage(self.root, self._link_bmp, wx.TreeItemIcon_Normal)
+        self.SetItemImage(self.root, self._link_bmp, wx.TreeItemIcon_Expanded)
+
+        for link in links:
+            child = self.AppendItem(self.root, link.url)
+            self.SetItemData(child, None)
+            if link.tag == "a":
+                self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Normal)
+                self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Expanded)
+            else:
+                self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Normal)
+                self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Expanded)
+
+        self.Expand(self.root)
+
 
 
 class StatsPanel(wx.Panel):

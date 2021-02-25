@@ -119,6 +119,7 @@ class MainWindow(wx.Frame):
         # Set the progress bar maximum range
         self.update_status("COMMANDER", f"{len(msg.data['urls'])} Links found")
         self.update_status("COMMANDER", "Press Start to start scanning for images...")
+        self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
         self.SetTitle(msg.data["title"])
         if msg.data.get("urls", []):
