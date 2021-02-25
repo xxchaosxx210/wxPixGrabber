@@ -32,11 +32,12 @@ class MainWindow(wx.Frame):
         self.SetSize(kw["size"])
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
-
-        self.status = self.dldpanel.statusbox.txt_status
     
     def _create_statusbar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
+        font = self.sbar.GetFont()
+        font.SetPointSize(12)
+        self.sbar.SetFont(font)
         self.sbar.SetFieldsCount(1)
         self.SetStatusBar(self.sbar)
     
@@ -67,7 +68,7 @@ class MainWindow(wx.Frame):
         if msg.thread == const.THREAD_COMMANDER:
             # message
             if msg.event == const.EVENT_MESSAGE:
-                self.update_status("COMMANDER", msg.data["message"])
+                self.sbar.SetStatusText(msg.data["message"])
             # All tasks complete
             elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
@@ -78,7 +79,7 @@ class MainWindow(wx.Frame):
             # fetch error
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
                 self.app.sounds["error"].Play()
-                self.update_status("COMMANDER", msg.data["message"])     
+                self.sbar.SetStatusText(msg.data["message"])
             # started download and loading threads
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
@@ -99,17 +100,16 @@ class MainWindow(wx.Frame):
         timer_quit.clear()
         self.dldpanel.resetstats()
         create_timer_thread(self._on_timer_callback).start()
-        self.update_status("COMMANDER", "Starting threads...")
+        self.sbar.SetStatusText("Starting Tasks...")
         self.dldpanel.addressbar.btn_fetch.Enable(False)
         self.dldpanel.addressbar.btn_start.Enable(False)
     
     def _on_scraping_complete(self):
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
-            self.Raise()
         # kill the timer thread
         timer_quit.set()
-        self.update_status("COMMANDER", "All tasks have completed")
+        self.sbar.SetStatusText("All Tasks have completed")
         self.dldpanel.progressbar.reset_progress(0)
         self.dldpanel.addressbar.txt_address.SetValue("")
         self.dldpanel.addressbar.btn_fetch.Enable(True)
@@ -117,8 +117,7 @@ class MainWindow(wx.Frame):
     
     def _on_fetch_finished(self, msg):
         # Set the progress bar maximum range
-        self.update_status("COMMANDER", f"{len(msg.data['urls'])} Links found")
-        self.update_status("COMMANDER", "Press Start to start scanning for images...")
+        self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
         self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
         self.SetTitle(msg.data["title"])
@@ -126,18 +125,4 @@ class MainWindow(wx.Frame):
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
                 self.dldpanel.on_start_button(None)
-    
-    def update_status(self, name, text):
-        """displays output to the status textctrl
-        doesn't allow more than 100MB of text in the buffer
-
-        Args:
-            name (str): The name of the Thread or Process that is sending the update
-            text (text): The message of the update to display in the textctrl
-        """
-        status = self.status.GetValue()
-        if len(status) > 100000:
-            status = ""
-        status += f"[{time.ctime(time.time())}]{name}: {text}\n" 
-        self.status.SetValue(status)
         

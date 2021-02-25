@@ -227,7 +227,7 @@ def _thread(main_queue, msgbox):
                             main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
-                                                     "title": html_title}))
+                                                     "title": html_title, "url": r.data["url"]}))
                             # Message ourselves and start the search
                             msgbox.put_nowait(
                                 Message(thread=const.THREAD_MAIN, event=const.EVENT_START, 

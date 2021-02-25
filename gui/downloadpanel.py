@@ -24,7 +24,6 @@ class DownloadPanel(wx.Panel):
         self.app = wx.GetApp()
 
         self.addressbar = AddressBar(self, -1)
-        self.statusbox = StatusPanel(self, -1)
         self.treeview = StatusTreeView(self, -1)
         self.errors = StatsPanel(parent=self, stat_name="Errors:", stat_value="0")
         self.ignored = StatsPanel(parent=self, stat_name="Ignored:", stat_value="0")
@@ -35,10 +34,6 @@ class DownloadPanel(wx.Panel):
         
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(self.addressbar, 1, wx.EXPAND|wx.ALL, WX_BORDER)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.statusbox, 1, wx.EXPAND|wx.ALL, WX_BORDER)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
@@ -179,24 +174,6 @@ class AddressBar(wx.Panel):
 
     def on_mouse_over_button(self, text):
         self.app.window.sbar.SetStatusText(text)
-
-class StatusPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.txt_status = ThemedTextCtrl(self, -
-        1, 
-        "",
-        style=wx.TE_READONLY|wx.TE_MULTILINE)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.txt_status, 1, wx.EXPAND|wx.ALL, 0)
-
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Status")
-        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
-
-        self.SetSizer(box)
 
 
 class StatusTreeView(wx.TreeCtrl):
