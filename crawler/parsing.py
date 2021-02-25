@@ -9,8 +9,11 @@ from crawler.mime import image_ext_pattern
 
 _Log = logging.getLogger(__name__)
 
-def compile_filter_list(filter_list):
-    return re.compile("|".join(filter_list))
+def compile_filter_list(filter_settings):
+    if filter_settings["enabled"]:
+        return re.compile("|".join(filter_settings["filters"]))
+    # search for everything
+    return re.compile("^.*?$")
 
 def _construct_query_from_form(form):
     """looks for input tags from soup

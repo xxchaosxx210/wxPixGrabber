@@ -83,7 +83,7 @@ def _init_start(properties):
     properties.blacklist.clear()
     properties.settings = options.load_settings()
     cj = load_cookies(properties.settings)
-    filters = parsing.compile_filter_list(properties.settings["filter-search"]["filters"])
+    filters = parsing.compile_filter_list(properties.settings["filter-search"])
     return (Stats(), cj, filters)
 
 def _thread(main_queue, msgbox):
@@ -169,7 +169,7 @@ def _thread(main_queue, msgbox):
                                 # find images and links
                                 # set the include_form to False on level 1 scan
                                 # compile our filter matches only add those from the filter list
-                                filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
+                                filters = parsing.compile_filter_list(props.settings["filter-search"])
                                 if parsing.sort_soup(url=r.data["url"],
                                                      soup=soup, 
                                                      urls=props.scanned_urls,
@@ -208,10 +208,12 @@ def _thread(main_queue, msgbox):
                         props.scanned_urls = []
                         html_title = getattr(soup.find("title"), "text", "")
                         options.assign_unique_name("", html_title)
-                        filters = parsing.compile_filter_list(props.settings["filter-search"]["filters"])
+                        filters = parsing.compile_filter_list(props.settings["filter-search"])
+
                         if parsing.sort_soup(url=r.data["url"], soup=soup, 
-                                             urls=props.scanned_urls, include_forms=False,
-                                             images_only=False, thumbnails_only=True, filters=filters) > 0:
+                                             urls=props.scanned_urls, include_forms=False, images_only=False, 
+                                             thumbnails_only=props.settings.get("thumbnails_only", True), 
+                                             filters=filters) > 0:
                             main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
                                                      status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
