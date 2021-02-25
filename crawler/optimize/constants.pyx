@@ -6,7 +6,7 @@ THREAD_SERVER = 1004
 EVENT_FETCH = 101
 EVENT_COMPLETE = 102
 EVENT_SEARCHING = 103
-EVENT_STAT_UPDATE = 104
+
 EVENT_IMAGE = 105
 EVENT_FINISHED = 106
 EVENT_START = 107
@@ -58,14 +58,3 @@ cdef class CMessage:
         self.id = id
         self.data = data
         self.status = status
-
-
-cdef class CStats:
-    cdef public int saved
-    cdef public int errors
-    cdef public ignored
-
-    def __init__(self):
-        self.saved = 0
-        self.errors = 0
-        self.ignored = 0

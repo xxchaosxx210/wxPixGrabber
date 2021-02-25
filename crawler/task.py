@@ -18,8 +18,6 @@ from crawler.constants import CMessage as Message
 
 import crawler.constants as const
 
-from crawler.constants import CStats as Stats
-
 from crawler.webrequest import (
     request_from_url,
     load_cookies
@@ -73,7 +71,6 @@ def download_image(filename, response, settings):
     os.path.join is used to append path to filename
     response is the response returned from requests.get
     """
-    stats = Stats()
     byte_stream = _response_to_stream(response)
     # check the image size is within our bounds
     minsize = settings["minimum_image_resolution"]
@@ -96,27 +93,18 @@ def download_image(filename, response, settings):
                 elif settings["file_exists"] == "skip":
                     # close the stream and dont write to disk
                     _Log.info(f"Skipping {full_path}")
-                    stats.ignored += 1
                     byte_stream.close()
-                    return stats
             # everything ok. write image to disk
-            if stream_to_file(full_path, byte_stream):
-                stats.saved += 1
-            else:
-                stats.errors += 1
+            stream_to_file(full_path, byte_stream)
         else:
             _Log.info(f"Bytes duplicate found locally with url {response.url} and {_duplicate}")
-            stats.ignored += 1
     else:
         # add the URl to the cache
         if not cache.query_ignore(response.url):
             cache.add_ignore(response.url, "small-image", width, height)
-        stats.ignored += 1
 
     # close the file handle
     byte_stream.close()
-    
-    return stats
 
 class Grunt(mp.Process):
 
@@ -185,20 +173,10 @@ class Grunt(mp.Process):
                 filename = options.url_to_filename(response.url, ext)
             # check the validity of the image and save
             try:
-                stats = download_image(filename, response, self.settings)
-                self.comm_queue.put_nowait(
-                    Message(
-                        thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, data={
-                            "saved": stats.saved,
-                            "errors": stats.errors,
-                            "ignored": stats.ignored},
-                            id=self.task_index, status=const.STATUS_OK))
-            except UnidentifiedImageError:
+                download_image(filename, response, self.settings)
+            except UnidentifiedImageError as err:
                 # Couldnt load the Image from Stream
-                self.comm_queue.put_nowait(Message(
-                                   thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, 
-                                   data={"saved": 0, "errors": 1, "ignored": 0},
-                                   id=self.task_index, status=const.STATUS_ERROR))
+                _Log.info(err.__str__())
             return []
         else:
             if not cache.query_ignore(response.url):

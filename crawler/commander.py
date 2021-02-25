@@ -11,7 +11,6 @@ import crawler.mime as mime
 
 from crawler.task import Grunt
 
-from crawler.constants import CStats as Stats
 from crawler.constants import CMessage as Message
 from crawler.constants import CommanderProperties
 import crawler.constants as const
@@ -33,13 +32,6 @@ _Log = logging.getLogger(__name__)
 class Commander:
     thread: threading.Thread
     queue: mp.Queue
-
-
-def _add_stats(stats, data):
-    stats.saved += data["saved"]
-    stats.errors += data["errors"]
-    stats.ignored += data["ignored"]
-    return stats
 
 def tasks_alive(tasks):
     """checks how many tasks are still running
@@ -92,7 +84,7 @@ def _init_start(properties):
     properties.settings = options.load_settings()
     cj = load_cookies(properties.settings)
     filters = parsing.compile_filter_list(properties.settings["filter-search"])
-    return (Stats(), cj, filters)
+    return (cj, filters)
 
 def _thread(main_queue, msgbox):
     """main task handler thread
@@ -128,7 +120,7 @@ def _thread(main_queue, msgbox):
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
                     if not props.task_running:        
-                        stats, cookiejar, filters = _init_start(props)
+                        cookiejar, filters = _init_start(props)
                     
                         for task_index, urldata in enumerate(props.scanned_urls):
                             grunt = Grunt(task_index, urldata, props.settings, 
@@ -251,12 +243,6 @@ def _thread(main_queue, msgbox):
                         _Log.info(f"TASK#{r.id} is {r.status}")
                         if r.status == const.STATUS_OK:
                             main_queue.put_nowait(r)
-                elif r.event == const.EVENT_STAT_UPDATE:
-                    # add stats up and notify main thread
-                    _add_stats(stats, r.data)
-                    main_queue.put_nowait(Message(thread=const.THREAD_COMMANDER, 
-                                     event=const.EVENT_STAT_UPDATE, id=0, status=const.STATUS_OK,
-                                     data={"stats": stats}))
                 elif r.event == const.EVENT_BLACKLIST:
                     # check the props.blacklist with urldata and notify Grunt process
                     # if no duplicate and added then True returned

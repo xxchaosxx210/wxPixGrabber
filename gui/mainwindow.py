@@ -83,10 +83,6 @@ class MainWindow(wx.Frame):
             # started download and loading threads
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
-            # error stat update
-            elif msg.event == const.EVENT_STAT_UPDATE:
-                stats = msg.data["stats"]
-                self.dldpanel.update_stats(stats.saved, stats.ignored, stats.errors)
         
         elif msg.thread == const.THREAD_TASK:
             # saved and ok
