@@ -88,13 +88,14 @@ class MainWindow(wx.Frame):
                 self.dldpanel.progressbar.increment()
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 _log.info(f"{msg.data['url']} had an error. Message: {msg.data['message']}")
+                self.dldpanel.treeview.add_url(msg)
                 self.dldpanel.errors.add_stat()
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 self.dldpanel.imgsaved.add_stat()
-                self.dldpanel.treeview.add_url(msg.id, msg.data)
+                self.dldpanel.treeview.add_url(msg)
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
                 self.dldpanel.ignored.add_stat()
-                _log.info(f"{msg.data['url']} has been ignored. Reason: {msg.data['message']}")
+                self.dldpanel.treeview.add_url(msg)
     
     def _on_start_scraping(self, msg):
         timer_quit.clear()

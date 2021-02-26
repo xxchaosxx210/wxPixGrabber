@@ -1,4 +1,5 @@
 import wx
+import webbrowser
 
 from gui.theme import (
     WX_BORDER,
@@ -101,6 +102,13 @@ class DownloadPanel(wx.Panel):
 
     def on_mouse_enter(self, text):
         self.app.window.sbar.SetStatusText(text)
+    
+    def on_test_button(self, evt):
+        self.app.commander.queue.put_nowait(
+                Message(thread=const.THREAD_MAIN, 
+                        event=const.EVENT_FETCH, id=0, 
+                        status=const.STATUS_OK, 
+                        data={"url": "http://localhost:5000/setup_test"}))
 
 class AddressBar(wx.Panel):
 
@@ -131,7 +139,7 @@ class AddressBar(wx.Panel):
         btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
 
         if options.DEBUG:
-            test_btn.Bind(wx.EVT_BUTTON, self._on_test_button, test_btn)
+            test_btn.Bind(wx.EVT_BUTTON, self.GetParent().on_test_button, test_btn)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")
         self.set_help_text(self.btn_start, "Start scanning the fetched Urls")
@@ -163,9 +171,6 @@ class AddressBar(wx.Panel):
 
         self.SetSizer(vs)
     
-    def _on_test_button(self, evt):
-        evt.Skip()
-    
     def set_help_text(self, button, text):
         button.Bind(wx.EVT_ENTER_WINDOW,
                     lambda evt: self.on_mouse_over_button(text), 
@@ -183,6 +188,9 @@ class StatusTreeView(wx.TreeCtrl):
         self.imagelist = wx.ImageList(16, 16)
         self._link_bmp = self.imagelist.Add(self.app.bitmaps["web"])
         self._img_bmp = self.imagelist.Add(self.app.bitmaps["image"])
+        self._error_bmp = self.imagelist.Add(self.app.bitmaps["error"])
+        self._ignored_bmp = self.imagelist.Add(self.app.bitmaps["ignored"])
+        self._saved_bmp = self.imagelist.Add(self.app.bitmaps["saved"])
         self.SetImageList(self.imagelist)
 
         self.clear()
@@ -210,21 +218,25 @@ class StatusTreeView(wx.TreeCtrl):
             else:
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Normal)
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Expanded)
+        self.Expand(self.root)
     
-    def add_url(self, index, data):
-        child = self.children[index]
-        last = self.AppendItem(child, data["url"])
-        self.SetItemData(last, None)
-        self.SetItemImage(last, self._img_bmp, wx.TreeItemIcon_Normal)
-        self.SetItemImage(last, self._img_bmp, wx.TreeItemIcon_Expanded)
-        self.Expand(child)
+    def add_url(self, msg):
+        child = self.children[msg.id]
+        self.AppendItem(child, msg.data["message"])
+        if msg.status == const.STATUS_OK:
+            bmp = self._saved_bmp
+        elif msg.status == const.STATUS_ERROR:
+            bmp = self._error_bmp
+        else:
+            bmp = self._ignored_bmp
+        self.SetItemData(child, None)
+        self.SetItemImage(child, bmp, wx.TreeItemIcon_Normal)
+        self.SetItemImage(child, bmp, wx.TreeItemIcon_Expanded)
     
     def clear(self):
         self.DeleteAllItems()
         self.children = []
         
-
-
 
 class StatsPanel(wx.Panel):
 
