@@ -206,7 +206,6 @@ class AboutPanel(wx.Panel):
         
     def _animation_loop(self):
         quit = threading.Event()
-        counter = 0
         while not quit.is_set():
             try:
                 msg = self._queue.get(timeout=_FRAME_RATE)
@@ -215,10 +214,8 @@ class AboutPanel(wx.Panel):
             except queue.Empty:
                 # update next frame animation
                 wx.CallAfter(self._update_frame)
-                counter += 1
         # paint last frame before leaving
         wx.CallAfter(self._update_frame)
-        _Log.info(f"Counter took {counter} Loops to complete animation")
 
     def _update_frame(self):
         # may cause runtime error if dialog has been deleted

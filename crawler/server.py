@@ -41,15 +41,31 @@ def _decode_base64(_base64):
     return b.decode("utf-8")
 
 def server_process(host, port, a_queue):
-    handler = ServerHandler
+    """sets up a background running HTTPServer and handler
+
+    Args:
+        host (str): The IP address of the Server localhost by Default
+        port (int): Port address for the Server 5000 by Default 
+        a_queue (Queue): Queue object. A Message object will be sent. Create it from the calling process and setup a Queue loop to recieve the message
+                         with a const.EVENT_SERVER_READY flag when a /set-html request has been sent from PixGrabber Browser extension.
+                         example...
+                         (Message) - thread (int): THREAD_SERVER
+                                     event  (int): EVENT_SERVER_READY
+                                     id     (int): 0
+                                     status (int): STATUS_OK
+                                     data   (dict): {url: str, html: str}
+    """
+    handler = _ServerHandler
     handler.host = host
     handler.port = port
     handler.queue = a_queue
-    running = http.server.HTTPServer((ServerHandler.host, ServerHandler.port), handler)
+    running = http.server.HTTPServer((_ServerHandler.host, _ServerHandler.port), handler)
     running.serve_forever()
 
-
 def generate_dummy_html():
+    """
+    Generates the test server HTML
+    """
     html = """<html><head><title>PixGrabber Dummy Site</title></head><body>"""
     with os.scandir(_TEST_SITE_IMAGES) as it:
         for entry in it:
@@ -61,7 +77,7 @@ def generate_dummy_html():
     return html
 
 
-class ServerHandler(http.server.BaseHTTPRequestHandler):
+class _ServerHandler(http.server.BaseHTTPRequestHandler):
 
     host = ""
     port = 5000
@@ -73,6 +89,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
     
     def _send_jpg(self, relative_path):
+        # sends the requested image
         self.send_response(200)
         self.send_header("Content-Type", MIME_JPG)
         self.end_headers()
@@ -113,8 +130,8 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             jstring = _decode_base64(b)
             todo = json.loads(jstring)
             html = _create_document(todo)
-            url = f"http://{ServerHandler.host}:{ServerHandler.port}/set-html"
-            ServerHandler.queue.put_nowait(Message(
+            url = f"http://{_ServerHandler.host}:{_ServerHandler.port}/set-html"
+            _ServerHandler.queue.put_nowait(Message(
                     thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
                     status=const.STATUS_OK, data={"html": html, 
                     "url": url}, id=0))
