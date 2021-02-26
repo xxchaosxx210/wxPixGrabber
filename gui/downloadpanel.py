@@ -54,13 +54,6 @@ class DownloadPanel(wx.Panel):
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
 
         self.SetSizer(vs)
-    
-    def resetstats(self):
-        """Resets the Stats labels
-        """
-        self.errors.value.SetLabel("0")
-        self.imgsaved.value.SetLabel("0")
-        self.ignored.value.SetLabel("0")
 
     def on_btn_settings(self, evt):
         dlg = SettingsDialog(parent=self.GetParent(),
@@ -90,11 +83,6 @@ class DownloadPanel(wx.Panel):
     def on_stop_button(self, evt):
         self.app.commander.queue.put_nowait(
             Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data=None, id=0, status=const.STATUS_OK))
-    
-    def update_stats(self, saved, ignored, errors):
-        self.ignored.value.SetLabel(str(ignored))
-        self.imgsaved.value.SetLabel(str(saved))
-        self.errors.value.SetLabel(str(errors))
     
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(
@@ -186,6 +174,8 @@ class StatusTreeView(wx.TreeCtrl):
         self._img_bmp = self.imagelist.Add(self.app.bitmaps["image"])
         self.SetImageList(self.imagelist)
 
+        self.clear()
+
     def populate(self, url, links):
         """Gets called after Fetch job
 
@@ -193,7 +183,7 @@ class StatusTreeView(wx.TreeCtrl):
             url (str): The source Url gets added as root
             links (list): UrlData objects
         """
-        self.DeleteAllItems()
+        self.clear()
         self.root = self.AddRoot(url)
         self.SetItemData(self.root, None)
         self.SetItemImage(self.root, self._link_bmp, wx.TreeItemIcon_Normal)
@@ -201,6 +191,7 @@ class StatusTreeView(wx.TreeCtrl):
 
         for link in links:
             child = self.AppendItem(self.root, link.url)
+            self.children.append(child)
             self.SetItemData(child, None)
             if link.tag == "a":
                 self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Normal)
@@ -208,8 +199,19 @@ class StatusTreeView(wx.TreeCtrl):
             else:
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Normal)
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Expanded)
-
-        self.Expand(self.root)
+    
+    def add_url(self, index, data):
+        child = self.children[index]
+        last = self.AppendItem(child, data["url"])
+        self.SetItemData(last, None)
+        self.SetItemImage(last, self._img_bmp, wx.TreeItemIcon_Normal)
+        self.SetItemImage(last, self._img_bmp, wx.TreeItemIcon_Expanded)
+        self.Expand(child)
+    
+    def clear(self):
+        self.DeleteAllItems()
+        self.children = []
+        
 
 
 
@@ -228,6 +230,16 @@ class StatsPanel(wx.Panel):
         hs.Add(self.value, 1, wx.ALL|wx.EXPAND, 0)
         vs.Add(hs, 1, wx.ALL|wx.EXPAND)
         self.SetSizer(vs)
+
+        self.stat = 0
+    
+    def reset_stat(self):
+        self.stat = 0
+        self.value.SetLabel("0")
+    
+    def add_stat(self):
+        self.stat += 1
+        self.value.SetLabel(self.stat.__str__())
     
 
 class ProgressPanel(wx.Panel):

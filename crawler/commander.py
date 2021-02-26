@@ -240,7 +240,6 @@ def _thread(main_queue, msgbox):
                         else:
                             props.tasks[props.counter].run()
                         props.counter += 1
-                        _Log.info(f"TASK#{r.id} is {r.status}")
                         if r.status == const.STATUS_OK:
                             main_queue.put_nowait(r)
                 elif r.event == const.EVENT_BLACKLIST:

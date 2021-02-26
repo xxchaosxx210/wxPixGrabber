@@ -29,8 +29,10 @@ def stream_to_file(path, bytes_stream):
     with open(path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
         fp.close()
-        return True
-    return False
+        return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
+                       status=const.STATUS_OK, id=0, data={"message": "saved successfully", "path": path})
+    return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
+                       status=const.STATUS_ERROR, id=0, data={"message": "Unable to write to file", "path": path})
 
 def _response_to_stream(response):
     # read from requests object
@@ -64,13 +66,10 @@ def create_save_path(settings):
     return path
 
 def download_image(filename, response, settings):
-    """
-    download_image(str, str, object, object)
 
-    path should be the file path, filename should be the name of the file
-    os.path.join is used to append path to filename
-    response is the response returned from requests.get
-    """
+    message = Message(thread=const.THREAD_TASK, id=0, status=const.STATUS_IGNORED,
+                          event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown"})
+
     byte_stream = _response_to_stream(response)
     # check the image size is within our bounds
     minsize = settings["minimum_image_resolution"]
@@ -85,26 +84,30 @@ def download_image(filename, response, settings):
         # check filename duplicate
         if not _duplicate:
             if os.path.exists(full_path):
-                _Log.info(f"{full_path} already exists...")
                 # if file name exists then check user settings on what to do
                 if settings["file_exists"] == "rename":
                     full_path = options.rename_file(full_path)
-                    _Log.info(f"Renaming to {full_path}")
+                    message.data["message"] = "Renamed path"
+                    message.data["path"] = full_path
                 elif settings["file_exists"] == "skip":
                     # close the stream and dont write to disk
-                    _Log.info(f"Skipping {full_path}")
+                    message.data["message"] = "Skipped file"
+                    message.data["path"] = full_path
                     byte_stream.close()
             # everything ok. write image to disk
-            stream_to_file(full_path, byte_stream)
+            message = stream_to_file(full_path, byte_stream)
         else:
-            _Log.info(f"Bytes duplicate found locally with url {response.url} and {_duplicate}")
+            message.data["message"] = f"Bytes duplicate found locally with url {response.url} and {_duplicate}"
     else:
         # add the URl to the cache
         if not cache.query_ignore(response.url):
             cache.add_ignore(response.url, "small-image", width, height)
+        message.data["message"] = f"Image too small ({width}x{height})"
 
     # close the file handle
     byte_stream.close()
+
+    return message
 
 class Grunt(mp.Process):
 
@@ -173,15 +176,22 @@ class Grunt(mp.Process):
                 filename = options.url_to_filename(response.url, ext)
             # check the validity of the image and save
             try:
-                download_image(filename, response, self.settings)
+                msg = download_image(filename, response, self.settings)
+                msg.data["url"] = response.url
+                msg.id = self.task_index
+                self.comm_queue.put_nowait(msg)
             except UnidentifiedImageError as err:
                 # Couldnt load the Image from Stream
-                _Log.info(err.__str__())
+                self.comm_queue.put_nowait(Message(
+                    thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": err.__str__()},
+                    event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
             return []
         else:
             if not cache.query_ignore(response.url):
-                _Log.info(f"PROCESS#{self.task_index} - Url {response.url} ignored. Storing to cache")
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
+                self.comm_queue.put_nowait(Message(
+                    thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": "Unknown File Type"},
+                    event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_IGNORED))
         return datalist
     
     def add_url(self, urldata):
@@ -208,10 +218,9 @@ class Grunt(mp.Process):
             resp = request_from_url(urldata, self.cookiejar, self.settings)
             urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
         except Exception as err:
-            _Log.error(f"PROCESS#{self.task_index} - {err.__str__()}")
             self.comm_queue.put_nowait(
-                    Message(thread=const.THREAD_TASK, event=const.EVENT_STAT_UPDATE, 
-                            data={"saved": 0, "errors": 1, "ignored": 0},
+                    Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE, 
+                            data={"url": urldata.url, "message": err.__str__()},
                             id=self.task_index, status=const.STATUS_ERROR))  
             return []
         resp.close()

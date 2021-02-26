@@ -1,5 +1,4 @@
 import wx
-import time
 import logging
 
 from gui.downloadpanel import DownloadPanel
@@ -85,16 +84,23 @@ class MainWindow(wx.Frame):
                 self._on_start_scraping(msg)
         
         elif msg.thread == const.THREAD_TASK:
-            # saved and ok
-            if msg.event == const.EVENT_IMAGE and msg.status == const.STATUS_OK:
-                self.dldpanel.imgsaved.value.SetLabel(str(msg.data["images_saved"]))
-            # finished task
-            elif msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
+            if msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
                 self.dldpanel.progressbar.increment()
+            elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
+                _log.info(f"{msg.data['url']} had an error. Message: {msg.data['message']}")
+                self.dldpanel.errors.add_stat()
+            elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
+                self.dldpanel.imgsaved.add_stat()
+                self.dldpanel.treeview.add_url(msg.id, msg.data)
+            elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
+                self.dldpanel.ignored.add_stat()
+                _log.info(f"{msg.data['url']} has been ignored. Reason: {msg.data['message']}")
     
     def _on_start_scraping(self, msg):
         timer_quit.clear()
-        self.dldpanel.resetstats()
+        self.dldpanel.errors.reset_stat()
+        self.dldpanel.ignored.reset_stat()
+        self.dldpanel.imgsaved.reset_stat()
         create_timer_thread(self._on_timer_callback).start()
         self.sbar.SetStatusText("Starting Tasks...")
         self.dldpanel.addressbar.btn_fetch.Enable(False)
