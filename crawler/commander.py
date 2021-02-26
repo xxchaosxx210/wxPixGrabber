@@ -187,14 +187,15 @@ def _thread(main_queue, msgbox):
                                                 event=const.EVENT_MESSAGE))
                             webreq.close()
                         except Exception as err:
-                            _Log.error(f"Commander web request failed - ")
+                            # couldnt connect
                             main_queue.put_nowait(Message(
                                 thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
-                                id=0, data={"message": err.__str__()}))
+                                id=0, data={"message": err.__str__(), "url": r.data["url"]}))
                     else:
+                        # Task still running ignore request
                         main_queue.put_nowait(Message(
-                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
-                                id=0, data={"message": "Tasks still running"}))
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
+                                id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
 
                 elif r.event == const.EVENT_CANCEL:
                     props.cancel_all.set()

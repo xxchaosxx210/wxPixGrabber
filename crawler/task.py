@@ -23,8 +23,6 @@ from crawler.webrequest import (
     load_cookies
 )
 
-_Log = logging.getLogger(__name__)
-
 def stream_to_file(path, bytes_stream):
     with open(path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
@@ -249,11 +247,11 @@ class Grunt(mp.Process):
                                 self.follow_url(level_two_urldata)
 
         if self.cancel.is_set():
-            self.notify_finished(const.STATUS_ERROR)
+            self.notify_finished(const.STATUS_ERROR, "Task has cancelled")
         else:
-            self.notify_finished(const.STATUS_OK)
+            self.notify_finished(const.STATUS_OK, "Task has completed")
     
-    def notify_finished(self, status):
+    def notify_finished(self, status, message):
         self.comm_queue.put_nowait(Message(
                 thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED, 
-                id=self.task_index, data=None))
+                id=self.task_index, data={"message": message}))

@@ -77,15 +77,17 @@ class MainWindow(wx.Frame):
                 self.dldpanel.addressbar.txt_address.SetValue("")
             # fetch error
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
-                self.app.sounds["error"].Play()
-                self.sbar.SetStatusText(msg.data["message"])
+                self._on_fetch_error(msg)
             # started download and loading threads
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
+            elif msg.event == const.EVENT_START and msg.status == const.STATUS_IGNORED:
+                self._on_fetch_ignored(msg)
         
         elif msg.thread == const.THREAD_TASK:
             if msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
                 self.dldpanel.progressbar.increment()
+                self.dldpanel.treeview.set_message(msg)
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 _log.info(f"{msg.data['url']} had an error. Message: {msg.data['message']}")
                 self.dldpanel.treeview.add_url(msg)
@@ -130,4 +132,18 @@ class MainWindow(wx.Frame):
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
                 self.dldpanel.on_start_button(None)
+    
+    def _on_fetch_error(self, msg):
+        self.app.sounds["error"].Play()
+        self.dldpanel.treeview.clear()
+        root = self.dldpanel.treeview.AddRoot(msg.data["url"])
+        error = self.dldpanel.treeview._error_bmp
+        self.dldpanel.treeview.SetItemData(root, None)
+        self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Normal)
+        self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Expanded)
+        self.dldpanel.treeview.AppendItem(root, msg.data["message"])
+    
+    def _on_fetch_ignored(self, msg):
+        self.app.sounds["error"].Play()
+        self.sbar.SetStatusText(msg.data["message"])
         

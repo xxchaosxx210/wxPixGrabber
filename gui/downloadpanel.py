@@ -239,6 +239,10 @@ class StatusTreeView(wx.TreeCtrl):
         self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Normal)
         self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Expanded)
     
+    def set_message(self, msg):
+        child = self.children[msg.id]
+        self.AppendItem(child, msg.data["message"])
+    
     def clear(self):
         self.DeleteAllItems()
         self.children = []
