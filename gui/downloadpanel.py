@@ -191,6 +191,7 @@ class StatusTreeView(wx.TreeCtrl):
         self._error_bmp = self.imagelist.Add(self.app.bitmaps["error"])
         self._ignored_bmp = self.imagelist.Add(self.app.bitmaps["ignored"])
         self._saved_bmp = self.imagelist.Add(self.app.bitmaps["saved"])
+        self._search_bmp = self.imagelist.Add(self.app.bitmaps["searching"])
         self.SetImageList(self.imagelist)
 
         self.clear()
@@ -232,6 +233,11 @@ class StatusTreeView(wx.TreeCtrl):
         self.SetItemData(child, None)
         self.SetItemImage(child, bmp, wx.TreeItemIcon_Normal)
         self.SetItemImage(child, bmp, wx.TreeItemIcon_Expanded)
+    
+    def set_searching(self, index):
+        child = self.children[index]
+        self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Normal)
+        self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Expanded)
     
     def clear(self):
         self.DeleteAllItems()

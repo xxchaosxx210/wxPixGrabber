@@ -30,7 +30,7 @@ def stream_to_file(path, bytes_stream):
         fp.write(bytes_stream.getbuffer())
         fp.close()
         return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_OK, id=0, data={"message": "saved successfully", "path": path})
+                       status=const.STATUS_OK, id=0, data={"message": path})
     return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
                        status=const.STATUS_ERROR, id=0, data={"message": "Unable to write to file", "path": path})
 
@@ -144,6 +144,8 @@ class Grunt(mp.Process):
         if html parse look for image sources
         if image then save
         """
+        self.comm_queue.put_nowait(Message(thread=const.THREAD_TASK, event=const.EVENT_SEARCHING,
+                                   id=self.task_index, status=const.STATUS_OK, data=None))
         # intialize the list containing UrlData objects
         datalist = []
         # check the file extension
