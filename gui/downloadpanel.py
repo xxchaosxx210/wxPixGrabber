@@ -120,12 +120,18 @@ class AddressBar(wx.Panel):
         btn_settings = wx.BitmapButton(self, -1, bitmaps["settings"])
         btn_about = wx.BitmapButton(self, -1, bitmaps["about"])
 
+        if options.DEBUG:
+            test_btn = wx.BitmapButton(self, -1, bitmaps["test"])
+
         self.btn_fetch.Bind(wx.EVT_BUTTON, self.GetParent().on_fetch_button, self.btn_fetch)
         self.btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, self.btn_stop)
         self.btn_start.Bind(wx.EVT_BUTTON, self.GetParent().on_start_button, self.btn_start)
         btn_settings.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_settings, btn_settings)
         btn_about.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_about, btn_about)
         btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
+
+        if options.DEBUG:
+            test_btn.Bind(wx.EVT_BUTTON, self._on_test_button, test_btn)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")
         self.set_help_text(self.btn_start, "Start scanning the fetched Urls")
@@ -146,6 +152,8 @@ class AddressBar(wx.Panel):
         hs = hboxsizer()
         hs.Add(btn_settings, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(btn_about, 0, wx.ALL|wx.EXPAND, 0)
+        if options.DEBUG:
+            hs.Add(test_btn, 0, wx.ALL|wx.EXPAND, 0)
         hs.AddStretchSpacer(1)
         hs.Add(self.btn_fetch, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(self.btn_stop, 0, wx.ALL|wx.EXPAND, 0)
@@ -154,6 +162,9 @@ class AddressBar(wx.Panel):
         vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(vs)
+    
+    def _on_test_button(self, evt):
+        evt.Skip()
     
     def set_help_text(self, button, text):
         button.Bind(wx.EVT_ENTER_WINDOW,

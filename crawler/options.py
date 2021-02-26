@@ -14,6 +14,8 @@ from collections import namedtuple
 
 from crawler.mime import IMAGE_EXTS
 
+DEBUG = True
+
 VERSION = "0.1"
 
 # Get settings folder path
