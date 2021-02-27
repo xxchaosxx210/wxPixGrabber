@@ -2,6 +2,7 @@ import wx
 import logging
 
 from gui.downloadpanel import DownloadPanel
+from gui.menubar import PixGrabberMenuBar
 
 from crawler.constants import CMessage as Message
 import crawler.constants as const
@@ -23,6 +24,7 @@ class MainWindow(wx.Frame):
         self.app = wx.GetApp()
         self._create_statusbar()
         self._load_icon()
+        self.SetMenuBar(PixGrabberMenuBar(parent=self))
 
         self.dldpanel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -31,7 +33,7 @@ class MainWindow(wx.Frame):
         self.SetSize(kw["size"])
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
-    
+
     def _create_statusbar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
         font = self.sbar.GetFont()
