@@ -4,6 +4,7 @@ import threading
 import queue
 import logging
 from collections import namedtuple
+from dataclasses import dataclass
 
 if os.name == "nt":
     # Import our C compiled classes
@@ -233,7 +234,7 @@ class AboutPanel(wx.Panel):
             _Log.error(err.__str__())
 
     def _draw(self, dc):
-        dc.Clear()
+        #dc.Clear()
         # Give a nice gradient fill for our background
         dc.GradientFillLinear(self.GetRect(), 
                               self._grad1_colour, self._grad2_colour, wx.TOP)

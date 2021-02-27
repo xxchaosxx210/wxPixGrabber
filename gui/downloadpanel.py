@@ -14,7 +14,6 @@ import crawler.constants as const
 import crawler.options as options
 
 from gui.settingsdialog import SettingsDialog
-from gui.about import AnimatedDialog
 
 
 class DownloadPanel(wx.Panel):
@@ -55,21 +54,6 @@ class DownloadPanel(wx.Panel):
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
 
         self.SetSizer(vs)
-
-    def on_btn_settings(self, evt):
-        dlg = SettingsDialog(parent=self.GetParent(),
-                             id= -1,
-                             title="Settings",
-                             size=wx.DefaultSize,
-                             pos=wx.DefaultPosition,
-                             style=wx.DEFAULT_DIALOG_STYLE,
-                             name="settings_dialog",
-                             settings=options.load_settings())
-        dlg.CenterOnParent()
-        if dlg.ShowModal() == wx.ID_OK:
-            settings = dlg.get_settings()
-            options.save_settings(settings)
-        dlg.Destroy()
     
     def on_fetch_button(self, evt):
         if self.addressbar.txt_address.GetValue():
@@ -93,22 +77,10 @@ class DownloadPanel(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             self.addressbar.txt_address.SetValue(dlg.GetPaths()[0])
         dlg.Destroy()
-    
-    def on_btn_about(self, evt):
-        dlg = AnimatedDialog(self, -1, "About", 
-                            ["PixGrabber", "Paul Millar", "", options.VERSION])
-        dlg.ShowModal()
-        dlg.Destroy()
 
     def on_mouse_enter(self, text):
         self.app.window.sbar.SetStatusText(text)
-    
-    def on_test_button(self, evt):
-        self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, 
-                        event=const.EVENT_FETCH, id=0, 
-                        status=const.STATUS_OK, 
-                        data={"url": "http://localhost:5000/setup_test"}))
+
 
 class AddressBar(wx.Panel):
 
@@ -125,49 +97,29 @@ class AddressBar(wx.Panel):
         self.btn_fetch = wx.BitmapButton(self, -1, bitmaps["fetch"])
         self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
         self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
-        btn_settings = wx.BitmapButton(self, -1, bitmaps["settings"])
-        btn_about = wx.BitmapButton(self, -1, bitmaps["about"])
-
-        if options.DEBUG:
-            test_btn = wx.BitmapButton(self, -1, bitmaps["test"])
 
         self.btn_fetch.Bind(wx.EVT_BUTTON, self.GetParent().on_fetch_button, self.btn_fetch)
         self.btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, self.btn_stop)
         self.btn_start.Bind(wx.EVT_BUTTON, self.GetParent().on_start_button, self.btn_start)
-        btn_settings.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_settings, btn_settings)
-        btn_about.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_about, btn_about)
         btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
-
-        if options.DEBUG:
-            test_btn.Bind(wx.EVT_BUTTON, self.GetParent().on_test_button, test_btn)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")
         self.set_help_text(self.btn_start, "Start scanning the fetched Urls")
         self.set_help_text(self.btn_stop, "Stop the current Scan")
-        self.set_help_text(btn_settings, "Open the Settings Dialog")
-        self.set_help_text(btn_about, "About the Program and Developer")
         self.set_help_text(self.txt_address, "Enter a Url or File path to go fetch")
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = vboxsizer()
 
-        hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Download Url")
+        hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Url or HTML File")
         hs.Add(self.txt_address, 1, wx.ALL|wx.EXPAND, 0)
         hs.Add(btn_open, 0, wx.ALL|wx.EXPAND, 0)
-
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
-
-        hs = hboxsizer()
-        hs.Add(btn_settings, 0, wx.ALL|wx.EXPAND, 0)
-        hs.Add(btn_about, 0, wx.ALL|wx.EXPAND, 0)
-        if options.DEBUG:
-            hs.Add(test_btn, 0, wx.ALL|wx.EXPAND, 0)
-        hs.AddStretchSpacer(1)
+        hs.AddSpacer(20)
         hs.Add(self.btn_fetch, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(self.btn_stop, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(self.btn_start, 0, wx.ALL|wx.EXPAND, 0)
     
-        vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
 
         self.SetSizer(vs)
     
