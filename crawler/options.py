@@ -20,14 +20,13 @@ VERSION = "0.1"
 
 # Get settings folder path
 
-APP_NAME = "wxpixgrabber"
+APP_NAME = "pixgrabber"
 
 if os.name == "nt":
     PATH = os.path.join(os.environ.get("USERPROFILE"), APP_NAME)
 else:
     PATH = os.path.join(os.environ.get("HOME"), APP_NAME)
 
-LOG_PATH = os.path.join(PATH, "log.txt")
 SETTINGS_PATH = os.path.join(PATH, "settings.json")
 DEFAULT_PICTURE_PATH = "Pictures"
 
