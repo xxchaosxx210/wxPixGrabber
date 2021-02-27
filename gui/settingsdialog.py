@@ -10,7 +10,6 @@ from gui.theme import (
     vboxsizer,
     DIALOG_BORDER
 )
-
 from crawler.options import SQL_PATH
 
 STATICBOX_BORDER = 5
@@ -639,9 +638,13 @@ class CachePanel(wx.Panel):
         btn_delete.SetInitialSize()
     
     def on_clear_cache(self, evt):
-        if os.path.exists(SQL_PATH):
-            os.remove(SQL_PATH)
-            wx.MessageBox("Cache has been cleared", "Cleared Cache")
+        dlg = wx.MessageDialog(self, "Are you sure you want to delete the Cache?", "Delete Cache?", 
+        style=wx.OK | wx.CANCEL | wx.CENTER)
+        if dlg.ShowModal() == wx.ID_OK:
+            if os.path.exists(SQL_PATH):
+                os.remove(SQL_PATH)
+                wx.GetApp().window.sbar.SetStatusText("Cache has been cleared")
+        dlg.Destroy()
 
 
 class OkCancelPanel(wx.Panel):
