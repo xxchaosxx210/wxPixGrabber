@@ -142,6 +142,9 @@ def _appendlink(full_url, src, url_data_list, tag, filters):
             parsed_src = parse.urlparse(url)
         else:
             url = src
+        if not parsed_src.scheme:
+            # Try https?
+            url = parse.urljoin("https://", url)
         # parse the source URl
         parsed_url = parse.urlparse(full_url)
         if parsed_src.netloc == parsed_url.netloc:

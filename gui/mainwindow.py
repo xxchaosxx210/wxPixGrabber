@@ -1,5 +1,4 @@
 import wx
-import logging
 
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
@@ -13,8 +12,6 @@ from timer import (
     create_timer_thread,
     timer_quit
 )
-
-_log = logging.getLogger(__name__)
 
 class MainWindow(wx.Frame):
 
@@ -64,7 +61,12 @@ class MainWindow(wx.Frame):
         """Message from the background thread
 
         Args:
-            msg (Message): is a Message object from web.scraper.py
+            msg (Message): is a Message object
+                    Message: thread  (int): thread which sent the message
+                             event   (int): the type of message
+                             id      (int): this is only used if a task process has sent the message
+                             status  (int): the status of the message either STATUS_OK, STATUS_ERROR or STATUS_IGNORED
+                             data   (dict): extra information depending on the message event
         """
         if msg.thread == const.THREAD_COMMANDER:
             # message
@@ -91,7 +93,6 @@ class MainWindow(wx.Frame):
                 self.dldpanel.progressbar.increment()
                 self.dldpanel.treeview.set_message(msg)
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
-                _log.info(f"{msg.data['url']} had an error. Message: {msg.data['message']}")
                 self.dldpanel.treeview.add_url(msg)
                 self.dldpanel.errors.add_stat()
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:

@@ -44,7 +44,8 @@ _FILTER_SEARCH = [
     "imagetwist",
     "imgbox",
     "turboimagehost",
-    "imx.to/"]
+    "imx.to/",
+    "localhost:5000"]
 
 DEFAULT_SETTINGS = {
     "profile-name": "default",
@@ -301,8 +302,8 @@ def delete_profile(name):
                 # check to see if settings.json is the deleted profile
                 if name == settings["profile-name"]:
                     # it is so use default profile instead
-                    save_profile(DEFAULT_SETTINGS)
-                    use_profile(DEFAULT_SETTINGS["profile-name"])
+                    save_settings(DEFAULT_SETTINGS)
+                    #use_profile(DEFAULT_SETTINGS["profile-name"])
                 return True
         
     return False

@@ -135,6 +135,30 @@ class AddressBar(wx.Panel):
 
 class StatusTreeView(wx.TreeCtrl):
 
+    class ItemPopup(wx.Menu):
+
+        """PopupMenu for the TreeCtrl
+        """
+
+        def __init__(self, parent, item):
+            super().__init__()
+            self._text = parent.GetItemText(item)
+            self._parent = parent
+            self.Append(100, "Copy", "Copy item to Clipboard")
+            self.Append(101, "Open", "Try to open the Item")
+            self._parent.Bind(wx.EVT_MENU, self._on_copy, id=100)
+            self._parent.Bind(wx.EVT_MENU, self._on_open, id=101)
+        
+        def _on_open(self, evt):
+            webbrowser.open(self._text)
+        
+        def _on_copy(self, evt):
+            data = wx.TextDataObject()
+            data.SetText(self._text)
+            if wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(data)
+                wx.TheClipboard.Close()
+
     def __init__(self, parent, id):
         super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
         self.app = wx.GetApp()
@@ -148,6 +172,13 @@ class StatusTreeView(wx.TreeCtrl):
         self.SetImageList(self.imagelist)
 
         self.clear()
+
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click, self)
+    
+    def _on_right_click(self, evt):
+        menu = StatusTreeView.ItemPopup(self, evt.Item)
+        self.PopupMenu(menu)
+        menu.Destroy()
 
     def populate(self, url, links):
         """Gets called after Fetch job

@@ -6,17 +6,23 @@ import logging
 from gui.about import AnimatedDialog
 from gui.settingsdialog import SettingsDialog
 
+from collections import namedtuple
+
 from crawler.options import (
     VERSION,
     DEBUG,
     load_settings,
-    save_settings
+    save_settings,
+    load_profiles,
+    use_profile
 )
 
 import crawler.constants as const
 from crawler.constants import CMessage as Message
 
 _Log = logging.getLogger()
+
+ProfileSubMenuItem = namedtuple("ProfileSubMenuItem", ["id", "name"])
 
 ID_OPEN_URL = 101
 ID_OPEN_HTML = 102
@@ -35,6 +41,7 @@ ID_SCAN_CANCEL = 109
 ID_SCAN_START = 110
 ID_SCAN_SETTINGS = 111
 ID_SCAN_DEBUG = 112
+ID_PROFILES = 113
 
 class PixGrabberMenuBar(wx.MenuBar):
 
@@ -42,6 +49,9 @@ class PixGrabberMenuBar(wx.MenuBar):
         super().__init__(style=style)
         self.parent = parent
         self.app = wx.GetApp()
+
+        self._profile_ids = []
+
         menu = wx.Menu()
         menu.Append(ID_OPEN_URL, "Open Url\tCtrl+U", "Enter a Url address to scan (Ctrl+U)")
         menu.Append(ID_OPEN_HTML, "Open HTML\tCtrl+H", "Open an HTML document from local disk (Ctrl+H)")
@@ -64,6 +74,10 @@ class PixGrabberMenuBar(wx.MenuBar):
         menu.Append(ID_SCAN_START, "Start\tF5", "Start scanning downloading the images (F5)")
         menu.AppendSeparator()
         menu.Append(ID_SCAN_SETTINGS, "Settings\tCtrl+Shift+S", "Open Settings (Ctrl+Shift+S)")
+        menu.AppendSeparator()
+        self.profiles_submenu = wx.Menu()
+        self.create_profiles_submenu()
+        menu.Append(ID_PROFILES, "Profiles", subMenu=self.profiles_submenu, helpString="Load Profile Settings")
         self.Append(menu, "S&can")
 
         menu = wx.Menu()
@@ -88,6 +102,33 @@ class PixGrabberMenuBar(wx.MenuBar):
         
         parent.Bind(wx.EVT_MENU, self._on_help_document, id=ID_HELP_DOC)
         parent.Bind(wx.EVT_MENU, self._on_about, id=ID_ABOUT)
+    
+    def create_profiles_submenu(self):
+        # loop through any menus still attached and delete
+        for profile in self._profile_ids:
+            self.profiles_submenu.Delete(profile.id)
+        # set the list to default and add 9999 as default ID
+        self._profile_ids = [ProfileSubMenuItem(9999, "default")]
+        # put the default at the top
+        self.profiles_submenu.Append(self._profile_ids[-1].id, self._profile_ids[-1].name, kind=wx.ITEM_RADIO)
+        self.profiles_submenu.Check(self._profile_ids[-1].id, True)
+        self.parent.Bind(wx.EVT_MENU, self._on_load_profile, id=self._profile_ids[-1].id)
+        profiles = load_profiles()
+        for pindex, profile_name in enumerate(profiles):
+            if profile_name not in "default":
+                self._profile_ids.append(ProfileSubMenuItem(pindex+10000, profile_name))
+                p = self._profile_ids[-1]
+                self.profiles_submenu.Append(p.id, p.name, kind=wx.ITEM_RADIO)
+                self.parent.Bind(wx.EVT_MENU, self._on_load_profile, id=p.id)
+        settings = load_settings()
+        selected_profile = list(filter(lambda p : p.name == settings["profile-name"], self._profile_ids))[0]
+        self.profiles_submenu.Check(selected_profile.id, True)
+
+
+    def _on_load_profile(self, evt):
+        name = evt.GetEventObject().GetLabelText(evt.Id)
+        use_profile(name)
+        self.app.window.sbar.SetStatusText(f"{name} has been loaded")
 
     def _on_debug(self, evt):
         self.app.commander.queue.put_nowait(
@@ -139,6 +180,7 @@ class PixGrabberMenuBar(wx.MenuBar):
         if dlg.ShowModal() == wx.ID_OK:
             settings = dlg.get_settings()
             save_settings(settings)
+            self.create_profiles_submenu()
         dlg.Destroy()
     
     def _open_save_path(self, evt):

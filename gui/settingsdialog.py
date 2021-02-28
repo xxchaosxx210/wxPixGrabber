@@ -326,6 +326,7 @@ class ProfilePanel(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             name = dlg.GetValue()
             settings = self.dlg.get_settings()
+            name = options.format_filename(name)
             settings["profile-name"] = name
             options.save_profile(settings)
             options.use_profile(name)
