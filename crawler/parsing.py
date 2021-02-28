@@ -59,7 +59,8 @@ def process_form(url, form):
     return UrlData(url=submit_url, action=action, method=req_type, data=data, tag="form")
 
 def parse_html(html):
-    return BeautifulSoup(html, features="html.parser")
+    #return BeautifulSoup(html, features="html.parser")
+    return BeautifulSoup(html, "lxml")
 
 def sort_soup(url, soup, urls, include_forms,
               images_only, thumbnails_only, filters):
