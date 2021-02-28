@@ -89,7 +89,7 @@ class AddressBar(wx.Panel):
 
         self.app = wx.GetApp()
         
-        self.txt_address = ThemedTextCtrl(self, -1, "")
+        self.txt_address = ThemedTextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
 
         bitmaps = wx.GetApp().bitmaps
         btn_open = wx.BitmapButton(self, -1, bitmaps["html-file"])
@@ -98,6 +98,7 @@ class AddressBar(wx.Panel):
         self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
         self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
 
+        self.txt_address.Bind(wx.EVT_TEXT_ENTER, self.GetParent().on_fetch_button, self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, self.GetParent().on_fetch_button, self.btn_fetch)
         self.btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, self.btn_stop)
         self.btn_start.Bind(wx.EVT_BUTTON, self.GetParent().on_start_button, self.btn_start)

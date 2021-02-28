@@ -30,6 +30,9 @@ else:
 SETTINGS_PATH = os.path.join(PATH, "settings.json")
 DEFAULT_PICTURE_PATH = "Pictures"
 
+PROFILES_PATH = os.path.join(PATH, "profiles")
+PROFILE_EXT = ".pro"
+
 SQL_PATH = os.path.join(PATH, "cache.db")
 
 _FILTER_SEARCH = [
@@ -44,6 +47,7 @@ _FILTER_SEARCH = [
     "imx.to/"]
 
 DEFAULT_SETTINGS = {
+    "profile-name": "default",
     "app_version": VERSION,
     "cookies": {"firefox": True, "chrome": False, "opera": False, "edge": False, "all": False},
     "proxy": {"enable": False, "ip": "", "port": 0, "username": "", "password": ""},
@@ -68,6 +72,17 @@ DEFAULT_SETTINGS = {
     "notify-done": True,
     "auto-download": False
     }
+
+def setup():
+    """call this at start of main script
+    """
+    if not os.path.exists(PATH):
+        os.mkdir(PATH)
+    if not os.path.exists(PROFILES_PATH):
+        os.mkdir(PROFILES_PATH)
+    save_settings(load_settings())
+    if not load_profiles():
+        save_profile(load_settings())
 
 def load_settings():
     """
@@ -122,12 +137,17 @@ def assign_unique_name(url, title):
     save_settings(settings)
 
 def url_to_filename(url, ext):
-    """
-    url_ro_filename(str, str)
-    strips the url and converts the last path name which is normally the filename
+    """strips the url and converts the last path name which is normally the filename
     and uses the ext if no ext found in the Url. use is_valid_content_type
     in the parsing.py file to determine what the url content-type is.
     Returns formatted filename if successful empty string otherwise
+
+    Args:
+        url (str): the url to convert to a filename
+        ext (str): the extension to associate the file to
+
+    Returns:
+        [str]: returns the converted filename. Empty string if unable to convert
     """
     presult = parse.urlparse(url)
     if presult:
@@ -189,9 +209,14 @@ def image_exists(path, stream_bytes):
     return None
 
 def load_from_file(url):
-    """
-    bit of a patch to mimick the requests handle using a namedtuple
+    """bit of a patch to mimick the requests handle using a namedtuple
     no code broken and fits in ok
+
+    Args:
+        url (str): the fake url to be sent
+
+    Returns:
+        [tuple]: Requests namedtuple (text, url, headers, close) 
     """
     fake_request = None
     if os.path.exists(url):
@@ -203,3 +228,81 @@ def load_from_file(url):
                     html, "http://wasfromafile.com", {"Content-Type": _type},
                     lambda *args: args)
     return fake_request
+
+def load_profiles():
+    """loads all profile settings from profile dir
+
+    Returns:
+        [list]: list of profile name str found in the profiles folder
+    """
+    profiles = []
+    if os.path.exists(PROFILES_PATH):
+        with os.scandir(PROFILES_PATH) as it:
+            for entry in it:
+                if entry.is_file() and entry.path.endswith(PROFILE_EXT):
+                    profiles.append(os.path.splitext(entry.name)[0])
+    else:
+        os.mkdir(PROFILES_PATH)
+
+    return profiles
+
+def save_profile(settings):
+    """Creates a profile json file using settings["profile-name"] in the profiles dir
+
+    Args:
+        settings (dict): json settings object to be saved into profiles
+    """
+    if not os.path.exists(PROFILES_PATH):
+        os.mkdir(PROFILES_PATH)
+    path = os.path.join(PROFILES_PATH, settings["profile-name"] + PROFILE_EXT)
+    with open(path, "w") as fp:
+        fp.write(json.dumps(settings))
+
+def use_profile(name):
+    """loads the profile associated with name. Makes a copy of it and saves it to settings.json. 
+    Also loads the previous profile and saves it to profiles dir
+
+    Args:
+        name (str): the name of the profile to be used
+
+    Returns:
+        [bool]: Returns True if profile is being used. False if error or no profile found
+    """
+    # save the current existing profile
+    save_profile(load_settings())
+    if os.path.exists(PROFILES_PATH):
+        with os.scandir(PROFILES_PATH) as it:
+            for entry in it:
+                if entry.is_file() and entry.path.endswith(PROFILE_EXT):
+                    if os.path.splitext(entry.name)[0] == name:
+                        # overwrite the old settings with the newly selected one
+                        with open(entry.path, "r") as fp:
+                            save_settings(json.loads(fp.read()))
+                        return True
+    return False
+
+def delete_profile(name):
+    """deletes the profile file. If deleted profile is used then load default profile settings instead
+
+    Args:
+        name (str): Name of the Profile to delete
+
+    Returns:
+        [bool]: Returns True if successful. False if Error or no profile found
+    """
+    if name == "default":
+        raise NameError("You cannot delete the default profile")
+    else:
+        if os.path.exists(PROFILES_PATH):
+            path = os.path.join(PROFILES_PATH, name + PROFILE_EXT)
+            if os.path.exists(path):
+                os.remove(path)
+                settings = load_settings()
+                # check to see if settings.json is the deleted profile
+                if name == settings["profile-name"]:
+                    # it is so use default profile instead
+                    save_profile(DEFAULT_SETTINGS)
+                    use_profile(DEFAULT_SETTINGS["profile-name"])
+                return True
+        
+    return False

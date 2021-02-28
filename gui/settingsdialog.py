@@ -11,6 +11,7 @@ from gui.theme import (
     DIALOG_BORDER
 )
 from crawler.options import SQL_PATH
+import crawler.options as options
 
 STATICBOX_BORDER = 5
 
@@ -28,24 +29,21 @@ class SettingsDialog(wx.Dialog):
         self.ok_cancel_panel = OkCancelPanel(self, -1)
 
         vs = vboxsizer()
-
         hs = hboxsizer()
-        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 5)
-        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 5)
+        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 0)
+        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
         vs.AddSpacer(10)
-
         hs = hboxsizer()
-        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 5)
-        vs.Add(hs, 0, wx.ALL|wx.EXPAND, 5)
-
+        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 0)
+        vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        vs.AddSpacer(10)
         self.SetSizer(vs)
 
-        self.SetSize(600, 400)
+        w, h = self.app.window.GetSize()
+        self.SetSize(w-40, h-40)
 
         self.panel.SetFocus()
-
         self.settings = settings
-
         self.load_settings(settings)
     
     def load_settings(self, settings):
@@ -55,8 +53,10 @@ class SettingsDialog(wx.Dialog):
             settings (dict): The settings json loaded from the settings.json file
         """
 
-        filtered_search = settings.get("filter-search", {"enabled": True, "filters": ["imagevenue.com/"]})
+        filtered_search = settings.get("filter-search", 
+                                      {"enabled": True, "filters": ["imagevenue.com/"]})
         self.panel.filter_panel.checkbox.SetValue(filtered_search["enabled"])
+        self.panel.filter_panel.listbox.Clear()
         [self.panel.filter_panel.listbox.Append(item) for item in filtered_search["filters"]]
 
         self.panel.auto_panel.checkbox.SetValue(
@@ -111,6 +111,9 @@ class SettingsDialog(wx.Dialog):
             str: settings json object
         """
         settings = self.settings
+
+        settings["profile-name"] = \
+            self.panel.profile_panel.cmbox.GetStringSelection()
 
         # filtered search
         settings["filter-search"]["filters"] \
@@ -179,22 +182,30 @@ class SettingsPanel(scrolled.ScrolledPanel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.max_connections = MaxConnectionsPanel(self, -1)
-        self.timeout = TimeoutPanel(self, -1)
-        self.auto_panel = AutoDownload(self, -1)
-        self.minsize_panel = MinWidthHeightPanel(self, -1)
-        self.thumb_panel = ThumbnailOnlyPanel(self, -1)
-        self.savepath = SaveFolderPanel(self, -1)
-        self.folder_panel = SaveOptionsPanel(self, -1)
-        self.cookie_panel = CookieOptionsPanel(self, -1)
-        self.imgformat_panel = ImageFormatOptionsPanel(self, -1)
-        self.fileexist_panel = FileAlreadyExistPanel(self, -1)
-        self.formsearch_panel = FormSearchPanel(self, -1)
-        self.notify_panel = NotifyPanel(self, -1)
-        self.filter_panel = FilterPanel(self, -1, size=(-1, 200))
-        self.cache_panel = CachePanel(self, -1)
+        pnl = wx.Panel(self, -1)
+
+        self.profile_panel = ProfilePanel(pnl, -1, dialog=self.GetParent())
+        self.max_connections = MaxConnectionsPanel(pnl, -1)
+        self.timeout = TimeoutPanel(pnl, -1)
+        self.auto_panel = AutoDownload(pnl, -1)
+        self.minsize_panel = MinWidthHeightPanel(pnl, -1)
+        self.thumb_panel = ThumbnailOnlyPanel(pnl, -1)
+        self.savepath = SaveFolderPanel(pnl, -1)
+        self.folder_panel = SaveOptionsPanel(pnl, -1)
+        self.cookie_panel = CookieOptionsPanel(pnl, -1)
+        self.imgformat_panel = ImageFormatOptionsPanel(pnl, -1)
+        self.fileexist_panel = FileAlreadyExistPanel(pnl, -1)
+        self.formsearch_panel = FormSearchPanel(pnl, -1)
+        self.notify_panel = NotifyPanel(pnl, -1)
+        self.filter_panel = FilterPanel(pnl, -1, size=(-1, 200))
+        self.cache_panel = CachePanel(pnl, -1)
 
         vs = vboxsizer()
+
+        hs = hboxsizer()
+        hs.Add(self.profile_panel, 1, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
         hs.Add(self.max_connections, 1, wx.EXPAND|wx.ALL, 0)
@@ -258,12 +269,73 @@ class SettingsPanel(scrolled.ScrolledPanel):
         hs.Add(self.cache_panel, 1, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
 
-        self.SetSizer(vs)
-        self.Fit()
+        pnl.SetSizer(vs)
 
+        gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
+        gs.Add(pnl, 1, wx.EXPAND|wx.ALL, 20)
+        self.SetSizer(gs)
+        self.Fit()
         self.SetAutoLayout(1)
         self.SetupScrolling()
 
+
+class ProfilePanel(wx.Panel):
+
+    def __init__(self, parent, id, dialog):
+        super().__init__(parent=parent, id=id)
+
+        self.dlg = dialog
+
+        settings = options.load_settings()
+
+        self.cmbox = wx.Choice(self, -1, choices=options.load_profiles())
+        self.cmbox.SetStringSelection(settings["profile-name"])
+        btn_new = wx.Button(self, -1, "New")
+        btn_delete = wx.Button(self, -1, "Delete")
+
+        vs = wx.StaticBoxSizer(wx.VERTICAL, self, "Profile")
+        hs = hboxsizer()
+        hs.Add(self.cmbox, 1, wx.EXPAND|wx.ALL, 0)
+        hs.AddSpacer(5)
+        hs.Add(btn_delete, 0, wx.EXPAND|wx.ALL, 0)
+        hs.AddSpacer(5)
+        hs.Add(btn_new, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        self.SetSizer(vs)
+
+        btn_new.Bind(wx.EVT_BUTTON, self._on_new_profile, btn_new)
+        btn_delete.Bind(wx.EVT_BUTTON, self._on_btn_delete, btn_delete)
+        self.cmbox.Bind(wx.EVT_CHOICE, self._on_choice, self.cmbox)
+    
+    def _on_btn_delete(self, evt):
+        name = self.cmbox.GetStringSelection()
+        try:
+            if options.delete_profile(name):
+                settings = options.load_settings()
+                self.dlg.load_settings(settings)
+                self.cmbox.Delete(self.cmbox.GetSelection())
+                self.cmbox.SetStringSelection(settings["profile-name"])
+        except NameError as err:
+            dlg = wx.MessageDialog(self, err.__str__(), "Error", style=wx.OK | wx.CENTER | wx.ICON_ERROR)
+            dlg.ShowModal()
+            dlg.Destroy()
+        
+    
+    def _on_new_profile(self, evt):
+        dlg = wx.TextEntryDialog(self, "Name the Profile", "New Profile Name")
+        if dlg.ShowModal() == wx.ID_OK:
+            name = dlg.GetValue()
+            settings = self.dlg.get_settings()
+            settings["profile-name"] = name
+            options.save_profile(settings)
+            options.use_profile(name)
+            self.cmbox.Append(name)
+            self.cmbox.SetStringSelection(name)
+        dlg.Destroy()
+    
+    def _on_choice(self, evt):
+        options.use_profile(evt.GetString())
+        self.dlg.load_settings(options.load_settings())
 
 class AutoDownload(wx.Panel):
 
@@ -483,7 +555,7 @@ class MaxConnectionsPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.slider = wx.Slider(self, 
-                                -1, 10, 0, 30, 
+                                -1, 10, 1, 30, 
                                 style=wx.SL_HORIZONTAL|wx.SL_MIN_MAX_LABELS|wx.SL_LABELS)
 
         hs = hboxsizer()
@@ -592,36 +664,48 @@ class FilterPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.listbox = wx.ListBox(self, -1, choices=[], style=wx.LB_SINGLE|wx.LB_SORT)
-        self.textctrl = wx.TextCtrl(self, -1, "")
+        self.textctrl = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
         self.checkbox = wx.CheckBox(self, -1, "Enable")
+        btn_all = wx.Button(self, -1, "Delete All")
         btn_remove = wx.Button(self, -1, "Delete")
         btn_add = wx.Button(self, -1, "Add")
         btn_add.Bind(wx.EVT_BUTTON, self.on_add, btn_add)
         btn_remove.Bind(wx.EVT_BUTTON, self.on_remove, btn_remove)
+        btn_all.Bind(wx.EVT_BUTTON, lambda evt : self.listbox.Clear(), btn_all)
+        self.textctrl.Bind(wx.EVT_TEXT_ENTER, lambda evt : self.on_add(None), self.textctrl)
 
         sbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Filters")
         hs = hboxsizer()
         hs.Add(self.listbox, 1, wx.ALL|wx.EXPAND, 0)
         sbox.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        sbox.AddSpacer(10)
         hs = hboxsizer()
         hs.Add(self.textctrl, 1, wx.ALL|wx.EXPAND, 0)
         sbox.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        sbox.AddSpacer(10)
         hs = hboxsizer()
-        hs.Add(btn_remove, 0, wx.ALIGN_CENTER, 0)
-        hs.Add(btn_add, 0, wx.ALIGN_CENTER, 0)
-        hs.Add(self.checkbox, 0, wx.ALIGN_CENTER, 0)
+        for w in (btn_all, btn_remove, btn_add, self.checkbox):
+            hs.Add(w, 0, wx.ALIGN_CENTER, 0)
+            hs.AddSpacer(10)
         sbox.Add(hs, 0, wx.ALIGN_CENTER, 0)
+        sbox.AddSpacer(10)
         self.SetSizer(sbox)
     
     def on_add(self, evt):
         text = self.textctrl.GetValue()
         if text:
-            self.listbox.Append(text)
+            if text not in self.listbox.GetItems():
+                self.listbox.Append(text)
+                self.textctrl.SetValue("")
+            else:
+                dlg = wx.MessageDialog(self, "Duplicate entry found", "Nope", wx.OK | wx.CENTER | wx.ICON_EXCLAMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
     
     def on_remove(self, evt):
         index = self.listbox.GetSelection()
         if index is not wx.NOT_FOUND:
-            self.listbox.Delete(index)
+            self.listbox.Delete(index) 
 
 
 class CachePanel(wx.Panel):
@@ -639,7 +723,7 @@ class CachePanel(wx.Panel):
     
     def on_clear_cache(self, evt):
         dlg = wx.MessageDialog(self, "Are you sure you want to delete the Cache?", "Delete Cache?", 
-        style=wx.OK | wx.CANCEL | wx.CENTER)
+        style=wx.CANCEL | wx.OK | wx.CENTER)
         if dlg.ShowModal() == wx.ID_OK:
             if os.path.exists(SQL_PATH):
                 os.remove(SQL_PATH)
@@ -658,6 +742,7 @@ class OkCancelPanel(wx.Panel):
         hs = hboxsizer()
 
         hs.Add(btn_cancel, 0, wx.ALIGN_CENTER, 0)
+        hs.AddSpacer(10)
         hs.Add(btn_ok, 0, wx.ALIGN_CENTER, 0)
 
         vs = vboxsizer()

@@ -17,6 +17,7 @@ from resources.globals import (
 from crawler.commander import create_commander
 import crawler.constants as const
 from crawler.server import server_process
+from crawler.options import setup as setup_options
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
@@ -28,6 +29,7 @@ class PixGrabberApp(wx.App):
     
     def OnInit(self):
         self._initialize_resources()
+        setup_options()
         self.window = MainWindow(parent=None, id=-1,
                                  title="PixGrabber", size=(900, 600))
         self.SetTopWindow(self.window)
