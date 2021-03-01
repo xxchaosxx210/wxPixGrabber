@@ -10,6 +10,7 @@ from gui.theme import (
 )
 
 from crawler.constants import CMessage as Message
+from crawler.types import UrlData
 import crawler.constants as const
 
 
@@ -141,10 +142,14 @@ class StatusTreeView(wx.TreeCtrl):
             super().__init__()
             self._text = parent.GetItemText(item)
             self._parent = parent
+            self._item = item
             self.Append(100, "Copy", "Copy item to Clipboard")
             self.Append(101, "Open", "Try to open the Item")
+            self.AppendSeparator()
+            self.Append(102, "Info")
             self._parent.Bind(wx.EVT_MENU, self._on_copy, id=100)
             self._parent.Bind(wx.EVT_MENU, self._on_open, id=101)
+            self._parent.Bind(wx.EVT_MENU, self.show_info, id=102)
         
         def _on_open(self, evt):
             webbrowser.open(self._text)
@@ -155,6 +160,10 @@ class StatusTreeView(wx.TreeCtrl):
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(data)
                 wx.TheClipboard.Close()
+        
+        def show_info(self, evt):
+            data = self._parent.GetItemData(self._item)
+            print(data)
 
     def __init__(self, parent, id):
         super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
@@ -193,27 +202,28 @@ class StatusTreeView(wx.TreeCtrl):
         for link in links:
             child = self.AppendItem(self.root, link.url)
             self.children.append(child)
-            self.SetItemData(child, None)
+            self.SetItemData(child, link)
             if link.tag == "a":
                 self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Normal)
                 self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Expanded)
             else:
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Normal)
                 self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Expanded)
+            self.Expand(child)
         self.Expand(self.root)
     
     def add_url(self, msg):
         child = self.children[msg.id]
-        self.AppendItem(child, msg.data["message"])
+        new_child = self.AppendItem(child, msg.data["message"])
         if msg.status == const.STATUS_OK:
             bmp = self._saved_bmp
         elif msg.status == const.STATUS_ERROR:
             bmp = self._error_bmp
         else:
             bmp = self._ignored_bmp
-        self.SetItemData(child, None)
-        self.SetItemImage(child, bmp, wx.TreeItemIcon_Normal)
-        self.SetItemImage(child, bmp, wx.TreeItemIcon_Expanded)
+        self.SetItemData(new_child, msg)
+        self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Normal)
+        self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
     
     def set_searching(self, index):
         child = self.children[index]
@@ -222,7 +232,10 @@ class StatusTreeView(wx.TreeCtrl):
     
     def set_message(self, msg):
         child = self.children[msg.id]
-        self.AppendItem(child, msg.data["message"])
+        if msg.data["message"] == "Task has completed":
+            self.Expand(child)
+        else:
+            self.AppendItem(child, msg.data["message"])
     
     def clear(self):
         self.DeleteAllItems()
