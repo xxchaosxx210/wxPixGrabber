@@ -11,9 +11,6 @@ from gui.theme import (
 
 from crawler.constants import CMessage as Message
 import crawler.constants as const
-import crawler.options as options
-
-from gui.settingsdialog import SettingsDialog
 
 
 class DownloadPanel(wx.Panel):

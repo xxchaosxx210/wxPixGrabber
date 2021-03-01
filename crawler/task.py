@@ -1,5 +1,4 @@
 import multiprocessing as mp
-import logging
 import os
 from io import BytesIO
 

@@ -1,10 +1,7 @@
 import wx
 import os
-import threading
-import queue
 import logging
 from collections import namedtuple
-from dataclasses import dataclass
 
 if os.name == "nt":
     # Import our C compiled classes
@@ -110,6 +107,7 @@ class AboutPanel(wx.Panel):
 
         self.Bind(wx.EVT_PAINT, self._on_paint, self)
         self.Bind(wx.EVT_SIZE, self._on_size, self)
+        self.Bind(wx.EVT_TIMER, self._animation_loop)
     
     def _initialize_colours(self):
         colour = self.GetBackgroundColour()
@@ -117,25 +115,11 @@ class AboutPanel(wx.Panel):
         self._grad2_colour = wx.Colour(colour.red - 50, colour.blue - 50, colour.green - 50, colour.alpha)
     
     def start_animation(self, evt):
-        """Start the animation thread and creates an atomic queue
-
-        Args:
-            evt (object): Event object from a button 
-        """
-        self._queue = queue.Queue()
-        self._thread = threading.Thread(target=self._animation_loop)
-        self._thread.start()
-        evt.Skip()
+        self._timer = wx.Timer(self)
+        self._timer.Start(_FRAME_RATE)
     
     def stop_animation(self, evt):
-        """kills the thread if its still alive when the dialog is closed
-
-        Args:
-            evt ([type]): not used
-        """
-        if self._thread.is_alive():
-            self._queue.put("quit")
-        evt.Skip()
+        self._timer.Stop()
     
     def _create_buffer(self):
         self._buffer = wx.Bitmap()
@@ -200,7 +184,7 @@ class AboutPanel(wx.Panel):
         lines_still_scrolling = list(filter(lambda line : line.finished_scrolling == 0, self._lines))
         if not lines_still_scrolling and self._cooleffect.finished_scrolling:
             # no more positions to alter, quit the frame loop
-            self._queue.put("quit")
+            self.stop_animation(None)
 
         # loop through lines of text increasing the x position to the right of the screen
         for line in self._lines:
@@ -218,19 +202,9 @@ class AboutPanel(wx.Panel):
         else:
             # box has stopped
             self._cooleffect.finished_scrolling = 1
-        
-    def _animation_loop(self):
-        quit = threading.Event()
-        while not quit.is_set():
-            try:
-                msg = self._queue.get(timeout=_FRAME_RATE)
-                if msg == "quit":
-                    quit.set()
-            except queue.Empty:
-                # update next frame animation
-                wx.CallAfter(self._update_frame)
-        # paint last frame before leaving
-        wx.CallAfter(self._update_frame)
+    
+    def _animation_loop(self, evt):
+        self._update_frame()
 
     def _update_frame(self):
         # may cause runtime error if dialog has been deleted

@@ -6,9 +6,7 @@ import crawler.constants as const
 from crawler.constants import CMessage as Message
 
 import os
-import urllib.parse as parse
 from urllib.request import urljoin
-import pathlib
 import mimetypes
 import re
 
