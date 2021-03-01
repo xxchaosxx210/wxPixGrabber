@@ -86,15 +86,15 @@ class AboutPanel(wx.Panel):
 
         h1_font = wx.Font(pointSize=16, family=wx.FONTFAMILY_DECORATIVE,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
-        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
 
         h2_font = wx.Font(pointSize=11, family=wx.FONTFAMILY_SCRIPT,
-        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
-        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_LIGHT, underline=False,
+        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
 
         h3_font = wx.Font(pointSize=9, family=wx.FONTFAMILY_SCRIPT,
-        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
-        faceName="arial", encoding=wx.FONTENCODING_DEFAULT)
+        style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_LIGHT, underline=False,
+        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
 
         lines = (
             LineText(font=h1_font, text=text[0]),
@@ -175,9 +175,23 @@ class AboutPanel(wx.Panel):
         self._cooleffect.x = self._width
     
     def _on_paint(self, evt):
-        # this method gets called when Refresh is called
-        dc = wx.PaintDC(self)
-        dc.DrawBitmap(self._buffer, 0, 0)
+        dc = wx.BufferedPaintDC(self, self._buffer)
+        dc.Clear()
+        # Give a nice gradient fill for our background
+        dc.GradientFillLinear(self.GetRect(), 
+                              self._grad1_colour, self._grad2_colour, wx.TOP)
+        # Draw the background box
+        dc.SetBrush(wx.Brush(self._cooleffect.colour))
+        dc.SetPen(wx.Pen(self._cooleffect.border, width=2))
+        dc.DrawRectangle(self._cooleffect.x, self._cooleffect.y, 
+                         self._cooleffect.width, self._cooleffect.height)
+        # draw the lines
+        dc.SetBrush(wx.BLACK_BRUSH)
+        dc.SetPen(wx.BLACK_PEN)
+        for line in self._lines:
+            if line.text:
+                dc.SetFont(line.font)
+                dc.DrawText(line.text, line.x, line.y)
     
     def _update_positions(self):
         # Update the text lines and background box positions before rendering next frame
@@ -223,30 +237,7 @@ class AboutPanel(wx.Panel):
         try:
             # update our lines and box positions
             self._update_positions()
-            # draw to memory
-            dc = wx.BufferedDC()
-            dc.SelectObject(self._buffer)
-            self._draw(wx.GCDC(dc))
-            del dc
             # blit the screen
             self.Refresh()
         except RuntimeError as err:
             _Log.error(err.__str__())
-
-    def _draw(self, dc):
-        #dc.Clear()
-        # Give a nice gradient fill for our background
-        dc.GradientFillLinear(self.GetRect(), 
-                              self._grad1_colour, self._grad2_colour, wx.TOP)
-        # Draw the background box
-        dc.SetBrush(wx.Brush(self._cooleffect.colour))
-        dc.SetPen(wx.Pen(self._cooleffect.border, width=2))
-        dc.DrawRectangle(self._cooleffect.x, self._cooleffect.y, 
-                         self._cooleffect.width, self._cooleffect.height)
-        # draw the lines
-        dc.SetBrush(wx.BLACK_BRUSH)
-        dc.SetPen(wx.BLACK_PEN)
-        for line in self._lines:
-            if line.text:
-                dc.SetFont(line.font)
-                dc.DrawText(line.text, line.x, line.y)
