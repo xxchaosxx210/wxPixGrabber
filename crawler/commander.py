@@ -118,6 +118,7 @@ def _thread(main_queue, msgbox):
                     main_queue.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
                                    id=0, data=None))
                     props.quit_thread.set()
+                    
                 elif r.event == const.EVENT_START:
                     if not props.task_running:        
                         cookiejar, filters = _init_start(props)

@@ -78,6 +78,15 @@ class DownloadPanel(wx.Panel):
 
     def on_mouse_enter(self, text):
         self.app.window.sbar.SetStatusText(text)
+    
+    def enable_controls(self, state):
+        """enabled or disables the download controls
+
+        Args:
+            state (bool): if True then Buttons are enabled 
+        """
+        self.addressbar.btn_fetch.Enable(state)
+        self.addressbar.btn_start.Enable(state)
 
 
 class AddressBar(wx.Panel):
