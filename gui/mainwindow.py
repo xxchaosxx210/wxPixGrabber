@@ -76,6 +76,7 @@ class MainWindow(wx.Frame):
             # ALL TASKS COMPLETED
             elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
+                self.dldpanel.treeview.ExpandAll()
 
             # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
