@@ -191,6 +191,7 @@ class StatusTreeView(wx.TreeCtrl):
         self._img_saved = self.imglist.Add(self.app.bitmaps["saved"])
         self._img_search = self.imglist.Add(self.app.bitmaps["searching"])
         self._img_complete_ok = self.imglist.Add(self.app.bitmaps["complete"])
+        self._img_complete_empty = self.imglist.Add(self.app.bitmaps["empty"])
         self.SetImageList(self.imglist)
     
     def _on_right_click(self, evt):
@@ -254,8 +255,22 @@ class StatusTreeView(wx.TreeCtrl):
     
     def child_complete(self, msg):
         root_child = self.children[msg.id]["id"]
-        self.SetItemImage(root_child, self._img_complete_ok, wx.TreeItemIcon_Normal)
-        self.SetItemImage(root_child, self._img_complete_ok, wx.TreeItemIcon_Expanded)
+        children = self.children[msg.id]["children"]
+        if children:
+            img = self._img_complete_ok
+            ok_result = list(filter(lambda child : self.GetItemData(child["id"]).status == const.STATUS_OK, children))
+            if not ok_result:
+                error_result = list(filter(lambda child : self.GetItemData(child["id"]).status == const.STATUS_ERROR, children))
+                if error_result:
+                    img = self._img_error
+                else:
+                    img = self._img_ignored
+            self.SetItemImage(root_child, img, wx.TreeItemIcon_Normal)
+            self.SetItemImage(root_child, img, wx.TreeItemIcon_Expanded)
+
+        else:
+            self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Normal)
+            self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Expanded)
     
     def clear(self):
         self.DeleteAllItems()
