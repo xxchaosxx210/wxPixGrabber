@@ -69,52 +69,64 @@ class MainWindow(wx.Frame):
                              data   (dict): extra information depending on the message event
         """
         if msg.thread == const.THREAD_COMMANDER:
-            # message
+            # MESSAGE
             if msg.event == const.EVENT_MESSAGE:
                 self.sbar.SetStatusText(msg.data["message"])
-            # All tasks complete
+
+            # ALL TASKS COMPLETED
             elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
-            # fetch has completed
+
+            # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
+                self.dldpanel.treeview.populate(msg)
                 self.dldpanel.addressbar.txt_address.SetValue("")
-            # fetch error
+            # FETCH ERROR
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
                 self._on_fetch_error(msg)
-            # started download and loading threads
+            # FETCH IGNORED
+            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_IGNORED:
+                self._on_fetch_ignored(msg)
+            # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping(msg)
-            elif msg.event == const.EVENT_START and msg.status == const.STATUS_IGNORED:
-                self._on_fetch_ignored(msg)
         
         elif msg.thread == const.THREAD_TASK:
-            if msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
+            # TASK HAS COMPLETED
+            if msg.event == const.EVENT_FINISHED:
                 self.dldpanel.progressbar.increment()
-                self.dldpanel.treeview.set_message(msg)
+                self.dldpanel.treeview.child_complete(msg)
+            # IMAGE ERRROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dldpanel.treeview.add_url(msg)
                 self.dldpanel.errors.add_stat()
+            # IMAGE SAVED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 self.dldpanel.imgsaved.add_stat()
                 self.dldpanel.treeview.add_url(msg)
+            # IMAGE IGNORED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
                 self.dldpanel.ignored.add_stat()
                 self.dldpanel.treeview.add_url(msg)
+            # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dldpanel.treeview.set_searching(msg.id)
     
     def _on_start_scraping(self, msg):
+        # Start a new timer
         timer_quit.clear()
+        create_timer_thread(self._on_timer_callback).start()
+        # Reset the stats on teh download panel
         self.dldpanel.errors.reset_stat()
         self.dldpanel.ignored.reset_stat()
         self.dldpanel.imgsaved.reset_stat()
-        create_timer_thread(self._on_timer_callback).start()
         self.sbar.SetStatusText("Starting Tasks...")
-        self.dldpanel.addressbar.btn_fetch.Enable(False)
-        self.dldpanel.addressbar.btn_start.Enable(False)
+        # disable the fetch and start buttons while searching
+        self.dldpanel.enable_controls(False)
     
     def _on_scraping_complete(self):
+        # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
         # kill the timer thread
@@ -122,14 +134,14 @@ class MainWindow(wx.Frame):
         self.sbar.SetStatusText("All Tasks have completed")
         self.dldpanel.progressbar.reset_progress(0)
         self.dldpanel.addressbar.txt_address.SetValue("")
-        self.dldpanel.addressbar.btn_fetch.Enable(True)
-        self.dldpanel.addressbar.btn_start.Enable(True)
+        self.dldpanel.enable_controls(True)
     
     def _on_fetch_finished(self, msg):
-        # Set the progress bar maximum range
         self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
-        self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
+        # Set the progress bar maximum range
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+        # set Frame title from fetched Url title. similar to how a Browser behaves
+        # we will use this to generate a unique folder name
         self.SetTitle(msg.data["title"])
         if msg.data.get("urls", []):
             if options.load_settings()["auto-download"]:
@@ -141,7 +153,7 @@ class MainWindow(wx.Frame):
         self.dldpanel.treeview.clear()
         root = self.dldpanel.treeview.AddRoot(msg.data["url"])
         error = self.dldpanel.treeview._error_bmp
-        self.dldpanel.treeview.SetItemData(root, None)
+        self.dldpanel.treeview.SetItemData(root, msg)
         self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Normal)
         self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Expanded)
         self.dldpanel.treeview.AppendItem(root, msg.data["message"])
