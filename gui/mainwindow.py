@@ -80,7 +80,7 @@ class MainWindow(wx.Frame):
             # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
-                self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
+                self.dldpanel.treeview.populate(msg)
                 self.dldpanel.addressbar.txt_address.SetValue("")
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
@@ -94,9 +94,9 @@ class MainWindow(wx.Frame):
         
         elif msg.thread == const.THREAD_TASK:
             # TASK HAS COMPLETED
-            if msg.event == const.EVENT_FINISHED and msg.status == const.STATUS_OK:
+            if msg.event == const.EVENT_FINISHED:
                 self.dldpanel.progressbar.increment()
-                self.dldpanel.treeview.set_message(msg)
+                self.dldpanel.treeview.child_complete(msg)
             # IMAGE ERRROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dldpanel.treeview.add_url(msg)

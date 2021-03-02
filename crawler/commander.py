@@ -118,7 +118,6 @@ def _thread(main_queue, msgbox):
                     main_queue.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
                                    id=0, data=None))
                     props.quit_thread.set()
-                    
                 elif r.event == const.EVENT_START:
                     if not props.task_running:        
                         cookiejar, filters = _init_start(props)
@@ -242,8 +241,7 @@ def _thread(main_queue, msgbox):
                         else:
                             props.tasks[props.counter].run()
                         props.counter += 1
-                        if r.status == const.STATUS_OK:
-                            main_queue.put_nowait(r)
+                    main_queue.put_nowait(r)
                 elif r.event == const.EVENT_BLACKLIST:
                     # check the props.blacklist with urldata and notify Grunt process
                     # if no duplicate and added then True returned

@@ -216,7 +216,7 @@ class StatusTreeView(wx.TreeCtrl):
 
         for link in links:
             child = self.AppendItem(self.root, link.url)
-            self.children.append(child)
+            self.children.append({"id": child, "children": []})
             self.SetItemData(child, None)
             if link.tag == "a":
                 self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
@@ -229,7 +229,8 @@ class StatusTreeView(wx.TreeCtrl):
     
     def add_url(self, msg):
         child = self.children[msg.id]
-        new_child = self.AppendItem(child, msg.data["message"])
+        new_child = self.AppendItem(child["id"], msg.data["message"])
+        child["children"].append({"id": new_child, "children": []})
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
         elif msg.status == const.STATUS_ERROR:
@@ -241,19 +242,29 @@ class StatusTreeView(wx.TreeCtrl):
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
     
     def set_searching(self, index):
-        child = self.children[index]
+        child = self.children[index]["id"]
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Normal)
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Expanded)
     
     def set_message(self, msg):
-        child = self.children[msg.id]
+        child = self.children[msg.id]["id"]
         if msg.data["message"] == "Task has completed":
             self.Expand(child)
         else:
             self.AppendItem(child, msg.data["message"])
     
     def child_complete(self, msg):
-        pass
+        root_child = self.children[msg.id]["id"]
+        children = self.children[msg.id]["children"]
+        for child in children:
+            msg = self.GetItemData(child["id"])
+            if msg.status == const.STATUS_ERROR or msg.status == const.STATUS_IGNORED:
+                self.SetItemImage(root_child, self._img_complete_issues, wx.TreeItemIcon_Normal)
+                self.SetItemImage(root_child, self._img_complete_issues, wx.TreeItemIcon_Expanded)
+                break
+            else:
+                self.SetItemImage(root_child, self._img_complete_ok, wx.TreeItemIcon_Normal)
+                self.SetItemImage(root_child, self._img_complete_ok, wx.TreeItemIcon_Expanded)
     
     def clear(self):
         self.DeleteAllItems()
