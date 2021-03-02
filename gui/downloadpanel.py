@@ -171,53 +171,59 @@ class StatusTreeView(wx.TreeCtrl):
                 wx.TheClipboard.Close()
         
         def show_info(self, evt):
-            data = self._parent.GetItemData(self._item)
-            print(data)
+            msg = self._parent.GetItemData(self._item)
+            if msg:
+                pass
 
     def __init__(self, parent, id):
         super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
         self.app = wx.GetApp()
-        self.imagelist = wx.ImageList(16, 16)
-        self._link_bmp = self.imagelist.Add(self.app.bitmaps["web"])
-        self._img_bmp = self.imagelist.Add(self.app.bitmaps["image"])
-        self._error_bmp = self.imagelist.Add(self.app.bitmaps["error"])
-        self._ignored_bmp = self.imagelist.Add(self.app.bitmaps["ignored"])
-        self._saved_bmp = self.imagelist.Add(self.app.bitmaps["saved"])
-        self._search_bmp = self.imagelist.Add(self.app.bitmaps["searching"])
-        self.SetImageList(self.imagelist)
-
+        self._create_imagelist()
         self.clear()
-
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click, self)
+    
+    def _create_imagelist(self):
+        self.imglist = wx.ImageList(16, 16)
+        self._img_link = self.imglist.Add(self.app.bitmaps["web"])
+        self._img_src = self.imglist.Add(self.app.bitmaps["image"])
+        self._img_error = self.imglist.Add(self.app.bitmaps["error"])
+        self._img_ignored = self.imglist.Add(self.app.bitmaps["ignored"])
+        self._img_saved = self.imglist.Add(self.app.bitmaps["saved"])
+        self._img_search = self.imglist.Add(self.app.bitmaps["searching"])
+        self._img_complete_ok = self.imglist.Add(self.app.bitmaps["complete"])
+        self._img_complete_issues = self.imglist.Add(self.app.bitmaps["complete-with-issues"])
+        self.SetImageList(self.imglist)
     
     def _on_right_click(self, evt):
         menu = StatusTreeView.ItemPopup(self, evt.Item)
         self.PopupMenu(menu)
         menu.Destroy()
 
-    def populate(self, url, links):
+    def populate(self, msg):
         """Gets called after Fetch job
 
         Args:
             url (str): The source Url gets added as root
             links (list): UrlData objects
         """
+        url = msg.data["url"]
+        links = msg.data["urls"]
         self.clear()
         self.root = self.AddRoot(url)
-        self.SetItemData(self.root, None)
-        self.SetItemImage(self.root, self._link_bmp, wx.TreeItemIcon_Normal)
-        self.SetItemImage(self.root, self._link_bmp, wx.TreeItemIcon_Expanded)
+        self.SetItemData(self.root, msg)
+        self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Normal)
+        self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Expanded)
 
         for link in links:
             child = self.AppendItem(self.root, link.url)
             self.children.append(child)
-            self.SetItemData(child, link)
+            self.SetItemData(child, None)
             if link.tag == "a":
-                self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Normal)
-                self.SetItemImage(child, self._link_bmp, wx.TreeItemIcon_Expanded)
+                self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
+                self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Expanded)
             else:
-                self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Normal)
-                self.SetItemImage(child, self._img_bmp, wx.TreeItemIcon_Expanded)
+                self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Normal)
+                self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Expanded)
             self.Expand(child)
         self.Expand(self.root)
     
@@ -225,19 +231,19 @@ class StatusTreeView(wx.TreeCtrl):
         child = self.children[msg.id]
         new_child = self.AppendItem(child, msg.data["message"])
         if msg.status == const.STATUS_OK:
-            bmp = self._saved_bmp
+            bmp = self._img_saved
         elif msg.status == const.STATUS_ERROR:
-            bmp = self._error_bmp
+            bmp = self._img_error
         else:
-            bmp = self._ignored_bmp
+            bmp = self._img_ignored
         self.SetItemData(new_child, msg)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Normal)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
     
     def set_searching(self, index):
         child = self.children[index]
-        self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Normal)
-        self.SetItemImage(child, self._search_bmp, wx.TreeItemIcon_Expanded)
+        self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Normal)
+        self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Expanded)
     
     def set_message(self, msg):
         child = self.children[msg.id]
@@ -245,6 +251,9 @@ class StatusTreeView(wx.TreeCtrl):
             self.Expand(child)
         else:
             self.AppendItem(child, msg.data["message"])
+    
+    def child_complete(self, msg):
+        pass
     
     def clear(self):
         self.DeleteAllItems()

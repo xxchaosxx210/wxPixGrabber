@@ -80,6 +80,7 @@ class MainWindow(wx.Frame):
             # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
+                self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
                 self.dldpanel.addressbar.txt_address.SetValue("")
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
@@ -137,8 +138,6 @@ class MainWindow(wx.Frame):
     
     def _on_fetch_finished(self, msg):
         self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
-        # load the treectrl with fetched links
-        self.dldpanel.treeview.populate(msg.data["url"], msg.data["urls"])
         # Set the progress bar maximum range
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
         # set Frame title from fetched Url title. similar to how a Browser behaves
