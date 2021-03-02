@@ -156,6 +156,9 @@ def _appendlink(full_url, src, url_data_list, tag, filters):
             lenurl = len(list(filter(lambda item : item, parsed_url.path.split("/"))))
             if lensrc <= lenurl:
                 return
+        # Ignore root index. Maybe add option here?
+        if not parsed_src.path or parsed_src.path == "/":
+            return
         # Filter the URL
         if filters.search(url):
             # make sure we dont have a duplicate

@@ -172,8 +172,8 @@ class StatusTreeView(wx.TreeCtrl):
         
         def show_info(self, evt):
             msg = self._parent.GetItemData(self._item)
-            if msg:
-                wx.MessageBox(msg.data["message"], "Info", parent=self._parent)
+            data = getattr(msg, "data", {"message": ""})
+            wx.MessageBox(data.get("message", ""), "Info", parent=self._parent)
 
     def __init__(self, parent, id):
         super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
@@ -269,6 +269,7 @@ class StatusTreeView(wx.TreeCtrl):
             self.SetItemImage(root_child, img, wx.TreeItemIcon_Expanded)
 
         else:
+            self.SetItemData(root_child, msg)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Normal)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Expanded)
     
