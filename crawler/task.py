@@ -27,9 +27,9 @@ def stream_to_file(path, bytes_stream):
         fp.write(bytes_stream.getbuffer())
         fp.close()
         return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_OK, id=0, data={"message": path})
+                       status=const.STATUS_OK, id=0, data={"message": "image saved", "url": path})
     return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_ERROR, id=0, data={"message": "Unable to write to file", "path": path})
+                       status=const.STATUS_ERROR, id=0, data={"message": "Unable to write to file", "url": path})
 
 def _response_to_stream(response):
     # read from requests object
@@ -65,7 +65,7 @@ def create_save_path(settings):
 def download_image(filename, response, settings):
 
     message = Message(thread=const.THREAD_TASK, id=0, status=const.STATUS_IGNORED,
-                          event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown"})
+                          event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
 
     byte_stream = _response_to_stream(response)
     # check the image size is within our bounds
@@ -202,7 +202,7 @@ class Grunt(mp.Process):
         self.comm_queue.put(Message(
             thread=const.THREAD_TASK,
             event=const.EVENT_BLACKLIST,
-            data={"index": self.task_index, "urldata": urldata},
+            data={"index": self.task_index, "urldata": urldata, "url": urldata.url},
             id=self.task_index, status=const.STATUS_OK
         ))
         reply = self.msgbox.get()
@@ -230,7 +230,7 @@ class Grunt(mp.Process):
             self.cookiejar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK, 
-                id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data=None))
+                id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data={"url": self.urldata.url}))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
@@ -253,4 +253,4 @@ class Grunt(mp.Process):
     def notify_finished(self, status, message):
         self.comm_queue.put_nowait(Message(
                 thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED, 
-                id=self.task_index, data={"message": message}))
+                id=self.task_index, data={"message": message, "url": self.urldata.url}))

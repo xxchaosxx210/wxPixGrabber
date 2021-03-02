@@ -173,7 +173,7 @@ class StatusTreeView(wx.TreeCtrl):
         def show_info(self, evt):
             msg = self._parent.GetItemData(self._item)
             if msg:
-                pass
+                wx.MessageBox(msg.data["message"], "Info", parent=self._parent)
 
     def __init__(self, parent, id):
         super().__init__(parent=parent, id=id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
@@ -229,7 +229,7 @@ class StatusTreeView(wx.TreeCtrl):
     
     def add_url(self, msg):
         child = self.children[msg.id]
-        new_child = self.AppendItem(child["id"], msg.data["message"])
+        new_child = self.AppendItem(child["id"], msg.data["url"])
         child["children"].append({"id": new_child, "children": []})
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
