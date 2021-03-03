@@ -76,6 +76,7 @@ class AboutPanel(wx.Panel):
         videomode = wx.Display().GetCurrentMode()
         _FRAME_RATE = 1/videomode.refresh
 
+        self.SetDoubleBuffered(True)
         self._create_buffer()
         self._initialize_colours()
         self._background_brush = wx.Brush(self.GetBackgroundColour())

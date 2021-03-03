@@ -5,7 +5,6 @@ from wx.lib import masked
 import wx.lib.scrolledpanel as scrolled
 
 from gui.theme import (
-    ThemedButton,
     hboxsizer,
     vboxsizer,
     DIALOG_BORDER
@@ -737,8 +736,8 @@ class OkCancelPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        btn_cancel = ThemedButton(self, wx.ID_CANCEL, "Cancel")
-        btn_ok = ThemedButton(self, wx.ID_OK, "Save")
+        btn_cancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
+        btn_ok = wx.Button(self, wx.ID_OK, "Save")
 
         hs = hboxsizer()
 

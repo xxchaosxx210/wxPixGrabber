@@ -1,16 +1,11 @@
 import wx
 import webbrowser
-
 from gui.theme import (
     WX_BORDER,
-    ThemedTextCtrl,
     vboxsizer,
-    hboxsizer,
-    ThemedStaticText
+    hboxsizer
 )
-
 from crawler.constants import CMessage as Message
-from crawler.types import UrlData
 import crawler.constants as const
 
 
@@ -96,7 +91,7 @@ class AddressBar(wx.Panel):
 
         self.app = wx.GetApp()
         
-        self.txt_address = ThemedTextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
+        self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
 
         bitmaps = wx.GetApp().bitmaps
         btn_open = wx.BitmapButton(self, -1, bitmaps["html-file"])
@@ -311,7 +306,7 @@ class ProgressPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.gauge = wx.Gauge(self, -1, 100)
-        self.time = ThemedStaticText(self, -1, "00:00:00")
+        self.time = wx.StaticText(self, -1, "00:00:00")
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
 

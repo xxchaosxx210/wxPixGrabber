@@ -34,7 +34,7 @@ class MainWindow(wx.Frame):
     def _create_statusbar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
         font = self.sbar.GetFont()
-        font.SetPointSize(12)
+        font.SetPointSize(10)
         self.sbar.SetFont(font)
         self.sbar.SetFieldsCount(1)
         self.SetStatusBar(self.sbar)
