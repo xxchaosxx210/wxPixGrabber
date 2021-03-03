@@ -2,6 +2,7 @@ import wx
 
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
+from gui.notificationbar import NotificationBar
 
 from crawler.constants import CMessage as Message
 import crawler.constants as const
@@ -130,6 +131,7 @@ class MainWindow(wx.Frame):
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
+            NotificationBar(self, -1, "", "PixGrabber has completed")
         # kill the timer thread
         timer_quit.set()
         self.sbar.SetStatusText("All Tasks have completed")
