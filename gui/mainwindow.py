@@ -3,6 +3,7 @@ import wx
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
 from gui.notificationbar import NotificationBar
+from gui.detachprogress import DetachableFrame
 
 from crawler.constants import CMessage as Message
 import crawler.constants as const
@@ -99,21 +100,26 @@ class MainWindow(wx.Frame):
             if msg.event == const.EVENT_FINISHED:
                 self.dldpanel.progressbar.increment()
                 self.dldpanel.treeview.child_complete(msg)
+                self.detached_frame.add_progress()
             # IMAGE ERRROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dldpanel.treeview.add_url(msg)
                 self.dldpanel.errors.add_stat()
+                self.detached_frame.add_error()
             # IMAGE SAVED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 self.dldpanel.imgsaved.add_stat()
+                self.detached_frame.add_saved()
                 self.dldpanel.treeview.add_url(msg)
             # IMAGE IGNORED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
                 self.dldpanel.ignored.add_stat()
                 self.dldpanel.treeview.add_url(msg)
+                self.detached_frame.add_ignored()
             # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dldpanel.treeview.set_searching(msg.id)
+                self.detached_frame.Show()
     
     def _on_start_scraping(self, msg):
         # Start a new timer
@@ -128,6 +134,8 @@ class MainWindow(wx.Frame):
         self.dldpanel.enable_controls(False)
     
     def _on_scraping_complete(self):
+        self.detached_frame.Destroy()
+        del self.detached_frame
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
@@ -143,6 +151,10 @@ class MainWindow(wx.Frame):
         self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
         # Set the progress bar maximum range
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
+        if hasattr(self, "detach_frame"):
+            self.detached_frame.Destroy()
+            del self.detached_frame
+        self.detached_frame = DetachableFrame(self, -1, "", len(msg.data.get("urls")))
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
         self.SetTitle(msg.data["title"])
