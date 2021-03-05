@@ -45,43 +45,6 @@ class Vector:
     def normalized(self):
         return self / self.length()
 
-class Point:
-
-    def __init__(self, x: float, y: float):
-        self.x = x
-        self.y = y
-    
-    def add_vector(self, v):
-        p2 = Vector(0.0, 0.0)
-        p2.x = self.x + v.x
-        p2.y = self.y + v.y
-        return p2
-    
-    def __add__(self, other):
-        if isinstance(other, self.__class__):
-            return Vector(self.x + other.x, self.y + other.y)
-        return Vector(self.x + other, self.y + other)
-    
-    def __mul__(self, other):
-        if isinstance(other, self.__class__):
-            return Vector(self.x * other.x, self.y * other.y)
-        return Vector(self.x * other, self.y * other)
-
-    def __sub__(self, other):
-        if isinstance(other, self.__class__):
-            return Vector(self.x - other.x, self.y - other.y)
-        return Vector(self.x - other, self.y - other)
-
-    def __truediv__(self, other):
-        if isinstance(other, self.__class__):
-            return Vector(self.x / other.x, self.y / other.y)
-        return Vector(self.x / other, self.y / other)
-    
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.x == other.x and self.y == other.y
-        return self.x == other and self.y == other
-
 def length_sqr(vec):
     return vec.x ** 2 + vec.y ** 2
 
@@ -100,3 +63,11 @@ def dot_product(a: Vector, b:Vector):
         [float]: the dot calculation of the two vectors
     """
     return a.x * b.x + a.y * b.y
+
+def approach(goal, current, dt):
+    difference = goal - current
+    if difference > dt:
+        return current + dt
+    if difference < -dt:
+        return current - dt
+    return goal

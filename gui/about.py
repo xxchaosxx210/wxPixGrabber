@@ -1,7 +1,10 @@
 import wx
 import os
 import logging
+import time
 from collections import namedtuple
+
+from vector import approach
 
 if os.name == "nt":
     # Import our C compiled classes
@@ -84,15 +87,15 @@ class AboutPanel(wx.Panel):
 
         h1_font = wx.Font(pointSize=16, family=wx.FONTFAMILY_DECORATIVE,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_MAX, underline=False,
-        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
+        faceName="Calibri", encoding=wx.FONTENCODING_DEFAULT)
 
         h2_font = wx.Font(pointSize=11, family=wx.FONTFAMILY_SCRIPT,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_LIGHT, underline=False,
-        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
+        faceName="Tahoma", encoding=wx.FONTENCODING_DEFAULT)
 
         h3_font = wx.Font(pointSize=9, family=wx.FONTFAMILY_SCRIPT,
         style=wx.FONTSTYLE_MAX, weight=wx.FONTWEIGHT_LIGHT, underline=False,
-        faceName="Consolas", encoding=wx.FONTENCODING_DEFAULT)
+        faceName="Tahoma", encoding=wx.FONTENCODING_DEFAULT)
 
         lines = (
             LineText(font=h1_font, text=text[0]),
@@ -109,6 +112,9 @@ class AboutPanel(wx.Panel):
         self.Bind(wx.EVT_PAINT, self._on_paint, self)
         self.Bind(wx.EVT_SIZE, self._on_size, self)
         self.Bind(wx.EVT_TIMER, self._animation_loop)
+
+        self.prev_time = 0
+        self.current_time = time.monotonic()
     
     def _initialize_colours(self):
         colour = self.GetBackgroundColour()
@@ -178,7 +184,7 @@ class AboutPanel(wx.Panel):
                 dc.SetFont(line.font)
                 dc.DrawText(line.text, line.x, line.y)
     
-    def _update_positions(self):
+    def _update_positions(self, dt):
         # Update the text lines and background box positions before rendering next frame
 
         # make sure all lines are still within their maximum range
@@ -191,7 +197,8 @@ class AboutPanel(wx.Panel):
         for line in self._lines:
             # check we're in bounds. If not then flag no more scrolling
             if line.x < line.max_x:
-                line.x += line.velocity
+                goal_x = line.x + line.velocity * dt
+                line.x = approach(goal_x, line.x, dt)
             else:
                 # reseat the x position slightly so it fits centre
                 line.x = line.max_x
@@ -199,19 +206,25 @@ class AboutPanel(wx.Panel):
         
         # scroll our background box
         if self._cooleffect.x > self._cooleffect.min_x:
-            self._cooleffect.x -= self._cooleffect.velocity
+            goal_x = self._cooleffect.x - self._cooleffect.velocity * dt
+            self._cooleffect.x = approach(goal_x, self._cooleffect.x, dt)
         else:
             # box has stopped
             self._cooleffect.finished_scrolling = 1
-    
+
     def _animation_loop(self, evt):
         self._update_frame()
 
     def _update_frame(self):
+        self.prev_time = self.current_time
+        self.current_time = time.monotonic()
+        dt = self.current_time - self.prev_time
+        if dt > 0.15:
+            dt = 0.15
         # may cause runtime error if dialog has been deleted
         try:
             # update our lines and box positions
-            self._update_positions()
+            self._update_positions(dt * 600)
             # blit the screen
             self.Refresh()
         except RuntimeError as err:
