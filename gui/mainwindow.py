@@ -33,6 +33,9 @@ class MainWindow(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
 
+        # detach status frame
+        self.detached_frame = DetachableFrame(self, -1, "")
+
     def _create_statusbar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
         font = self.sbar.GetFont()
@@ -54,6 +57,7 @@ class MainWindow(wx.Frame):
     
     def on_close_window(self, evt):
         timer_quit.set()
+        self.detached_frame.Destroy()
         self.app.commander.queue.put(Message(
             thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data=None, status=const.STATUS_OK))
         self.app.commander.thread.join()
@@ -119,7 +123,10 @@ class MainWindow(wx.Frame):
             # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dldpanel.treeview.set_searching(msg.id)
-                self.detached_frame.Show()
+                if self.is_detachable():
+                    self.detached_frame.Show()
+                else:
+                    self.detached_frame.Hide()
     
     def _on_start_scraping(self, msg):
         # Start a new timer
@@ -134,8 +141,7 @@ class MainWindow(wx.Frame):
         self.dldpanel.enable_controls(False)
     
     def _on_scraping_complete(self):
-        self.detached_frame.Destroy()
-        del self.detached_frame
+        self.detached_frame.Hide()
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
@@ -151,10 +157,7 @@ class MainWindow(wx.Frame):
         self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
         # Set the progress bar maximum range
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
-        if hasattr(self, "detach_frame"):
-            self.detached_frame.Destroy()
-            del self.detached_frame
-        self.detached_frame = DetachableFrame(self, -1, "", len(msg.data.get("urls")))
+        self.detached_frame.reset(len(msg.data.get("urls", [])))
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
         self.SetTitle(msg.data["title"])
@@ -176,4 +179,7 @@ class MainWindow(wx.Frame):
     def _on_fetch_ignored(self, msg):
         self.app.sounds["error"].Play()
         self.sbar.SetStatusText(msg.data["message"])
+    
+    def is_detachable(self):
+        return options.load_settings().get("detach-progress", True)
         

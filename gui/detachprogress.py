@@ -28,13 +28,20 @@ class DetachableFrame(wx.Frame):
     
     def add_progress(self):
         self.panel.progress.SetValue(self.panel.progress.GetValue()+1)
+    
+    def reset(self, range):
+        self.panel.progress.SetRange(range)
+        self.panel.progress.SetValue(0)
+        self.panel.saved.SetLabel("0")
+        self.panel.ignored.SetLabel("0")
+        self.panel.error.SetLabel("0")
 
 
 class ProgressPanel(wx.Panel):
 
     def __init__(self, parent, id, range):
         super().__init__(parent, id)
-
+        
         self.progress = wx.Gauge(self, -1, range)
         lbl_saved = wx.StaticText(self, -1, "Saved: ")
         self.saved = wx.StaticText(self, -1, "0")
@@ -53,3 +60,12 @@ class ProgressPanel(wx.Panel):
             hbox.AddSpacer(20)
         vbox.Add(hbox, 0, wx.ALIGN_CENTER, 0)
         self.SetSizer(vbox)
+
+
+def test():
+    app = wx.App()
+    DetachableFrame(None, -1, "").Show()
+    app.MainLoop()
+
+if __name__ == '__main__':
+    test()
