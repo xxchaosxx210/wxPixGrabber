@@ -67,6 +67,7 @@ DEFAULT_SETTINGS = {
         "ico": False,
         "tiff": False,
         "tga": False},
+    "detach-progress": True,
     "filter-search": {"enabled": True, "filters": _FILTER_SEARCH},
     "file_exists": "overwrite",
     "form_search": {"enabled": True, "include_original_host": False},

@@ -63,6 +63,9 @@ class SettingsDialog(wx.Dialog):
 
         self.panel.notify_panel.checkbox.SetValue(
             settings.get("notify-done", True))
+
+        self.panel.detach_panel.checkbox.SetValue(
+            settings.get("detach-progress", True))
         
         self.panel.imgformat_panel.set_values(
             settings.get("images_to_search", 
@@ -123,6 +126,10 @@ class SettingsDialog(wx.Dialog):
         # notify
         settings["notify-done"] = \
             self.panel.notify_panel.checkbox.GetValue()
+        
+        # detach progress
+        settings["detach-progress"] = \
+            self.panel.detach_panel.checkbox.GetValue()
 
         # auto-download
         settings["auto-download"] = \
@@ -196,6 +203,7 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.fileexist_panel = FileAlreadyExistPanel(pnl, -1)
         self.formsearch_panel = FormSearchPanel(pnl, -1)
         self.notify_panel = NotifyPanel(pnl, -1)
+        self.detach_panel = DetachPanel(pnl, -1)
         self.filter_panel = FilterPanel(pnl, -1, size=(-1, 200))
         self.cache_panel = CachePanel(pnl, -1)
 
@@ -254,14 +262,19 @@ class SettingsPanel(scrolled.ScrolledPanel):
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
+        hs.Add(self.filter_panel, 1, wx.EXPAND|wx.ALL, 0)
+        hs.AddStretchSpacer(1)
+        vs.Add(hs, 1, wx.EXPAND|wx.ALL , 0)
+        vs.AddSpacer(DIALOG_BORDER)
+
+        hs = hboxsizer()
         hs.Add(self.notify_panel, 0, wx.EXPAND|wx.ALL, 0)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
-        hs.Add(self.filter_panel, 1, wx.EXPAND|wx.ALL, 0)
-        hs.AddStretchSpacer(1)
-        vs.Add(hs, 1, wx.EXPAND|wx.ALL , 0)
+        hs.Add(self.detach_panel, 0, wx.EXPAND|wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
         vs.AddSpacer(DIALOG_BORDER)
 
         hs = hboxsizer()
@@ -336,6 +349,19 @@ class ProfilePanel(wx.Panel):
     def _on_choice(self, evt):
         options.use_profile(evt.GetString())
         self.dlg.load_settings(options.load_settings())
+
+class DetachPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self.checkbox = wx.CheckBox(self, -1, "Enable")
+
+        vbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Detachable Progress Window")
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        hbox.Add(self.checkbox, 0, wx.ALL|wx.EXPAND, 0)
+        vbox.Add(hbox, 0, wx.ALL|wx.EXPAND, 0)
+        self.SetSizer(vbox)
 
 class AutoDownload(wx.Panel):
 
