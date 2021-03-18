@@ -3,13 +3,14 @@ import os
 import webbrowser
 import logging
 
-from gui.about import AnimatedDialog
+from gui.bubbledialog import BubbleDialog
 from gui.settingsdialog import SettingsDialog
 
 from collections import namedtuple
 
 from crawler.options import (
     VERSION,
+    DATE,
     DEBUG,
     load_settings,
     save_settings,
@@ -42,6 +43,7 @@ ID_SCAN_START = 110
 ID_SCAN_SETTINGS = 111
 ID_SCAN_DEBUG = 112
 ID_PROFILES = 113
+
 
 class PixGrabberMenuBar(wx.MenuBar):
 
@@ -162,8 +164,9 @@ class PixGrabberMenuBar(wx.MenuBar):
         _Log.info("Help documentation pressed")
     
     def _on_about(self, evt):
-        dlg = AnimatedDialog(self.parent, -1, "About", 
-                            ["PixGrabber", "Paul Millar", "", VERSION])
+        dlg = BubbleDialog(self.parent, -1, "About",
+                            ["PixGrabber(c)", "Developed by Paul Millar", VERSION, DATE],
+                           size=(640, 480))
         dlg.ShowModal()
         dlg.Destroy()
     

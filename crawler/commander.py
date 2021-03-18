@@ -1,6 +1,6 @@
 import threading
 import logging
-import multiprocessing as mp 
+import multiprocessing as mp
 import queue
 from dataclasses import dataclass
 
@@ -33,6 +33,7 @@ class Commander:
     thread: threading.Thread
     queue: mp.Queue
 
+
 def tasks_alive(tasks):
     """checks how many tasks are still running
 
@@ -42,7 +43,8 @@ def tasks_alive(tasks):
     Returns:
         [list]: returns all active running tasks
     """
-    return list(filter(lambda grunt : grunt.is_alive(), tasks))
+    return list(filter(lambda grunt: grunt.is_alive(), tasks))
+
 
 def _reset_comm_props(properties):
     properties.cancel_all.clear()
@@ -50,6 +52,7 @@ def _reset_comm_props(properties):
     properties.task_running = 0
     properties.blacklist.clear()
     properties.time_counter = 0.0
+
 
 def _start_max_tasks(tasks, max_tasks, counter):
     # This function will be called to start the Process Pool
@@ -61,6 +64,7 @@ def _start_max_tasks(tasks, max_tasks, counter):
             th.start()
             counter += 1
     return counter
+
 
 def create_commander(main_queue):
     """main handler for starting and keeping track of worker tasks
@@ -76,6 +80,7 @@ def create_commander(main_queue):
         threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msgqueue}),
         msgqueue)
 
+
 def _init_start(properties):
     # intialize commander threads variables and return new objects
     properties.tasks = []
@@ -84,7 +89,8 @@ def _init_start(properties):
     properties.settings = options.load_settings()
     cj = load_cookies(properties.settings)
     filters = parsing.compile_filter_list(properties.settings["filter-search"])
-    return (cj, filters)
+    return cj, filters
+
 
 def _thread(main_queue, msgbox):
     """main task handler thread
@@ -100,10 +106,10 @@ def _thread(main_queue, msgbox):
         thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
         status=const.STATUS_OK, id=0,
         data={"message": "Commander thread has loaded. Waiting to scan"}))
-    
+
     props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
-                       tasks=[], quit_thread=mp.Event())
-    
+                                tasks=[], quit_thread=mp.Event())
+
     QUEUE_TIMEOUT = 0.1
 
     while not props.quit_thread.is_set():
@@ -115,18 +121,19 @@ def _thread(main_queue, msgbox):
             if r.thread == const.THREAD_MAIN:
                 if r.event == const.EVENT_QUIT:
                     props.cancel_all.set()
-                    main_queue.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
-                                   id=0, data=None))
+                    main_queue.put(
+                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
+                                id=0, data=None))
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
-                    if not props.task_running:        
+                    if not props.task_running:
                         cookiejar, filters = _init_start(props)
-                    
+
                         for task_index, urldata in enumerate(props.scanned_urls):
-                            grunt = Grunt(task_index, urldata, props.settings, 
+                            grunt = Grunt(task_index, urldata, props.settings,
                                           filters, msgbox, props.cancel_all)
                             props.tasks.append(grunt)
-                            
+
                         # reset the tasks counter this is used to keep track of
                         # tasks that have been  started once a running thread has been notified
                         # this thread counter is incremenetet counter is checked with length of props.tasks
@@ -136,7 +143,8 @@ def _thread(main_queue, msgbox):
                         props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
                         # notify main thread so can intialize UI
                         main_queue.put_nowait(
-                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0, status=const.STATUS_OK,
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0,
+                                    status=const.STATUS_OK,
                                     data=None))
                 elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
@@ -145,16 +153,16 @@ def _thread(main_queue, msgbox):
                         cookiejar = load_cookies(props.settings)
                         urldata = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
-                                thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
-                                status=const.STATUS_OK, id=0, data={"message": f"Connecting to {r.data['url']}..."}))
+                            thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+                            status=const.STATUS_OK, id=0, data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
                             webreq = options.load_from_file(r.data["url"])
                             if not webreq:
                                 webreq = request_from_url(urldata, cookiejar, props.settings)
                             ext = mime.is_valid_content_type(
-                                                             r.data["url"], 
-                                                             webreq.headers["Content-Type"], 
-                                                             props.settings["images_to_search"])
+                                r.data["url"],
+                                webreq.headers["Content-Type"],
+                                props.settings["images_to_search"])
                             if ext == mime.EXT_HTML:
                                 html_doc = webreq.text
                                 # parse the html
@@ -171,19 +179,21 @@ def _thread(main_queue, msgbox):
                                 # compile our filter matches only add those from the filter list
                                 filters = parsing.compile_filter_list(props.settings["filter-search"])
                                 if parsing.sort_soup(url=r.data["url"],
-                                                     soup=soup, 
+                                                     soup=soup,
                                                      urls=props.scanned_urls,
                                                      include_forms=False,
-                                                     images_only=False, 
+                                                     images_only=False,
                                                      thumbnails_only=props.settings.get("thumbnails_only", True),
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
-                                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
-                                                     status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
-                                                     "title": html_title, "url": r.data["url"]}))
+                                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
+                                                status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
+                                                                                    "title": html_title,
+                                                                                    "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
-                                        Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("}, status=const.STATUS_OK,
+                                        Message(thread=const.THREAD_COMMANDER, id=0,
+                                                data={"message": "No Links Found :("}, status=const.STATUS_OK,
                                                 event=const.EVENT_MESSAGE))
                             webreq.close()
                         except Exception as err:
@@ -194,12 +204,12 @@ def _thread(main_queue, msgbox):
                     else:
                         # Task still running ignore request
                         main_queue.put_nowait(Message(
-                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
-                                id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
+                            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
+                            id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
 
                 elif r.event == const.EVENT_CANCEL:
                     props.cancel_all.set()
-            
+
             elif r.thread == const.THREAD_SERVER:
                 if r.event == const.EVENT_SERVER_READY:
                     if props.task_running == 0:
@@ -213,24 +223,24 @@ def _thread(main_queue, msgbox):
                         options.assign_unique_name("", html_title)
                         # Setup Search filters and find matches within forms, links and images
                         filters = parsing.compile_filter_list(props.settings["filter-search"])
-                        if parsing.sort_soup(url=r.data["url"], soup=soup, 
-                                             urls=props.scanned_urls, include_forms=False, images_only=False, 
-                                             thumbnails_only=props.settings.get("thumbnails_only", True), 
+                        if parsing.sort_soup(url=r.data["url"], soup=soup,
+                                             urls=props.scanned_urls, include_forms=False, images_only=False,
+                                             thumbnails_only=props.settings.get("thumbnails_only", True),
                                              filters=filters) > 0:
                             main_queue.put_nowait(
-                                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, 
-                                                     status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
-                                                     "title": html_title, "url": r.data["url"]}))
+                                Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
+                                        status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
+                                                                            "title": html_title, "url": r.data["url"]}))
                             # Message ourselves and start the search
                             msgbox.put_nowait(
-                                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, 
-                                status=const.STATUS_OK, data=None, id=0))                         
+                                Message(thread=const.THREAD_MAIN, event=const.EVENT_START,
+                                        status=const.STATUS_OK, data=None, id=0))
                         else:
                             # Nothing found notify main thread
                             main_queue.put_nowait(
-                                Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("}, status=const.STATUS_OK,
+                                Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("},
+                                        status=const.STATUS_OK,
                                         event=const.EVENT_MESSAGE))
-
 
             elif r.thread == const.THREAD_TASK:
                 if r.event == const.EVENT_FINISHED:

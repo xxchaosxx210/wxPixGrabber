@@ -1,9 +1,10 @@
 import wx
-from vector import Vector
+from geometry.vector import Vector
 import time
 import threading
 
 _BORDER = 10
+
 
 class NotificationBar(wx.Frame):
 

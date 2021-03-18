@@ -27,6 +27,7 @@ _TEST_SITE_PATH = os.path.join(os.getcwd(), f"crawler{os.path.sep}dummysite")
 _TEST_SITE_IMAGES = os.path.join(_TEST_SITE_PATH, "images")
 _TEST_SITE_THUMBS = os.path.join(_TEST_SITE_PATH, "thumbs")
 
+
 def _create_document(todo):
     html = f'''<html><head><title>{todo["title"]}</title></head><body>'''
     for link in iter(todo.get("links")):
@@ -34,9 +35,11 @@ def _create_document(todo):
     html += "</body></html>"
     return html
 
+
 def _decode_base64(_base64):
     b = base64.b64decode(_base64)
     return b.decode("utf-8")
+
 
 def server_process(host, port, a_queue):
     """sets up a background running HTTPServer and handler
@@ -59,6 +62,7 @@ def server_process(host, port, a_queue):
     handler.queue = a_queue
     running = http.server.HTTPServer((_ServerHandler.host, _ServerHandler.port), handler)
     running.serve_forever()
+
 
 def generate_dummy_html():
     """

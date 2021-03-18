@@ -18,6 +18,8 @@ DEBUG = True
 
 VERSION = "0.1"
 
+DATE = "March 2021"
+
 # Get settings folder path
 
 APP_NAME = "pixgrabber"
