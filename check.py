@@ -67,7 +67,7 @@ def grep_search(keywords):
             lines = fp.read().split("\n")
             for index, line in enumerate(lines):
                 if keywords in line:
-                    _Log.info(f"Found match in {py_file} on Line {index+1}")
+                    _Log.info(f"Found match in {py_file} on Line {index + 1}")
                     matches_found += 1
             if matches_found:
                 print_border()

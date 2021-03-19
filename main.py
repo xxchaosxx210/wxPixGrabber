@@ -25,8 +25,8 @@ logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 class PixGrabberApp(wx.App):
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self.window = None
+        super().__init__(**kwargs)
     
     def OnInit(self):
         self._initialize_resources()

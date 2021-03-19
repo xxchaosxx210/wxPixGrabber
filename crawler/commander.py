@@ -26,6 +26,8 @@ from crawler.webrequest import (
 
 _Log = logging.getLogger(__name__)
 
+_QUEUE_TIMEOUT = 0.1
+
 
 @dataclass
 class Commander:
@@ -33,19 +35,18 @@ class Commander:
     queue: mp.Queue
 
 
+@dataclass
 class CommanderProperties:
 
-    def __init__(self, settings=None, scanned_urls=[], blacklist=None, counter=0, cancel_all=None,
-                 task_running=0, tasks=[], quit_thread=None, time_counter=0.0):
-        self.settings = settings
-        self.scanned_urls = scanned_urls
-        self.blacklist = blacklist
-        self.counter = counter
-        self.cancel_all = cancel_all
-        self.task_running = task_running
-        self.tasks = tasks
-        self.quit_thread = quit_thread
-        self.time_counter = time_counter
+    settings: dict
+    scanned_urls: list
+    blacklist: Blacklist
+    counter: int
+    cancel_all: mp.Event
+    task_running: int
+    tasks: list
+    quit_thread: mp.Event
+    time_counter: float
 
 
 def tasks_alive(tasks):
@@ -89,14 +90,14 @@ def create_commander(main_queue):
     Returns:
         [object]: returns a Commander dataclass 
     """
-    msgqueue = mp.Queue()
+    msg_queue = mp.Queue()
     return Commander(
-        threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msgqueue}),
-        msgqueue)
+        threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msg_queue}),
+        msg_queue)
 
 
 def _init_start(properties):
-    # intialize commander threads variables and return new objects
+    # initialize commander threads variables and return new objects
     properties.tasks = []
     properties.task_running = 1
     properties.blacklist.clear()
@@ -121,15 +122,14 @@ def _thread(main_queue, msgbox):
         status=const.STATUS_OK, _id=0,
         data={"message": "Commander thread has loaded. Waiting to scan"}))
 
-    props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
-                                tasks=[], quit_thread=mp.Event())
-
-    QUEUE_TIMEOUT = 0.1
+    props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(),
+                                counter=0, cancel_all=mp.Event(), task_running=0,
+                                tasks=[], quit_thread=mp.Event(), time_counter=0.0)
 
     while not props.quit_thread.is_set():
         try:
             if props.task_running:
-                r = msgbox.get(timeout=QUEUE_TIMEOUT)
+                r = msgbox.get(timeout=_QUEUE_TIMEOUT)
             else:
                 r = msgbox.get(timeout=None)
             if r.thread == const.THREAD_MAIN:
@@ -309,4 +309,4 @@ def _thread(main_queue, msgbox):
                                     task.terminate()
                                     props.counter += 1
                         else:
-                            props.time_counter += QUEUE_TIMEOUT
+                            props.time_counter += _QUEUE_TIMEOUT
