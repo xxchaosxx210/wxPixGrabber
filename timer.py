@@ -1,8 +1,8 @@
 import threading
 import time
 
-
 timer_quit = threading.Event()
+
 
 def create_timer_thread(callback):
     timer_quit.clear()
@@ -11,6 +11,7 @@ def create_timer_thread(callback):
         kwargs={"callback": callback},
         daemon=True
     )
+
 
 def format_time(hours, minutes, seconds):
     st_seconds = str(seconds)
@@ -23,6 +24,7 @@ def format_time(hours, minutes, seconds):
     if len(st_hours) == 1:
         st_hours = "0" + st_hours
     return f"{st_hours}:{st_minutes}:{st_seconds}"
+
 
 def timer_thread(callback):
 

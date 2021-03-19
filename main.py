@@ -26,6 +26,7 @@ class PixGrabberApp(wx.App):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.window = None
     
     def OnInit(self):
         self._initialize_resources()
@@ -54,13 +55,13 @@ class PixGrabberApp(wx.App):
     def commander_message_handler(self):
         """handles messages sent from the commander thread and task processes
         """
-        quit = mp.Event()
-        while not quit.is_set():
+        _quit = mp.Event()
+        while not _quit.is_set():
             try:
                 msg = self.queue.get()
                 if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT:
-                        self.server.terminate()
-                        quit.set()
+                    self.server.terminate()
+                    _quit.set()
                 elif msg.thread == const.THREAD_SERVER and msg.event == const.EVENT_SERVER_READY:
                     self.commander.queue.put_nowait(msg)
                 else:
@@ -69,12 +70,14 @@ class PixGrabberApp(wx.App):
             except queue.Empty:
                 pass
 
+
 def _main():
     # pyinstaller requires this. Otherwise multiple windows are spawned
     mp.freeze_support()
     app = PixGrabberApp()
     app.window.Show()
     app.MainLoop()
+
 
 if __name__ == '__main__':
     _main()

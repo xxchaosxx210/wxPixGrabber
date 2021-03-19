@@ -39,9 +39,6 @@ class Vector:
     def __neg__(self):
         return Vector(-self.x, -self.y)
 
-    def __neg__(self):
-        return Vector(-self.x, -self.y)
-
     def make_int_tuple(self):
         return int(self.x), int(self.y)
 
