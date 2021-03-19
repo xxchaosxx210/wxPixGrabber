@@ -1,64 +1,92 @@
 import wx
-from geometry.vector import (
-    Vector,
-    length
-)
+from geometry.vector import Vector
 import time
 import threading
+import queue
 
 _BORDER = 10
+
+NOTIFY_SHORT = 0
+NOTIFY_LONG = 1
+
+
+def get_display_rate():
+    video_mode = wx.Display().GetCurrentMode()
+    return 1 / video_mode.refresh
+
+
+def _fade_frame(frame: wx.Frame):
+    time.sleep(1.5)
+    for alpha in range(255, 0, -10):
+        frame.SetTransparent(alpha)
+        time.sleep(0.001000)
 
 
 class NotificationBar(wx.Frame):
 
-    def __init__(self, parent, id, title="", message=""):
-        super().__init__(parent=parent, id=id, title=title, 
+    def __init__(self, parent, _id, title="", message="", timeout=NOTIFY_SHORT):
+        super().__init__(parent=parent, id=_id, title=title,
                          style=wx.FRAME_NO_WINDOW_MENU|wx.STAY_ON_TOP)
-        d_width, d_height = wx.DisplaySize()
+        self.SetDoubleBuffered(True)
         pnl = _NotificationPanel(self, -1, message)
         gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
         gs.Add(pnl, 1, wx.ALL|wx.EXPAND, 0)
         self.SetSizer(gs)
 
+        self._time_out = get_display_rate()
+        self._queue = queue.Queue()
+
         dc = wx.ClientDC(pnl)
-        tsize = dc.GetFullTextExtent(message, pnl.GetFont())
+        text_size = dc.GetFullTextExtent(message, pnl.GetFont())
 
-        CLIENT_WIDTH = tsize[0] + 10
-        CLIENT_HEIGHT = tsize[1] + 100
+        client_width = text_size[0] + 10
+        client_height = text_size[1] + 100
 
-        self.SetDoubleBuffered(True)
-        self._svector = Vector(d_width - CLIENT_WIDTH, d_height - CLIENT_HEIGHT - 50)
-        self._cvector = Vector(d_width - CLIENT_WIDTH, d_height)
-        self.SetPosition(wx.Point(self._cvector.x, self._cvector.y))
-        
-        self.Bind(wx.EVT_TIMER, self._loop)
-        self._timer = wx.Timer(self)
-        self.SetSize((CLIENT_WIDTH, CLIENT_HEIGHT))
-        self.Show()
-        self._timer.Start(1000/60)
-    
-    def _loop(self, evt):
-        diff = self._svector - self._cvector
-        vec_length = length(diff)
-        if vec_length <= 5:
-            threading.Thread(target=self._on_kill).start()
-            self._timer.Stop()
+        screen_width, screen_height = wx.DisplaySize()
+        self.end_point = wx.Point(screen_width - (client_width+20), screen_height - (client_height+20))
+
+        self.position = Vector(self.end_point.x, screen_height)
+        if timeout == NOTIFY_SHORT:
+            vel_y = 20
+        elif timeout == NOTIFY_LONG:
+            vel_y = 10
         else:
-            self._cvector.y -= 5
-            self.SetPosition(wx.Point(self._cvector.x, self._cvector.y))
-    
-    def _on_kill(self):
-        time.sleep(3)
-        for alpha in range(255, 0, -10):
-            self.SetTransparent(alpha)
-            time.sleep(0.001000)
-        self.Destroy()
+            raise AttributeError("timeout should be either NOTIFY_SHORT or NOTIFY_LONG")
+        self.velocity = Vector(self.position.x, vel_y)
+
+        self.SetPosition(wx.Point(self.position.x, self.position.y))
+
+        self.SetSize((client_width, client_height))
+        threading.Thread(target=self.loop, daemon=True).start()
+        self.Show()
+
+    def loop(self):
+        _quit = threading.Event()
+        while not _quit.is_set():
+            try:
+                if self._queue.get(timeout=self._time_out) == "quit":
+                    _quit.set()
+            except queue.Empty:
+                dt = time.monotonic() / 1000000
+                if dt > 0.16:
+                    dt = 0.16
+                if self.position.y > self.end_point.y:
+                    self.move_frame(dt)
+                else:
+                    _fade_frame(self)
+                    _quit.set()
+        wx.CallAfter(self.Destroy)
+
+    def move_frame(self, dt: float):
+        self.position.y = self.position.y - self.velocity.y * dt
+        pt = wx.Point(self.position.x, self.position.y)
+        wx.CallAfter(self.SetPosition, pt)
 
 
 class _NotificationPanel(wx.Panel):
 
-    def __init__(self, parent, id, message):
-        super().__init__(parent, id)
+    def __init__(self, parent, _id, message):
+        super().__init__(parent, _id)
 
         font = self.GetFont()
         font.SetPointSize(12)
