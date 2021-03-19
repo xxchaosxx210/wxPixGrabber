@@ -3,16 +3,12 @@ import os
 from wx.lib import masked
 
 import wx.lib.scrolledpanel as scrolled
-
-from gui.theme import (
-    hboxsizer,
-    vboxsizer,
-    DIALOG_BORDER
-)
 from crawler.options import SQL_PATH
 import crawler.options as options
 
-STATICBOX_BORDER = 5
+STATIC_BOX_BORDER = 5
+
+DIALOG_BORDER = 30
 
 
 class SettingsDialog(wx.Dialog):
@@ -27,24 +23,24 @@ class SettingsDialog(wx.Dialog):
         self.panel = SettingsPanel(self, -1)
         self.ok_cancel_panel = OkCancelPanel(self, -1)
 
-        vs = vboxsizer()
-        hs = hboxsizer()
-        hs.Add(self.panel, 1, wx.ALL|wx.EXPAND, 0)
-        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        vs = wx.BoxSizer(wx.VERTICAL)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.panel, 1, wx.ALL | wx.EXPAND, 0)
+        vs.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
         vs.AddSpacer(10)
-        hs = hboxsizer()
-        hs.Add(self.ok_cancel_panel, 1, wx.ALL|wx.EXPAND, 0)
-        vs.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.ok_cancel_panel, 1, wx.ALL | wx.EXPAND, 0)
+        vs.Add(hs, 0, wx.ALL | wx.EXPAND, 0)
         vs.AddSpacer(10)
         self.SetSizer(vs)
 
         w, h = self.app.window.GetSize()
-        self.SetSize(w-40, h-40)
+        self.SetSize(w - 40, h - 40)
 
         self.panel.SetFocus()
         self.settings = settings
         self.load_settings(settings)
-    
+
     def load_settings(self, settings):
         """Initializes the Settings wxControls from the settings dict
 
@@ -52,8 +48,8 @@ class SettingsDialog(wx.Dialog):
             settings (dict): The settings json loaded from the settings.json file
         """
 
-        filtered_search = settings.get("filter-search", 
-                                      {"enabled": True, "filters": ["imagevenue.com/"]})
+        filtered_search = settings.get("filter-search",
+                                       {"enabled": True, "filters": ["imagevenue.com/"]})
         self.panel.filter_panel.checkbox.SetValue(filtered_search["enabled"])
         self.panel.filter_panel.listbox.Clear()
         [self.panel.filter_panel.listbox.Append(item) for item in filtered_search["filters"]]
@@ -66,14 +62,14 @@ class SettingsDialog(wx.Dialog):
 
         self.panel.detach_panel.checkbox.SetValue(
             settings.get("detach-progress", True))
-        
+
         self.panel.imgformat_panel.set_values(
-            settings.get("images_to_search", 
-            (True, False, False, False, False, False, False)))
-        
+            settings.get("images_to_search",
+                         (True, False, False, False, False, False, False)))
+
         self.panel.fileexist_panel.set_selection(
             settings.get("file_exists", "overwrite"))
-        
+
         self.panel.cookie_panel.set_group(settings.get("cookies", {}))
 
         self.panel.savepath.text.SetValue(
@@ -83,7 +79,7 @@ class SettingsDialog(wx.Dialog):
             settings["unique_pathname"]["enabled"],
             settings["generate_filenames"]["enabled"],
             settings["generate_filenames"]["name"])
-        
+
         self.panel.max_connections.slider.SetValue(
             settings.get("max_connections", 10))
 
@@ -96,7 +92,7 @@ class SettingsDialog(wx.Dialog):
 
         self.panel.thumb_panel.checkbox.SetValue(
             settings.get("thumbnails_only", True))
-        
+
         minsize = settings.get(
             "minimum_image_resolution", {"width": 100, "height": 100})
         self.panel.minsize_panel.set_min_values(
@@ -104,7 +100,7 @@ class SettingsDialog(wx.Dialog):
 
         self.panel.timeout.set_timeout(
             settings.get("connection_timeout", 5))
-    
+
     def get_settings(self):
         """Like load_settings but in reverse. Should be called
         if the Dialog returns wx.ID_OK and save the returned settings json
@@ -126,7 +122,7 @@ class SettingsDialog(wx.Dialog):
         # notify
         settings["notify-done"] = \
             self.panel.notify_panel.checkbox.GetValue()
-        
+
         # detach progress
         settings["detach-progress"] = \
             self.panel.detach_panel.checkbox.GetValue()
@@ -179,7 +175,7 @@ class SettingsDialog(wx.Dialog):
         # Get the Image format
         settings["images_to_search"] = \
             self.panel.imgformat_panel.get_values()
-        
+
         return settings
 
 
@@ -207,84 +203,84 @@ class SettingsPanel(scrolled.ScrolledPanel):
         self.filter_panel = FilterPanel(pnl, -1, size=(-1, 200))
         self.cache_panel = CachePanel(pnl, -1)
 
-        vs = vboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
 
-        hs = hboxsizer()
-        hs.Add(self.profile_panel, 1, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.profile_panel, 1, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.max_connections, 1, wx.EXPAND|wx.ALL, 0)
-        hs.Add(self.timeout, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.max_connections, 1, wx.EXPAND | wx.ALL, 0)
+        hs.Add(self.timeout, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.auto_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.auto_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.minsize_panel, 0, wx.EXPAND|wx.ALL, 0)
-        hs.Add(self.thumb_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.minsize_panel, 0, wx.EXPAND | wx.ALL, 0)
+        hs.Add(self.thumb_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.savepath, 1, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.savepath, 1, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.folder_panel, 1, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.folder_panel, 1, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.cookie_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.cookie_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.imgformat_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.imgformat_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.formsearch_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.formsearch_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.fileexist_panel, 1, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.fileexist_panel, 1, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.filter_panel, 1, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.filter_panel, 1, wx.EXPAND | wx.ALL, 0)
         hs.AddStretchSpacer(1)
-        vs.Add(hs, 1, wx.EXPAND|wx.ALL , 0)
+        vs.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.notify_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.notify_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.detach_panel, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.detach_panel, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         vs.AddSpacer(DIALOG_BORDER)
 
-        hs = hboxsizer()
-        hs.Add(self.cache_panel, 1, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL , 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.cache_panel, 1, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
 
         pnl.SetSizer(vs)
 
         gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
-        gs.Add(pnl, 1, wx.EXPAND|wx.ALL, 20)
+        gs.Add(pnl, 1, wx.EXPAND | wx.ALL, 20)
         self.SetSizer(gs)
         self.Fit()
         self.SetAutoLayout(1)
@@ -306,19 +302,19 @@ class ProfilePanel(wx.Panel):
         btn_delete = wx.Button(self, -1, "Delete")
 
         vs = wx.StaticBoxSizer(wx.VERTICAL, self, "Profile")
-        hs = hboxsizer()
-        hs.Add(self.cmbox, 1, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.cmbox, 1, wx.EXPAND | wx.ALL, 0)
         hs.AddSpacer(5)
-        hs.Add(btn_delete, 0, wx.EXPAND|wx.ALL, 0)
+        hs.Add(btn_delete, 0, wx.EXPAND | wx.ALL, 0)
         hs.AddSpacer(5)
-        hs.Add(btn_new, 0, wx.EXPAND|wx.ALL, 0)
-        vs.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        hs.Add(btn_new, 0, wx.EXPAND | wx.ALL, 0)
+        vs.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(vs)
 
         btn_new.Bind(wx.EVT_BUTTON, self._on_new_profile, btn_new)
         btn_delete.Bind(wx.EVT_BUTTON, self._on_btn_delete, btn_delete)
         self.cmbox.Bind(wx.EVT_CHOICE, self._on_choice, self.cmbox)
-    
+
     def _on_btn_delete(self, evt):
         name = self.cmbox.GetStringSelection()
         try:
@@ -331,8 +327,7 @@ class ProfilePanel(wx.Panel):
             dlg = wx.MessageDialog(self, err.__str__(), "Error", style=wx.OK | wx.CENTER | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
-        
-    
+
     def _on_new_profile(self, evt):
         dlg = wx.TextEntryDialog(self, "Name the Profile", "New Profile Name")
         if dlg.ShowModal() == wx.ID_OK:
@@ -345,10 +340,11 @@ class ProfilePanel(wx.Panel):
             self.cmbox.Append(name)
             self.cmbox.SetStringSelection(name)
         dlg.Destroy()
-    
+
     def _on_choice(self, evt):
         options.use_profile(evt.GetString())
         self.dlg.load_settings(options.load_settings())
+
 
 class DetachPanel(wx.Panel):
 
@@ -359,9 +355,10 @@ class DetachPanel(wx.Panel):
 
         vbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Detachable Progress Window")
         hbox = wx.BoxSizer(wx.HORIZONTAL)
-        hbox.Add(self.checkbox, 0, wx.ALL|wx.EXPAND, 0)
-        vbox.Add(hbox, 0, wx.ALL|wx.EXPAND, 0)
+        hbox.Add(self.checkbox, 0, wx.ALL | wx.EXPAND, 0)
+        vbox.Add(hbox, 0, wx.ALL | wx.EXPAND, 0)
         self.SetSizer(vbox)
+
 
 class AutoDownload(wx.Panel):
 
@@ -372,9 +369,9 @@ class AutoDownload(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Automatically Download when Url found")
 
-        hs = hboxsizer()
-        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
-        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
+        box.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
 
         self.SetSizer(box)
 
@@ -388,9 +385,9 @@ class NotifyPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Notify when finished")
 
-        hs = hboxsizer()
-        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
-        box.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
+        box.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
 
         self.SetSizer(box)
 
@@ -412,17 +409,17 @@ class ImageFormatOptionsPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search for selected image formats")
         for chk in self.ext:
-            hs = hboxsizer()
-            hs.Add(chk, 1, wx.ALL|wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+            hs = wx.BoxSizer(wx.HORIZONTAL)
+            hs.Add(chk, 1, wx.ALL | wx.EXPAND, 0)
+            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
             box.AddSpacer(10)
         self.SetSizer(box)
-    
+
     def set_values(self, file_exts):
         # iterate through the file extension dict
         for index, key in enumerate(file_exts.keys()):
             self.ext[index].SetValue(file_exts[key])
-    
+
     def get_values(self):
         d = {}
         for checkbox in self.ext:
@@ -445,9 +442,9 @@ class FileAlreadyExistPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "If File already exists")
         for rb in self.group:
-            hs = vboxsizer()
-            hs.Add(rb, 1, wx.ALL|wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+            hs = wx.BoxSizer(wx.VERTICAL)
+            hs.Add(rb, 1, wx.ALL | wx.EXPAND, 0)
+            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
             box.AddSpacer(10)
         self.SetSizer(box)
 
@@ -456,8 +453,7 @@ class FileAlreadyExistPanel(wx.Panel):
             rb.SetValue(False)
             if file_exists == rb.GetLabelText().lower():
                 rb.SetValue(True)
-            
-    
+
     def get_selected(self):
         for rb in self.group:
             if rb.GetValue():
@@ -480,9 +476,9 @@ class CookieOptionsPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Use Browser Cookies")
         for rb in self.group:
-            hs = hboxsizer()
-            hs.Add(rb, 1, wx.ALL|wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+            hs = wx.BoxSizer(wx.HORIZONTAL)
+            hs.Add(rb, 1, wx.ALL | wx.EXPAND, 0)
+            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
             box.AddSpacer(10)
         self.SetSizer(box)
 
@@ -490,7 +486,7 @@ class CookieOptionsPanel(wx.Panel):
         # iterate through the browser cookie dict
         for index, key in enumerate(cookies.keys()):
             self.group[index].SetValue(cookies[key])
-    
+
     def get_group(self):
         d = {}
         for radiobutton in self.group:
@@ -498,6 +494,7 @@ class CookieOptionsPanel(wx.Panel):
             value = bool(radiobutton.GetValue())
             d[key] = value
         return d
+
 
 class SaveFolderPanel(wx.Panel):
 
@@ -509,14 +506,14 @@ class SaveFolderPanel(wx.Panel):
 
         btn_dir.Bind(wx.EVT_BUTTON, self.on_dir_button, btn_dir)
 
-        hs = hboxsizer()
-        hs.Add(self.text, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.text, 1, wx.ALL | wx.EXPAND, 0)
         hs.AddSpacer(10)
-        hs.Add(btn_dir, 0, wx.ALL|wx.EXPAND, 0)
+        hs.Add(btn_dir, 0, wx.ALL | wx.EXPAND, 0)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Save Path")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(box)
-    
+
     def on_dir_button(self, evt):
         dlg = wx.DirDialog(
             self,
@@ -545,26 +542,26 @@ class SaveOptionsPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Folder Options")
 
-        hs = vboxsizer()
-        hs.Add(self.chk_unique_path, 1, wx.ALL|wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.VERTICAL)
+        hs.Add(self.chk_unique_path, 1, wx.ALL | wx.EXPAND, 0)
+        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
         box.AddSpacer(30)
-        hs = hboxsizer()
-        hs.Add(self.chk_prefixed_name, 1, wx.ALL|wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
-        hs = hboxsizer()
-        hs.Add(self.txt_prefixed_name, 1, wx.ALL|wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND|wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.chk_prefixed_name, 1, wx.ALL | wx.EXPAND, 0)
+        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.txt_prefixed_name, 1, wx.ALL | wx.EXPAND, 0)
+        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
 
         self.SetSizer(box)
-    
+
     def on_prefix_checkbox(self, evt):
         if evt.Selection:
             self.txt_prefixed_name.Enable(True)
         else:
             self.txt_prefixed_name.Enable(False)
-    
-    def set_options(self, unique_path_enabled, 
+
+    def set_options(self, unique_path_enabled,
                     gen_filename_enabled, gen_filename):
         self.chk_unique_path.SetValue(unique_path_enabled)
         self.chk_prefixed_name.SetValue(gen_filename_enabled)
@@ -573,21 +570,21 @@ class SaveOptionsPanel(wx.Panel):
             self.txt_prefixed_name.Enable(True)
         else:
             self.txt_prefixed_name.Enable(False)
-        
+
 
 class MaxConnectionsPanel(wx.Panel):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.slider = wx.Slider(self, 
-                                -1, 10, 1, 30, 
-                                style=wx.SL_HORIZONTAL|wx.SL_MIN_MAX_LABELS|wx.SL_LABELS)
+        self.slider = wx.Slider(self,
+                                -1, 10, 1, 30,
+                                style=wx.SL_HORIZONTAL | wx.SL_MIN_MAX_LABELS | wx.SL_LABELS)
 
-        hs = hboxsizer()
-        hs.Add(self.slider, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.slider, 1, wx.ALL | wx.EXPAND, 0)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Maximum Connections")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(box)
 
 
@@ -599,12 +596,12 @@ class FormSearchPanel(wx.Panel):
         self.chk_enable = wx.CheckBox(self, -1, "Enable")
         self.chk_include_host = wx.CheckBox(self, -1, "Include Forms from original Host")
 
-        hs = hboxsizer()
-        hs.Add(self.chk_enable, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.chk_enable, 0, wx.EXPAND | wx.ALL, STATIC_BOX_BORDER)
         hs.AddSpacer(DIALOG_BORDER)
-        hs.Add(self.chk_include_host, 0, wx.EXPAND|wx.ALL, STATICBOX_BORDER)
+        hs.Add(self.chk_include_host, 0, wx.EXPAND | wx.ALL, STATIC_BOX_BORDER)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Forms (can be slow)")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
 
         self.SetSizer(box)
 
@@ -617,10 +614,10 @@ class ThumbnailOnlyPanel(wx.Panel):
         self.checkbox = wx.CheckBox(self, -1, "")
         self.checkbox.SetValue(True)
 
-        hs = hboxsizer()
-        hs.Add(self.checkbox, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Thumbnail Links only")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(box)
 
 
@@ -630,28 +627,28 @@ class MinWidthHeightPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.text_width = masked.NumCtrl(self,
-                                      -1, 
-                                      200,
-                                      integerWidth=5, 
-                                      allowNegative=False)
-        
+                                         -1,
+                                         200,
+                                         integerWidth=5,
+                                         allowNegative=False)
+
         self.text_height = masked.NumCtrl(self,
-                                        -1, 
-                                        200,
-                                        integerWidth=5, 
-                                        allowNegative=False)
+                                          -1,
+                                          200,
+                                          integerWidth=5,
+                                          allowNegative=False)
 
         label = wx.StaticText(self, -1, "x")
 
-        hs = hboxsizer()
-        hs.Add(self.text_width, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.text_width, 1, wx.ALL | wx.EXPAND, 0)
         hs.AddSpacer(10)
         hs.Add(label, 0, wx.ALIGN_BOTTOM, 0)
         hs.AddSpacer(10)
-        hs.Add(self.text_height, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.text_height, 1, wx.ALL | wx.EXPAND, 0)
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Minimum Resolution Size (width, height)")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(box)
 
     def set_min_values(self, width, height):
@@ -666,19 +663,19 @@ class TimeoutPanel(wx.Panel):
 
         MAX_TIMEOUT = 60
 
-        choices = list(map(lambda x: str(x+1), range(MAX_TIMEOUT)))
+        choices = list(map(lambda x: str(x + 1), range(MAX_TIMEOUT)))
 
         self.choice = wx.Choice(self, -1,
                                 choices=choices)
-        
+
         self.choice.SetSelection(6)
 
-        hs = hboxsizer()
-        hs.Add(self.choice, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.choice, 1, wx.ALL | wx.EXPAND, 0)
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Timeout")
-        box.Add(hs, 1, wx.EXPAND|wx.ALL, 0)
+        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
         self.SetSizer(box)
-    
+
     def set_timeout(self, timeout):
         if timeout > 0 and timeout <= 60:
             self.choice.SetSelection(timeout)
@@ -689,7 +686,7 @@ class FilterPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.listbox = wx.ListBox(self, -1, choices=[], style=wx.LB_SINGLE|wx.LB_SORT)
+        self.listbox = wx.ListBox(self, -1, choices=[], style=wx.LB_SINGLE | wx.LB_SORT)
         self.textctrl = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
         self.checkbox = wx.CheckBox(self, -1, "Enable")
         btn_all = wx.Button(self, -1, "Delete All")
@@ -697,26 +694,26 @@ class FilterPanel(wx.Panel):
         btn_add = wx.Button(self, -1, "Add")
         btn_add.Bind(wx.EVT_BUTTON, self.on_add, btn_add)
         btn_remove.Bind(wx.EVT_BUTTON, self.on_remove, btn_remove)
-        btn_all.Bind(wx.EVT_BUTTON, lambda evt : self.listbox.Clear(), btn_all)
-        self.textctrl.Bind(wx.EVT_TEXT_ENTER, lambda evt : self.on_add(None), self.textctrl)
+        btn_all.Bind(wx.EVT_BUTTON, lambda evt: self.listbox.Clear(), btn_all)
+        self.textctrl.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.on_add(None), self.textctrl)
 
         sbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Filters")
-        hs = hboxsizer()
-        hs.Add(self.listbox, 1, wx.ALL|wx.EXPAND, 0)
-        sbox.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.listbox, 1, wx.ALL | wx.EXPAND, 0)
+        sbox.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
         sbox.AddSpacer(10)
-        hs = hboxsizer()
-        hs.Add(self.textctrl, 1, wx.ALL|wx.EXPAND, 0)
-        sbox.Add(hs, 0, wx.ALL|wx.EXPAND, 0)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.textctrl, 1, wx.ALL | wx.EXPAND, 0)
+        sbox.Add(hs, 0, wx.ALL | wx.EXPAND, 0)
         sbox.AddSpacer(10)
-        hs = hboxsizer()
+        hs = wx.BoxSizer(wx.HORIZONTAL)
         for w in (btn_all, btn_remove, btn_add, self.checkbox):
             hs.Add(w, 0, wx.ALIGN_CENTER, 0)
             hs.AddSpacer(10)
         sbox.Add(hs, 0, wx.ALIGN_CENTER, 0)
         sbox.AddSpacer(10)
         self.SetSizer(sbox)
-    
+
     def on_add(self, evt):
         text = self.textctrl.GetValue()
         if text:
@@ -727,11 +724,11 @@ class FilterPanel(wx.Panel):
                 dlg = wx.MessageDialog(self, "Duplicate entry found", "Nope", wx.OK | wx.CENTER | wx.ICON_EXCLAMATION)
                 dlg.ShowModal()
                 dlg.Destroy()
-    
+
     def on_remove(self, evt):
         index = self.listbox.GetSelection()
         if index is not wx.NOT_FOUND:
-            self.listbox.Delete(index) 
+            self.listbox.Delete(index)
 
 
 class CachePanel(wx.Panel):
@@ -740,16 +737,16 @@ class CachePanel(wx.Panel):
         super().__init__(*args, **kw)
 
         app = wx.GetApp()
-        
+
         btn_delete = wx.Button(self, -1, "Clear Cache")
         self.Bind(wx.EVT_BUTTON, self.on_clear_cache, btn_delete)
         btn_delete.SetBitmap(app.bitmaps["delete"], wx.LEFT)
         btn_delete.SetBitmapMargins((2, 2))
         btn_delete.SetInitialSize()
-    
+
     def on_clear_cache(self, evt):
-        dlg = wx.MessageDialog(self, "Are you sure you want to delete the Cache?", "Delete Cache?", 
-        style=wx.CANCEL | wx.OK | wx.CENTER)
+        dlg = wx.MessageDialog(self, "Are you sure you want to delete the Cache?", "Delete Cache?",
+                               style=wx.CANCEL | wx.OK | wx.CENTER)
         if dlg.ShowModal() == wx.ID_OK:
             if os.path.exists(SQL_PATH):
                 os.remove(SQL_PATH)
@@ -765,13 +762,13 @@ class OkCancelPanel(wx.Panel):
         btn_cancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
         btn_ok = wx.Button(self, wx.ID_OK, "Save")
 
-        hs = hboxsizer()
+        hs = wx.BoxSizer(wx.HORIZONTAL)
 
         hs.Add(btn_cancel, 0, wx.ALIGN_CENTER, 0)
         hs.AddSpacer(10)
         hs.Add(btn_ok, 0, wx.ALIGN_CENTER, 0)
 
-        vs = vboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
         vs.Add(hs, 1, wx.ALIGN_CENTER, 0)
 
         self.SetSizer(vs)

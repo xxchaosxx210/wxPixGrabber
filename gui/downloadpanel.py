@@ -1,14 +1,10 @@
 import wx
 
-from gui.theme import (
-    WX_BORDER,
-    vboxsizer,
-    hboxsizer
-)
 from gui.statustreeview import StatusTreeView
-
 from crawler.message import Message
 import crawler.message as const
+
+BORDER = 5
 
 
 class DownloadPanel(wx.Panel):
@@ -35,27 +31,27 @@ class DownloadPanel(wx.Panel):
         vs = wx.BoxSizer(wx.VERTICAL)
         
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.addressbar, 1, wx.EXPAND|wx.ALL, WX_BORDER)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
+        hs.Add(self.addressbar, 1, wx.EXPAND|wx.ALL, BORDER)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.treeview, 1, wx.EXPAND|wx.ALL, WX_BORDER)
-        vs.Add(hs, 1, wx.EXPAND|wx.ALL, WX_BORDER)
+        hs.Add(self.treeview, 1, wx.EXPAND|wx.ALL, BORDER)
+        vs.Add(hs, 1, wx.EXPAND|wx.ALL, BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.AddSpacer(WX_BORDER)
+        hs.AddSpacer(BORDER)
         hs.Add(btn_detach, 0, wx.EXPAND|wx.ALL, 0)
         hs.AddStretchSpacer(1)
         hs.Add(self.errors, 0, wx.EXPAND|wx.ALL, 2)
-        hs.AddSpacer(WX_BORDER)
+        hs.AddSpacer(BORDER)
         hs.Add(self.ignored, 0, wx.EXPAND|wx.ALL, 2)
-        hs.AddSpacer(WX_BORDER)
+        hs.AddSpacer(BORDER)
         hs.Add(self.imgsaved, 0, wx.EXPAND|wx.ALL, 2)
         vs.Add(hs, 0, wx.EXPAND|wx.ALL, 2)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.progressbar, 1, wx.EXPAND|wx.ALL, WX_BORDER)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, WX_BORDER)
+        hs.Add(self.progressbar, 1, wx.EXPAND|wx.ALL, BORDER)
+        vs.Add(hs, 0, wx.EXPAND|wx.ALL, BORDER)
 
         self.SetSizer(vs)
     
@@ -129,7 +125,7 @@ class AddressBar(wx.Panel):
         self.set_help_text(self.txt_address, "Enter a Url or File path to go fetch")
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
-        vs = vboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
 
         hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Url or HTML File")
         hs.Add(self.txt_address, 1, wx.ALL|wx.EXPAND, 0)
@@ -160,10 +156,10 @@ class StatsPanel(wx.Panel):
         lbl = wx.StaticText(self, -1, stat_name)
         self.value = wx.StaticText(self, -1, stat_value)
 
-        vs = vboxsizer()
-        hs = hboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
+        hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(lbl, 1, wx.ALL|wx.EXPAND, 0)
-        hs.AddSpacer(WX_BORDER)
+        hs.AddSpacer(BORDER)
         hs.Add(self.value, 1, wx.ALL|wx.EXPAND, 0)
         vs.Add(hs, 1, wx.ALL|wx.EXPAND)
         self.SetSizer(vs)
@@ -189,13 +185,13 @@ class ProgressPanel(wx.Panel):
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
 
-        vs = vboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
         vs.Add(self.gauge, 1, wx.EXPAND|wx.ALL, 0)
         box.Add(vs, 1, wx.ALL|wx.EXPAND, 0)
 
-        box.AddSpacer(WX_BORDER)
+        box.AddSpacer(BORDER)
 
-        vs = vboxsizer()
+        vs = wx.BoxSizer(wx.VERTICAL)
         vs.Add(self.time, 1, wx.EXPAND|wx.ALL, 0)
         box.Add(vs, 0, wx.ALL|wx.EXPAND, 0)
 
@@ -208,5 +204,3 @@ class ProgressPanel(wx.Panel):
     def increment(self):
         value = self.gauge.GetValue()
         self.gauge.SetValue(value + 1)
-
-        
