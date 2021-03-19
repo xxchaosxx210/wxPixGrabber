@@ -1,7 +1,7 @@
 import wx
 import webbrowser
 
-import crawler.constants as const
+import crawler.message as const
 
 class StatusTreeView(wx.TreeCtrl):
 

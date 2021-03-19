@@ -7,8 +7,8 @@ from gui.theme import (
 )
 from gui.statustreeview import StatusTreeView
 
-from crawler.constants import CMessage as Message
-import crawler.constants as const
+from crawler.message import Message
+import crawler.message as const
 
 
 class DownloadPanel(wx.Panel):
@@ -69,15 +69,15 @@ class DownloadPanel(wx.Panel):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
             self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, id=0, status=const.STATUS_OK, data=data))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, _id=0, status=const.STATUS_OK, data=data))
 
     def on_start_button(self, evt):
         self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data=None, id=0))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data=None, _id=0))
 
     def on_stop_button(self, evt):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data=None, id=0, status=const.STATUS_OK))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data=None, _id=0, status=const.STATUS_OK))
     
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(

@@ -15,7 +15,7 @@ from resources.globals import (
 )
 
 from crawler.commander import create_commander
-import crawler.constants as const
+import crawler.message as const
 from crawler.server import server_process
 from crawler.options import setup as setup_options
 

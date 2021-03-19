@@ -11,9 +11,8 @@ import crawler.mime as mime
 
 from crawler.task import Grunt
 
-from crawler.constants import CMessage as Message
-from crawler.constants import CommanderProperties
-import crawler.constants as const
+from crawler.message import Message
+import crawler.message as const
 
 from crawler.types import (
     Blacklist,
@@ -32,6 +31,21 @@ _Log = logging.getLogger(__name__)
 class Commander:
     thread: threading.Thread
     queue: mp.Queue
+
+
+class CommanderProperties:
+
+    def __init__(self, settings=None, scanned_urls=[], blacklist=None, counter=0, cancel_all=None,
+                 task_running=0, tasks=[], quit_thread=None, time_counter=0.0):
+        self.settings = settings
+        self.scanned_urls = scanned_urls
+        self.blacklist = blacklist
+        self.counter = counter
+        self.cancel_all = cancel_all
+        self.task_running = task_running
+        self.tasks = tasks
+        self.quit_thread = quit_thread
+        self.time_counter = time_counter
 
 
 def tasks_alive(tasks):
@@ -104,7 +118,7 @@ def _thread(main_queue, msgbox):
 
     main_queue.put_nowait(Message(
         thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
-        status=const.STATUS_OK, id=0,
+        status=const.STATUS_OK, _id=0,
         data={"message": "Commander thread has loaded. Waiting to scan"}))
 
     props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(), cancel_all=mp.Event(),
@@ -123,7 +137,7 @@ def _thread(main_queue, msgbox):
                     props.cancel_all.set()
                     main_queue.put(
                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
-                                id=0, data=None))
+                                _id=0, data=None))
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
                     if not props.task_running:
@@ -143,7 +157,7 @@ def _thread(main_queue, msgbox):
                         props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
                         # notify main thread so can intialize UI
                         main_queue.put_nowait(
-                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, id=0,
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, _id=0,
                                     status=const.STATUS_OK,
                                     data=None))
                 elif r.event == const.EVENT_FETCH:
@@ -154,7 +168,7 @@ def _thread(main_queue, msgbox):
                         urldata = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
-                            status=const.STATUS_OK, id=0, data={"message": f"Connecting to {r.data['url']}..."}))
+                            status=const.STATUS_OK, _id=0, data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
                             webreq = options.load_from_file(r.data["url"])
                             if not webreq:
@@ -187,12 +201,12 @@ def _thread(main_queue, msgbox):
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
-                                                status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
+                                                status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
                                                                                     "title": html_title,
                                                                                     "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
-                                        Message(thread=const.THREAD_COMMANDER, id=0,
+                                        Message(thread=const.THREAD_COMMANDER, _id=0,
                                                 data={"message": "No Links Found :("}, status=const.STATUS_OK,
                                                 event=const.EVENT_MESSAGE))
                             webreq.close()
@@ -200,12 +214,12 @@ def _thread(main_queue, msgbox):
                             # couldnt connect
                             main_queue.put_nowait(Message(
                                 thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
-                                id=0, data={"message": err.__str__(), "url": r.data["url"]}))
+                                _id=0, data={"message": err.__str__(), "url": r.data["url"]}))
                     else:
                         # Task still running ignore request
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
-                            id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
+                            _id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
 
                 elif r.event == const.EVENT_CANCEL:
                     props.cancel_all.set()
@@ -229,16 +243,16 @@ def _thread(main_queue, msgbox):
                                              filters=filters) > 0:
                             main_queue.put_nowait(
                                 Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
-                                        status=const.STATUS_OK, id=0, data={"urls": props.scanned_urls,
+                                        status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
                                                                             "title": html_title, "url": r.data["url"]}))
                             # Message ourselves and start the search
                             msgbox.put_nowait(
                                 Message(thread=const.THREAD_MAIN, event=const.EVENT_START,
-                                        status=const.STATUS_OK, data=None, id=0))
+                                        status=const.STATUS_OK, data=None, _id=0))
                         else:
                             # Nothing found notify main thread
                             main_queue.put_nowait(
-                                Message(thread=const.THREAD_COMMANDER, id=0, data={"message": "No Links Found :("},
+                                Message(thread=const.THREAD_COMMANDER, _id=0, data={"message": "No Links Found :("},
                                         status=const.STATUS_OK,
                                         event=const.EVENT_MESSAGE))
 
@@ -264,7 +278,7 @@ def _thread(main_queue, msgbox):
                         blacklist_added = False
                     grunt.msgbox.put(Message(
                         thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
-                        status=const.STATUS_OK, data={"added": blacklist_added}, id=0
+                        status=const.STATUS_OK, data={"added": blacklist_added}, _id=0
                     ))
                 else:
                     # something pass onto main thread
@@ -282,7 +296,7 @@ def _thread(main_queue, msgbox):
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
                     main_queue.put_nowait(Message(
                         thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE,
-                        id=0, status=const.STATUS_OK, data=None))
+                        _id=0, status=const.STATUS_OK, data=None))
                     _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout

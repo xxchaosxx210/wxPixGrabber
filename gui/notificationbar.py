@@ -1,5 +1,8 @@
 import wx
-from geometry.vector import Vector
+from geometry.vector import (
+    Vector,
+    length
+)
 import time
 import threading
 
@@ -35,9 +38,9 @@ class NotificationBar(wx.Frame):
         self._timer.Start(1000/60)
     
     def _loop(self, evt):
-        p = self._svector - self._cvector
-        length = p.length()
-        if length <= 5:
+        diff = self._svector - self._cvector
+        vec_length = length(diff)
+        if vec_length <= 5:
             threading.Thread(target=self._on_kill).start()
             self._timer.Stop()
         else:

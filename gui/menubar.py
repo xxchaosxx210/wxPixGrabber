@@ -18,8 +18,8 @@ from crawler.options import (
     use_profile
 )
 
-import crawler.constants as const
-from crawler.constants import CMessage as Message
+import crawler.message as const
+from crawler.message import Message
 
 _Log = logging.getLogger()
 
@@ -126,7 +126,6 @@ class PixGrabberMenuBar(wx.MenuBar):
         selected_profile = list(filter(lambda p : p.name == settings["profile-name"], self._profile_ids))[0]
         self.profiles_submenu.Check(selected_profile.id, True)
 
-
     def _on_load_profile(self, evt):
         name = evt.GetEventObject().GetLabelText(evt.Id)
         use_profile(name)
@@ -135,7 +134,7 @@ class PixGrabberMenuBar(wx.MenuBar):
     def _on_debug(self, evt):
         self.app.commander.queue.put_nowait(
                 Message(thread=const.THREAD_MAIN, 
-                        event=const.EVENT_FETCH, id=0, 
+                        event=const.EVENT_FETCH, _id=0,
                         status=const.STATUS_OK, 
                         data={"url": "http://localhost:5000/setup_test"}))
 

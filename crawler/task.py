@@ -13,23 +13,25 @@ import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
 
-from crawler.constants import CMessage as Message
+from crawler.message import Message
 
-import crawler.constants as const
+import crawler.message as const
 
 from crawler.webrequest import (
     request_from_url,
     load_cookies
 )
 
+
 def stream_to_file(path, bytes_stream):
     with open(path, "wb") as fp:
         fp.write(bytes_stream.getbuffer())
         fp.close()
         return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_OK, id=0, data={"message": "image saved", "url": path})
+                       status=const.STATUS_OK, _id=0, data={"message": "image saved", "url": path})
     return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_ERROR, id=0, data={"message": "Unable to write to file", "url": path})
+                       status=const.STATUS_ERROR, _id=0, data={"message": "Unable to write to file", "url": path})
+
 
 def _response_to_stream(response):
     # read from requests object
@@ -38,6 +40,7 @@ def _response_to_stream(response):
     for buff in response.iter_content(1000):
         byte_stream.write(buff)
     return byte_stream
+
 
 def create_save_path(settings):
     """
@@ -62,10 +65,11 @@ def create_save_path(settings):
         path = settings["save_path"]
     return path
 
+
 def download_image(filename, response, settings):
 
-    message = Message(thread=const.THREAD_TASK, id=0, status=const.STATUS_IGNORED,
-                          event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
+    message = Message(thread=const.THREAD_TASK, _id=0, status=const.STATUS_IGNORED,
+                      event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
 
     byte_stream = _response_to_stream(response)
     # check the image size is within our bounds
@@ -106,6 +110,7 @@ def download_image(filename, response, settings):
 
     return message
 
+
 class Grunt(mp.Process):
 
     """
@@ -142,7 +147,7 @@ class Grunt(mp.Process):
         if image then save
         """
         self.comm_queue.put_nowait(Message(thread=const.THREAD_TASK, event=const.EVENT_SEARCHING,
-                                   id=self.task_index, status=const.STATUS_OK, data=None))
+                                   _id=self.task_index, status=const.STATUS_OK, data=None))
         # intialize the list containing UrlData objects
         datalist = []
         # check the file extension
@@ -182,14 +187,14 @@ class Grunt(mp.Process):
             except UnidentifiedImageError as err:
                 # Couldnt load the Image from Stream
                 self.comm_queue.put_nowait(Message(
-                    thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": err.__str__()},
+                    thread=const.THREAD_TASK, _id=self.task_index, data={"url": response.url, "message": err.__str__()},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
             return []
         else:
             if not cache.query_ignore(response.url):
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
                 self.comm_queue.put_nowait(Message(
-                    thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": "Unknown File Type"},
+                    thread=const.THREAD_TASK, _id=self.task_index, data={"url": response.url, "message": "Unknown File Type"},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_IGNORED))
         return datalist
     
@@ -203,7 +208,7 @@ class Grunt(mp.Process):
             thread=const.THREAD_TASK,
             event=const.EVENT_BLACKLIST,
             data={"index": self.task_index, "urldata": urldata, "url": urldata.url},
-            id=self.task_index, status=const.STATUS_OK
+            _id=self.task_index, status=const.STATUS_OK
         ))
         reply = self.msgbox.get()
         return reply.data["added"]
@@ -220,7 +225,7 @@ class Grunt(mp.Process):
             self.comm_queue.put_nowait(
                     Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE, 
                             data={"url": urldata.url, "message": err.__str__()},
-                            id=self.task_index, status=const.STATUS_ERROR))  
+                            _id=self.task_index, status=const.STATUS_ERROR))
             return []
         resp.close()
         return urllist
@@ -229,12 +234,12 @@ class Grunt(mp.Process):
         if not self.cancel.is_set():
             self.cookiejar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
-                Message(thread=const.THREAD_TASK, 
-                id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data={"url": self.urldata.url}))
+                Message(thread=const.THREAD_TASK,
+                        _id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data={"url": self.urldata.url}))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
-                ## Level 1
+                # Level 1
                 level_one_urls = self.follow_url(self.urldata)
                 for level_one_urldata in level_one_urls:
                     if self.add_url(level_one_urldata):
@@ -253,4 +258,4 @@ class Grunt(mp.Process):
     def notify_finished(self, status, message):
         self.comm_queue.put_nowait(Message(
                 thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED, 
-                id=self.task_index, data={"message": message, "url": self.urldata.url}))
+                _id=self.task_index, data={"message": message, "url": self.urldata.url}))

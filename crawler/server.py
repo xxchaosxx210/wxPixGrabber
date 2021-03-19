@@ -2,8 +2,8 @@ import http.server
 import json
 import base64
 
-import crawler.constants as const
-from crawler.constants import CMessage as Message
+import crawler.message as const
+from crawler.message import Message
 
 import os
 from urllib.request import urljoin
@@ -136,7 +136,7 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
             _ServerHandler.queue.put_nowait(Message(
                     thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
                     status=const.STATUS_OK, data={"html": html, 
-                    "url": url}, id=0))
+                    "url": url}, _id=0))
             self.send_response(200)
             self.end_headers()
         else:

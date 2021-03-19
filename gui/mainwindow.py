@@ -5,8 +5,8 @@ from gui.menubar import PixGrabberMenuBar
 from gui.notificationbar import NotificationBar
 from gui.detachprogress import DetachableFrame
 
-from crawler.constants import CMessage as Message
-import crawler.constants as const
+from crawler.message import Message
+import crawler.message as const
 
 import crawler.options as options
 
@@ -14,6 +14,7 @@ from timer import (
     create_timer_thread,
     timer_quit
 )
+
 
 class MainWindow(wx.Frame):
 
@@ -59,7 +60,7 @@ class MainWindow(wx.Frame):
         timer_quit.set()
         self.detached_frame.Destroy()
         self.app.commander.queue.put(Message(
-            thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data=None, status=const.STATUS_OK))
+            thread=const.THREAD_MAIN, event=const.EVENT_QUIT, _id=0, data=None, status=const.STATUS_OK))
         self.app.commander.thread.join()
         evt.Skip()
     
@@ -82,7 +83,6 @@ class MainWindow(wx.Frame):
             # ALL TASKS COMPLETED
             elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
-                #self.dldpanel.treeview.ExpandAll()
 
             # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
