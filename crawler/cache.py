@@ -1,18 +1,16 @@
-___description__ ="""
+import sqlite3
+import time
+import logging
+from sqlite3 import Error
+
+import crawler.options as options
+
+___description__ = """
 cache.py
 
 uses sqlite to store ignored images and broken links
 this will optimize the performance of the scraper searches
 """
-
-import sqlite3
-import time
-
-from sqlite3 import Error
-
-import crawler.options as options
-
-import logging
 
 _Log = logging.getLogger(__name__)
 
@@ -42,7 +40,8 @@ def initialize_ignore():
     conn = _create_connection(options.SQL_PATH)
     if conn:
         _create_table(conn, CACHE_TABLE)
-        conn.close()  
+        conn.close()
+
 
 def add_ignore(url, reason, width, height):
     """Add an entry into ignore table
@@ -59,7 +58,8 @@ def add_ignore(url, reason, width, height):
     if conn:
         _add_entry(conn, url, reason, width, height)
         conn.close()
-    
+
+
 def delete_ignore(url):
     """Delete entry with a url that matches in the database
 
@@ -69,7 +69,8 @@ def delete_ignore(url):
     conn = _create_connection(options.SQL_PATH)
     if conn:
         _delete_entries(conn, url)
-        
+
+
 def query_ignore(url):
     """Checks if a url is in the database
 
@@ -87,6 +88,7 @@ def query_ignore(url):
         rows = cur.fetchall()
         conn.close()
     return rows
+
 
 def check_cache_for_image(url, settings):
     """
@@ -109,6 +111,7 @@ def check_cache_for_image(url, settings):
                 return True
     return False
 
+
 def _create_connection(dbpath):
     """
     create_connection(str)
@@ -121,6 +124,7 @@ def _create_connection(dbpath):
     except Error as err:
         _Log.error(err.__str__())
     return conn
+
 
 def _add_entry(conn, url, reason, width, height):
     values = (
@@ -137,10 +141,12 @@ def _add_entry(conn, url, reason, width, height):
 
     return cur.lastrowid
 
+
 def _delete_entries(conn, url):
     cur = conn.cursor()
     cur.execute(QUERY_DELETE_IGNORE, (url,))
     conn.commit()
+
 
 def _create_table(conn, sql_table):
     try:

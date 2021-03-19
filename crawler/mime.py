@@ -1,5 +1,6 @@
-__description__ = "checks mime type and returns true"
-__version__ = "0.1"
+"""
+Checks mime type based on extension
+"""
 
 import os
 import re
@@ -43,6 +44,7 @@ extensions = {
     EXT_TIFF: TYPES_TIFF[0], 
     EXT_TIF: TYPES_TIFF[0]}
 
+
 def guess_mime_from_ext(extension):
     """get the content-type from the file extension
 
@@ -54,32 +56,42 @@ def guess_mime_from_ext(extension):
     """
     return extensions.get(extension, "unknown")
 
+
 def is_jpeg(mime_type):
     return mime_type in TYPES_JPEG
+
 
 def is_gif(mime_type):
     return mime_type == TYPE_GIF
 
+
 def is_html(mime_type):
     return TYPE_HTML in mime_type
+
 
 def is_icon(mime_type):
     return mime_type == TYPE_ICON
 
+
 def is_bitmap(mime_type):
     return mime_type in TYPES_BITMAP
+
 
 def is_octet_stream(mime_type):
     return mime_type == TYPE_OCTET_STREAM
 
+
 def is_png(mime_type):
     return mime_type == TYPE_PNG
+
 
 def is_tiff(mime_type):
     return mime_type in TYPES_TIFF
 
+
 def is_tga(mime_type):
     return mime_type == TYPE_TGA
+
 
 def is_valid_content_type(url, content_type, valid_types):
     """Checks the MIME type to make sure it matches with a valid type either HTML or Image

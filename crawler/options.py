@@ -1,6 +1,6 @@
 """
-this file can be added to other projects and modified
-loads and saves text on all platforms
+deals with the settings file and handles file operations.
+also contains functions for handling Profile Settings
 """
 
 import os
@@ -15,13 +15,8 @@ from collections import namedtuple
 from crawler.mime import IMAGE_EXTS
 
 DEBUG = True
-
 VERSION = "0.1"
-
 DATE = "March 2021"
-
-# Get settings folder path
-
 APP_NAME = "pixgrabber"
 
 if os.name == "nt":
@@ -31,10 +26,8 @@ else:
 
 SETTINGS_PATH = os.path.join(PATH, "settings.json")
 DEFAULT_PICTURE_PATH = "Pictures"
-
 PROFILES_PATH = os.path.join(PATH, "profiles")
 PROFILE_EXT = ".pro"
-
 SQL_PATH = os.path.join(PATH, "cache.db")
 
 _FILTER_SEARCH = [
@@ -77,6 +70,7 @@ DEFAULT_SETTINGS = {
     "auto-download": False
     }
 
+
 def setup():
     """call this at start of main script
     """
@@ -87,6 +81,7 @@ def setup():
     save_settings(load_settings())
     if not load_profiles():
         save_profile(load_settings())
+
 
 def load_settings():
     """
@@ -101,14 +96,17 @@ def load_settings():
             settings = json.loads(fp.read())
     return settings
 
+
 def save_settings(settings):
     _check_path_exists()
     with open(SETTINGS_PATH, "w") as fp:
         fp.write(json.dumps(settings))
 
+
 def _check_path_exists():
     if not os.path.exists(PATH):
         os.mkdir(PATH)
+
 
 def format_filename(s):
     """Take a string and return a valid filename constructed from the string.
@@ -126,6 +124,7 @@ def format_filename(s):
     filename = filename.replace(' ','_') # I don't like spaces in filenames.
     return filename
 
+
 def assign_unique_name(url, title):
     """
     assign_unique_name(str, str)
@@ -139,6 +138,7 @@ def assign_unique_name(url, title):
     settings = load_settings()
     settings["unique_pathname"]["name"] = format_filename(title)
     save_settings(settings)
+
 
 def url_to_filename(url, ext):
     """strips the url and converts the last path name which is normally the filename
@@ -167,6 +167,7 @@ def url_to_filename(url, ext):
                 return filename
     return ""
 
+
 def rename_file(path):
     """checks the file for a match in the path. Creates a unique filename until no match is found
 
@@ -186,6 +187,7 @@ def rename_file(path):
             path = os.path.join(splitpath[0], filename)
             index += 1
     return path
+
 
 def image_exists(path, stream_bytes):
     """scans the path for images and checks the checksum of the stream_bytes and file_bytes
@@ -212,6 +214,7 @@ def image_exists(path, stream_bytes):
                             return entry.path
     return None
 
+
 def load_from_file(url):
     """bit of a patch to mimick the requests handle using a namedtuple
     no code broken and fits in ok
@@ -233,6 +236,7 @@ def load_from_file(url):
                     lambda *args: args)
     return fake_request
 
+
 def load_profiles():
     """loads all profile settings from profile dir
 
@@ -250,6 +254,7 @@ def load_profiles():
 
     return profiles
 
+
 def save_profile(settings):
     """Creates a profile json file using settings["profile-name"] in the profiles dir
 
@@ -261,6 +266,7 @@ def save_profile(settings):
     path = os.path.join(PROFILES_PATH, settings["profile-name"] + PROFILE_EXT)
     with open(path, "w") as fp:
         fp.write(json.dumps(settings))
+
 
 def use_profile(name):
     """loads the profile associated with name. Makes a copy of it and saves it to settings.json. 
@@ -285,6 +291,7 @@ def use_profile(name):
                         return True
     return False
 
+
 def delete_profile(name):
     """deletes the profile file. If deleted profile is used then load default profile settings instead
 
@@ -306,7 +313,6 @@ def delete_profile(name):
                 if name == settings["profile-name"]:
                     # it is so use default profile instead
                     save_settings(DEFAULT_SETTINGS)
-                    #use_profile(DEFAULT_SETTINGS["profile-name"])
                 return True
         
     return False
