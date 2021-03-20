@@ -217,8 +217,8 @@ def image_exists(path: str, stream_bytes: bytes) -> str:
     return ""
 
 
-def load_from_file(url: str):
-    """bit of a patch to mimick the requests handle using a namedtuple
+def load_from_file(url: str) -> tuple:
+    """bit of a patch to mimic the requests handle using a namedtuple
     no code broken and fits in ok
 
     Args:
@@ -227,16 +227,14 @@ def load_from_file(url: str):
     Returns:
         [tuple]: Requests namedtuple (text, url, headers, close) 
     """
-    fake_request = None
     if os.path.exists(url):
         _type, ext = mimetypes.guess_type(url)
         if "text/html" in _type:
             with open(url, "r") as fp:
                 html = fp.read()
-                fake_request = namedtuple("Request", ["text", "url", "headers", "close"])(
-                    html, "http://wasfromafile.com", {"Content-Type": _type},
-                    lambda *args: args)
-    return fake_request
+                return namedtuple("Request", ["text", "url", "headers", "close"])(
+                    html, "http://wasfromafile.com", {"Content-Type": _type}, lambda *args: args)
+    raise FileNotFoundError(f"unable to locate {url} on local disk")
 
 
 def load_profiles() -> list:

@@ -169,22 +169,22 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                             thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
                             status=const.STATUS_OK, _id=0, data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
-                            webreq = options.load_from_file(r.data["url"])
-                            if not webreq:
-                                webreq = request_from_url(urldata, cookiejar, props.settings)
-                            ext = mime.is_valid_content_type(
-                                r.data["url"],
-                                webreq.headers["Content-Type"],
-                                props.settings["images_to_search"])
+                            try:
+                                fetch_response = options.load_from_file(r.data["url"])
+                            except FileNotFoundError:
+                                fetch_response = request_from_url(urldata, cookiejar, props.settings)
+                            ext = mime.is_valid_content_type(r.data["url"],
+                                                             fetch_response.headers["Content-Type"],
+                                                             props.settings["images_to_search"])
                             if ext == mime.EXT_HTML:
-                                html_doc = webreq.text
+                                html_doc = fetch_response.text
                                 # parse the html
                                 soup = parsing.parse_html(html_doc)
                                 # get the url title
                                 # amd add a unique path name to the save path
                                 html_title = getattr(soup.find("title"), "text", "")
                                 options.assign_unique_name(
-                                    webreq.url, html_title)
+                                    fetch_response.url, html_title)
                                 # scrape links and images from document
                                 props.scanned_urls = []
                                 # find images and links
@@ -208,9 +208,9 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                                         Message(thread=const.THREAD_COMMANDER, _id=0,
                                                 data={"message": "No Links Found :("}, status=const.STATUS_OK,
                                                 event=const.EVENT_MESSAGE))
-                            webreq.close()
+                            fetch_response.close()
                         except Exception as err:
-                            # couldnt connect
+                            # couldn't connect
                             main_queue.put_nowait(Message(
                                 thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
                                 _id=0, data={"message": err.__str__(), "url": r.data["url"]}))
