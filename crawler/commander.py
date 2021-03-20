@@ -48,7 +48,7 @@ class CommanderProperties:
     time_counter: float
 
 
-def tasks_alive(tasks):
+def tasks_alive(tasks: list) -> list:
     """checks how many tasks are still running
 
     Args:
@@ -60,7 +60,7 @@ def tasks_alive(tasks):
     return list(filter(lambda grunt: grunt.is_alive(), tasks))
 
 
-def _reset_comm_props(properties):
+def _reset_comm_props(properties: CommanderProperties):
     properties.cancel_all.clear()
     properties.tasks = []
     properties.task_running = 0
@@ -68,7 +68,7 @@ def _reset_comm_props(properties):
     properties.time_counter = 0.0
 
 
-def _start_max_tasks(tasks, max_tasks, counter):
+def _start_max_tasks(tasks: list, max_tasks: int, counter: int) -> int:
     # This function will be called to start the Process Pool
     # returns an integer to how many Tasks have been started
     for th in tasks:
@@ -80,7 +80,7 @@ def _start_max_tasks(tasks, max_tasks, counter):
     return counter
 
 
-def create_commander(main_queue: mp.Queue):
+def create_commander(main_queue: mp.Queue) -> Commander:
     """main handler for starting and keeping track of worker tasks
 
     Args:
@@ -95,7 +95,7 @@ def create_commander(main_queue: mp.Queue):
         msg_queue)
 
 
-def _init_start(properties):
+def _init_start(properties: CommanderProperties) -> tuple:
     # initialize commander threads variables and return new objects
     properties.tasks = []
     properties.task_running = 1

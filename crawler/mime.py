@@ -31,21 +31,21 @@ TYPE_TGA = "image/tga"
 TYPES_TIFF = ("image/tiff", "image/x-tiff")
 
 extensions = {
-    EXT_JPG: TYPES_JPEG[0], 
-    EXT_JPEG: TYPES_JPEG[0], 
-    EXT_BMP: TYPES_BITMAP[0], 
+    EXT_JPG: TYPES_JPEG[0],
+    EXT_JPEG: TYPES_JPEG[0],
+    EXT_BMP: TYPES_BITMAP[0],
     EXT_GIF: TYPE_GIF,
-    EXT_HTML: TYPE_HTML, 
-    EXT_ICON: TYPE_ICON, 
+    EXT_HTML: TYPE_HTML,
+    EXT_ICON: TYPE_ICON,
     EXT_OCTET_STREAM: TYPE_OCTET_STREAM,
     ".a": TYPE_OCTET_STREAM,
-    EXT_PNG: TYPE_PNG, 
-    EXT_TGA: TYPE_TGA, 
-    EXT_TIFF: TYPES_TIFF[0], 
+    EXT_PNG: TYPE_PNG,
+    EXT_TGA: TYPE_TGA,
+    EXT_TIFF: TYPES_TIFF[0],
     EXT_TIF: TYPES_TIFF[0]}
 
 
-def guess_mime_from_ext(extension):
+def guess_mime_from_ext(extension: str):
     """get the content-type from the file extension
 
     Args:
@@ -93,7 +93,7 @@ def is_tga(mime_type):
     return mime_type == TYPE_TGA
 
 
-def is_valid_content_type(url, content_type, valid_types):
+def is_valid_content_type(url: str, content_type: str, valid_types: dict) -> str:
     """Checks the MIME type to make sure it matches with a valid type either HTML or Image
     if an application/octet-stream is encountered the extension is used from the Url instead
 
@@ -107,9 +107,9 @@ def is_valid_content_type(url, content_type, valid_types):
         [str]: returns the ext if a match is found or empty string if no match found
     """
 
-    # check file attachement first and get its type
+    # check file attachment first and get its type
     if is_octet_stream(content_type):
-        # file attachemnt use the extension from the url
+        # file attachment use the extension from the url
         try:
             content_type = guess_mime_from_ext(os.path.splitext(url)[1])
         except IndexError:
