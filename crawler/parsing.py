@@ -1,14 +1,17 @@
 import re
 from urllib import parse
+from bs4.element import Tag
 from bs4 import BeautifulSoup
 import logging
+from typing import Pattern
 
 from crawler.types import UrlData
 from crawler.mime import image_ext_pattern
 
 _Log = logging.getLogger(__name__)
 
-def compile_filter_list(filter_settings):
+
+def compile_filter_list(filter_settings) -> Pattern:
     """compiles a filter list into a regular expression pattern.
     Call this before, calling sort soup
 
@@ -25,7 +28,8 @@ def compile_filter_list(filter_settings):
     # search for everything
     return re.compile("^.*?$")
 
-def _construct_query_from_form(form):
+
+def _construct_query_from_form(form: Tag) -> dict:
     """looks for input tags from soup
 
     Args:
@@ -42,7 +46,8 @@ def _construct_query_from_form(form):
         data[name] = value
     return data
 
-def process_form(url, form):
+
+def process_form(url: str, form: Tag) -> UrlData:
     """constructs a UrlData object from form tag tree
 
     Args:
@@ -58,12 +63,13 @@ def process_form(url, form):
     submit_url = parse.urljoin(url, action)
     return UrlData(url=submit_url, action=action, method=req_type, data=data, tag="form")
 
-def parse_html(html):
-    #return BeautifulSoup(html, features="html.parser")
+
+def parse_html(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, "lxml")
 
-def sort_soup(url, soup, urls, include_forms,
-              images_only, thumbnails_only, filters):
+
+def sort_soup(url: str, soup: BeautifulSoup, urls: list, include_forms: bool,
+              images_only: bool, thumbnails_only: bool, filters: Pattern) -> int:
     """Filters for Anchor, Image and Forms in the HTML soup object
 
     Args:
@@ -88,44 +94,44 @@ def sort_soup(url, soup, urls, include_forms,
     if include_forms:
         # scan forms
         for form in soup.find_all("form"):
-            urldata = process_form(url, form)
-            urls.append(urldata)
+            url_data = process_form(url, form)
+            urls.append(url_data)
 
     ignore_list = []
     if not images_only:
         # search for links on document
-        atags = soup.find_all("a")
-        for atag in atags:
+        a_tags = soup.find_all("a")
+        for a_tag in a_tags:
             # make sure were not adding the same link as our url
-            if atag.get("href") != url:
+            if a_tag.get("href") != url:
                 if thumbnails_only:
-                    imgtag = atag.find("img")
-                    if imgtag:
-                        _appendlink(url, atag.get("href"), urls, "a", filters)
-                        ignore_list.append(imgtag.get("src"))
+                    img_tag = a_tag.find("img")
+                    if img_tag:
+                        _append_link(url, a_tag.get("href"), urls, "a", filters)
+                        ignore_list.append(img_tag.get("src"))
                 else:
-                    _appendlink(url, atag.get("href", ""), urls, "a", filters)
-    
+                    _append_link(url, a_tag.get("href", ""), urls, "a", filters)
+
     # search image tags
-    for imgtag in soup.find_all("img"):
+    for img_tag in soup.find_all("img"):
         if thumbnails_only:
             try:
                 # ignore the thumbnail images
-                ignore_list.index(imgtag.get("src"))
+                ignore_list.index(img_tag.get("src"))
             except ValueError:
-                # its not in our ignorelist
-                _appendlink(url, imgtag.get("src", ""), urls, "img", filters)
+                # its not in our ignore list
+                _append_link(url, img_tag.get("src", ""), urls, "img", filters)
         else:
-            _appendlink(url, imgtag.get("src", ""), urls, "img", filters)
+            _append_link(url, img_tag.get("src", ""), urls, "img", filters)
 
     # search images in meta data
-    for metatag in soup.find_all("meta", content=image_ext_pattern):
-        _appendlink(url, metatag.get("content", ""), urls, "img", filters)
-    
+    for meta_tag in soup.find_all("meta", content=image_ext_pattern):
+        _append_link(url, meta_tag.get("content", ""), urls, "img", filters)
+
     return len(urls)
 
 
-def _appendlink(full_url, src, url_data_list, tag, filters):
+def _append_link(full_url: str, src: str, url_data_list: list, tag: str, filters: Pattern):
     """appends Url to url_data_list if all patterns and filters match
 
     Args:
@@ -152,17 +158,17 @@ def _appendlink(full_url, src, url_data_list, tag, filters):
             if parsed_src.path == parsed_url.path:
                 return
             # same net location so make sure we dont search paths before the tree like the root index
-            lensrc = len(list(filter(lambda item : item, parsed_src.path.split("/"))))
-            lenurl = len(list(filter(lambda item : item, parsed_url.path.split("/"))))
-            if lensrc <= lenurl:
+            len_src = len(list(filter(lambda item: item, parsed_src.path.split("/"))))
+            len_url = len(list(filter(lambda item: item, parsed_url.path.split("/"))))
+            if len_src <= len_url:
                 return
         # Ignore root index. Maybe add option here?
         if not parsed_src.path or parsed_src.path == "/":
             return
         # Filter the URL
         if filters.search(url):
-            # make sure we dont have a duplicate
-            # filter through the urldata list
-            urldata = UrlData(url=url, action="", method="GET", data={}, tag=tag)
-            if not list(filter(lambda d : d.url == url, url_data_list)):
-                url_data_list.append(urldata)
+            # make sure we don't have a duplicate
+            # filter through the url_data list
+            url_data = UrlData(url=url, action="", method="GET", data={}, tag=tag)
+            if not list(filter(lambda d: d.url == url, url_data_list)):
+                url_data_list.append(url_data)

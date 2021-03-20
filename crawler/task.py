@@ -1,6 +1,9 @@
 import multiprocessing as mp
 import os
 from io import BytesIO
+from http.cookiejar import CookieJar
+from typing import Pattern
+from requests import Response
 
 # Image
 from PIL import (
@@ -12,6 +15,7 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
+from crawler.types import UrlData
 
 from crawler.message import Message
 
@@ -23,17 +27,19 @@ from crawler.webrequest import (
 )
 
 
-def stream_to_file(path, bytes_stream):
+def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
     with open(path, "wb") as fp:
-        fp.write(bytes_stream.getbuffer())
-        fp.close()
-        return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_OK, _id=0, data={"message": "image saved", "url": path})
-    return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                       status=const.STATUS_ERROR, _id=0, data={"message": "Unable to write to file", "url": path})
+        try:
+            fp.write(bytes_stream.getbuffer())
+            return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
+                           status=const.STATUS_OK, _id=0, data={"message": "image saved", "url": path})
+        except Exception as err:
+            return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
+                           status=const.STATUS_ERROR, _id=0,
+                           data={"message": err.__str__(), "url": path})
 
 
-def _response_to_stream(response):
+def _response_to_stream(response: Response) -> BytesIO:
     # read from requests object
     # store in memory
     byte_stream = BytesIO()
@@ -42,7 +48,7 @@ def _response_to_stream(response):
     return byte_stream
 
 
-def create_save_path(settings):
+def create_save_path(settings: dict):
     """
     create_save_path(object)
     Settings object load from file
@@ -66,8 +72,7 @@ def create_save_path(settings):
     return path
 
 
-def download_image(filename, response, settings):
-
+def download_image(filename: str, response: Response, settings: dict):
     message = Message(thread=const.THREAD_TASK, _id=0, status=const.STATUS_IGNORED,
                       event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
 
@@ -112,14 +117,13 @@ def download_image(filename, response, settings):
 
 
 class Grunt(mp.Process):
-
     """
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, task_index, urldata, 
-                 settings, filters, commander_msg, 
-                 cancel_event):
+    def __init__(self, task_index: int, urldata: UrlData,
+                 settings: dict, filters: Pattern, commander_msg: mp.Queue,
+                 cancel_event: mp.Event):
         """
         __init__(int, str, **kwargs)
         task_index should be a unique number
@@ -133,23 +137,23 @@ class Grunt(mp.Process):
         # grunts starting url
         self.urldata = urldata
         self.settings = settings
-        self.fileindex = 0
+        self.file_index = 0
         self.filters = filters
         # Commander process message box
         self.comm_queue = commander_msg
         # Grunts message box
         self.msgbox = mp.Queue()
         self.cancel = cancel_event
-    
-    def search_response(self, response, include_forms):
+
+    def search_response(self, response: Response, include_forms: bool) -> list:
         """
         if html parse look for image sources
         if image then save
         """
         self.comm_queue.put_nowait(Message(thread=const.THREAD_TASK, event=const.EVENT_SEARCHING,
-                                   _id=self.task_index, status=const.STATUS_OK, data=None))
-        # intialize the list containing UrlData objects
-        datalist = []
+                                           _id=self.task_index, status=const.STATUS_OK, data={}))
+        # initialize the list containing UrlData objects
+        data_list = []
         # check the file extension
         ext = mime.is_valid_content_type(
             response.url,
@@ -162,19 +166,19 @@ class Grunt(mp.Process):
             # search for links in soup
             parsing.sort_soup(url=response.url,
                               soup=soup,
-                              urls=datalist, 
-                              include_forms=include_forms, 
-                              images_only=True, 
+                              urls=data_list,
+                              include_forms=include_forms,
+                              images_only=True,
                               thumbnails_only=False,
                               filters=self.filters)
         elif ext in mime.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
-                # if so then append thread index and fileindex to make a unique identifier
-                fileindex = f"{self.task_index}_{self.fileindex}{ext}"
-                # increment the fileindex for the next image found
-                self.fileindex += 1
+                # if so then append thread index and file_index to make a unique identifier
+                file_index = f"{self.task_index}_{self.file_index}{ext}"
+                # increment the file_index for the next image found
+                self.file_index += 1
                 # append the saved unique name to our file path
-                filename = f'{self.settings["generate_filenames"]["name"]}{fileindex}'
+                filename = f'{self.settings["generate_filenames"]["name"]}{file_index}'
             else:
                 # generate filename from url
                 filename = options.url_to_filename(response.url, ext)
@@ -185,7 +189,7 @@ class Grunt(mp.Process):
                 msg.id = self.task_index
                 self.comm_queue.put_nowait(msg)
             except UnidentifiedImageError as err:
-                # Couldnt load the Image from Stream
+                # Couldn't load the Image from Stream
                 self.comm_queue.put_nowait(Message(
                     thread=const.THREAD_TASK, _id=self.task_index, data={"url": response.url, "message": err.__str__()},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
@@ -194,11 +198,12 @@ class Grunt(mp.Process):
             if not cache.query_ignore(response.url):
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
                 self.comm_queue.put_nowait(Message(
-                    thread=const.THREAD_TASK, _id=self.task_index, data={"url": response.url, "message": "Unknown File Type"},
+                    thread=const.THREAD_TASK, _id=self.task_index,
+                    data={"url": response.url, "message": "Unknown File Type"},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_IGNORED))
-        return datalist
-    
-    def add_url(self, urldata):
+        return data_list
+
+    def add_url(self, url_data: UrlData) -> bool:
         """
         Query the Parent Process if this url dict exists
         if not then Parent Process will add it to its blacklist
@@ -207,55 +212,57 @@ class Grunt(mp.Process):
         self.comm_queue.put(Message(
             thread=const.THREAD_TASK,
             event=const.EVENT_BLACKLIST,
-            data={"index": self.task_index, "urldata": urldata, "url": urldata.url},
+            data={"index": self.task_index, "urldata": url_data, "url": url_data.url},
             _id=self.task_index, status=const.STATUS_OK
         ))
         reply = self.msgbox.get()
         return reply.data["added"]
-    
-    def follow_url(self, urldata):
+
+    def follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> list:
         """
         follow_url(object, object)
         request url and parse the response
         """
+        url_list = []
         try:
-            resp = request_from_url(urldata, self.cookiejar, self.settings)
-            urllist = self.search_response(resp, self.settings["form_search"]["enabled"])
+            response = request_from_url(url_data, cookie_jar, self.settings)
+            url_list = self.search_response(response, self.settings["form_search"]["enabled"])
+            response.close()
         except Exception as err:
             self.comm_queue.put_nowait(
-                    Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE, 
-                            data={"url": urldata.url, "message": err.__str__()},
-                            _id=self.task_index, status=const.STATUS_ERROR))
-            return []
-        resp.close()
-        return urllist
+                Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
+                        data={"url": url_data.url, "message": err.__str__()},
+                        _id=self.task_index, status=const.STATUS_ERROR))
+        finally:
+            return url_list
 
     def run(self):
         if not self.cancel.is_set():
-            self.cookiejar = load_cookies(self.settings)
+            cookie_jar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK,
-                        _id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING, data={"url": self.urldata.url}))
+                        _id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING,
+                        data={"url": self.urldata.url}))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
                 # Level 1
-                level_one_urls = self.follow_url(self.urldata)
-                for level_one_urldata in level_one_urls:
-                    if self.add_url(level_one_urldata):
+                level_one_urls = self.follow_url(self.urldata, cookie_jar)
+                for level_one_url_data in level_one_urls:
+                    if self.add_url(level_one_url_data):
                         # Level 2
-                        level_two_urls = self.follow_url(level_one_urldata)
-                        for level_two_urldata in level_two_urls:
-                            if self.add_url(level_two_urldata):
+                        level_two_urls = self.follow_url(level_one_url_data, cookie_jar)
+                        for level_two_url_data in level_two_urls:
+                            if self.add_url(level_two_url_data):
                                 # Level 3
-                                self.follow_url(level_two_urldata)
+                                self.follow_url(level_two_url_data, cookie_jar)
 
         if self.cancel.is_set():
             self.notify_finished(const.STATUS_ERROR, "Task has cancelled")
         else:
             self.notify_finished(const.STATUS_OK, "Task has completed")
-    
-    def notify_finished(self, status, message):
+
+    def notify_finished(self, status: int, message: str):
         self.comm_queue.put_nowait(Message(
-                thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED, 
-                _id=self.task_index, data={"message": message, "url": self.urldata.url}))
+            thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED,
+            _id=self.task_index, data={"message": message, "url": self.urldata.url}))

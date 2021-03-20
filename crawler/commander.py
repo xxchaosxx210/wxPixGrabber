@@ -37,7 +37,6 @@ class Commander:
 
 @dataclass
 class CommanderProperties:
-
     settings: dict
     scanned_urls: list
     blacklist: Blacklist
@@ -81,7 +80,7 @@ def _start_max_tasks(tasks, max_tasks, counter):
     return counter
 
 
-def create_commander(main_queue):
+def create_commander(main_queue: mp.Queue):
     """main handler for starting and keeping track of worker tasks
 
     Args:
@@ -107,7 +106,7 @@ def _init_start(properties):
     return cj, filters
 
 
-def _thread(main_queue, msgbox):
+def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
     """main task handler thread
 
     Args:
@@ -137,7 +136,7 @@ def _thread(main_queue, msgbox):
                     props.cancel_all.set()
                     main_queue.put(
                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
-                                _id=0, data=None))
+                                _id=0, data={}))
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
                     if not props.task_running:
@@ -150,16 +149,16 @@ def _thread(main_queue, msgbox):
 
                         # reset the tasks counter this is used to keep track of
                         # tasks that have been  started once a running thread has been notified
-                        # this thread counter is incremenetet counter is checked with length of props.tasks
+                        # this thread counter is incremented counter is checked with length of props.tasks
                         # once the counter has reached length then then all tasks have been complete
                         props.counter = 0
                         max_connections = round(int(props.settings["max_connections"]))
                         props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
-                        # notify main thread so can intialize UI
+                        # notify main thread so can initialize UI
                         main_queue.put_nowait(
                             Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, _id=0,
                                     status=const.STATUS_OK,
-                                    data=None))
+                                    data={}))
                 elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
                         props.cancel_all.clear()
@@ -202,8 +201,8 @@ def _thread(main_queue, msgbox):
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
                                                 status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
-                                                                                    "title": html_title,
-                                                                                    "url": r.data["url"]}))
+                                                                                     "title": html_title,
+                                                                                     "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, _id=0,
@@ -244,11 +243,12 @@ def _thread(main_queue, msgbox):
                             main_queue.put_nowait(
                                 Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
                                         status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
-                                                                            "title": html_title, "url": r.data["url"]}))
+                                                                             "title": html_title,
+                                                                             "url": r.data["url"]}))
                             # Message ourselves and start the search
                             msgbox.put_nowait(
                                 Message(thread=const.THREAD_MAIN, event=const.EVENT_START,
-                                        status=const.STATUS_OK, data=None, _id=0))
+                                        status=const.STATUS_OK, data={}, _id=0))
                         else:
                             # Nothing found notify main thread
                             main_queue.put_nowait(
@@ -296,7 +296,7 @@ def _thread(main_queue, msgbox):
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
                     main_queue.put_nowait(Message(
                         thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE,
-                        _id=0, status=const.STATUS_OK, data=None))
+                        _id=0, status=const.STATUS_OK, data={}))
                     _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout

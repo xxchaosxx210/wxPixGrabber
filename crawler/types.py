@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class UrlData:
+    """
+    url: the URL link of the source
+    method: GET or POST method
+    action: if POST FORM request then action will contain the URL
+    data: contains POST data to send
+    tag: can be either A or IMG
+    """
     url: str
     method: str = "GET"
     action: str = ""
@@ -10,7 +18,6 @@ class UrlData:
 
 
 class Blacklist:
-
     """
     thread safe container class for storing global links
     this is to check there arent duplicate links
@@ -22,38 +29,13 @@ class Blacklist:
 
     def clear(self):
         self.items.clear()
-    
+
     def add(self, item):
         self.items.append(item.__dict__)
-    
+
     def exists(self, item):
         try:
             index = self.items.index(item.__dict__)
         except ValueError:
             index = -1
         return index >= 0
-
-# Replaced this code with C extension classes in Cython
-
-# @dataclass
-# class Message:
-#     """
-#     for message handling sending to and from threads
-#     thread - thread name
-#     type   - the type of message
-#     id     - the thread index
-#     status - the types status
-#     data   - extra data. Depends on message type
-#     """
-#     type: str
-#     thread: str
-#     id: int = 0
-#     status: str = ""
-#     data: dict = None
-
-
-# @dataclass
-# class Stats:
-#     saved: int = 0
-#     errors: int = 0
-#     ignored: int = 0

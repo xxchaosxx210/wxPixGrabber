@@ -9,6 +9,7 @@ import os
 from urllib.request import urljoin
 import mimetypes
 import re
+from multiprocessing import Queue
 
 MIME_TEXT = mimetypes.types_map.get(".html", "text/html")
 MIME_JPG = mimetypes.types_map.get(".jpg", "image/jpg")
@@ -28,7 +29,7 @@ _TEST_SITE_IMAGES = os.path.join(_TEST_SITE_PATH, "images")
 _TEST_SITE_THUMBS = os.path.join(_TEST_SITE_PATH, "thumbs")
 
 
-def _create_document(todo):
+def _create_document(todo: dict) -> str:
     html = f'''<html><head><title>{todo["title"]}</title></head><body>'''
     for link in iter(todo.get("links")):
         html += f'''<a href="{link["href"]}"><img src="{link["src"]}"></img></a>'''
@@ -36,12 +37,12 @@ def _create_document(todo):
     return html
 
 
-def _decode_base64(_base64):
+def _decode_base64(_base64: bytes) -> str:
     b = base64.b64decode(_base64)
     return b.decode("utf-8")
 
 
-def server_process(host, port, a_queue):
+def server_process(host: str, port: int, a_queue: Queue):
     """sets up a background running HTTPServer and handler
 
     Args:
@@ -64,7 +65,7 @@ def server_process(host, port, a_queue):
     running.serve_forever()
 
 
-def generate_dummy_html():
+def generate_dummy_html() -> str:
     """
     Generates the test server HTML
     """
@@ -80,16 +81,15 @@ def generate_dummy_html():
 
 
 class _ServerHandler(http.server.BaseHTTPRequestHandler):
-
     host = ""
     port = 5000
     queue = None
-    
+
     def _set_headers(self):
         self.send_response(200)
         self.send_header("Content-Type", MIME_TEXT)
         self.end_headers()
-    
+
     def _send_jpg(self, relative_path):
         # sends the requested image
         self.send_response(200)
@@ -99,13 +99,13 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
         path, filename = os.path.split(relative_path)
         if path == "/the_image":
             # full size image
-            jpgpath = os.path.join(_TEST_SITE_IMAGES, filename)
+            jpg_path = os.path.join(_TEST_SITE_IMAGES, filename)
         else:
             # thumbnail
-            jpgpath = os.path.join(_TEST_SITE_THUMBS, filename)
-        with open(jpgpath, "rb") as fp:
+            jpg_path = os.path.join(_TEST_SITE_THUMBS, filename)
+        with open(jpg_path, "rb") as fp:
             self.wfile.write(fp.read())
-    
+
     def do_GET(self):
         if self.path == TEST_URL:
             # test document requested
@@ -123,20 +123,21 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", MIME_TEXT)
             self.end_headers()
             self.wfile.write(
-                "<html><head><title>PixGrabber Helper</title></head><body><h1>Please use the PixGrabber Chrome Extension</h1></body></html>".encode("utf-8"))
-    
+                "<html><head><title>PixGrabber Helper</title></head><body><h1>Please use the PixGrabber Chrome "
+                "Extension</h1></body></html>".encode("utf-8"))
+
     def do_POST(self):
         if self.path == "/set-html":
             self._set_headers()
             b = self.rfile.read(int(self.headers["Content-Length"]))
-            jstring = _decode_base64(b)
-            todo = json.loads(jstring)
+            json_string = _decode_base64(b)
+            todo = json.loads(json_string)
             html = _create_document(todo)
             url = f"http://{_ServerHandler.host}:{_ServerHandler.port}/set-html"
             _ServerHandler.queue.put_nowait(Message(
-                    thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
-                    status=const.STATUS_OK, data={"html": html, 
-                    "url": url}, _id=0))
+                thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
+                status=const.STATUS_OK, data={"html": html,
+                                              "url": url}, _id=0))
             self.send_response(200)
             self.end_headers()
         else:

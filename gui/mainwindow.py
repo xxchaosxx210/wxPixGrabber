@@ -170,7 +170,7 @@ class MainWindow(wx.Frame):
         self.app.sounds["error"].Play()
         self.dldpanel.treeview.clear()
         root = self.dldpanel.treeview.AddRoot(msg.data["url"])
-        error = self.dldpanel.treeview._error_bmp
+        error = self.dldpanel.treeview._img_error
         self.dldpanel.treeview.SetItemData(root, msg)
         self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Normal)
         self.dldpanel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Expanded)

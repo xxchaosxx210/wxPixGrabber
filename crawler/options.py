@@ -11,6 +11,7 @@ import string
 import hashlib
 import mimetypes
 from collections import namedtuple
+from io import BytesIO
 
 from crawler.mime import IMAGE_EXTS
 
@@ -31,8 +32,8 @@ PROFILE_EXT = ".pro"
 SQL_PATH = os.path.join(PATH, "cache.db")
 
 _FILTER_SEARCH = [
-    "imagevenue.com/", 
-    "imagebam.com/", 
+    "imagevenue.com/",
+    "imagebam.com/",
     "pixhost.to/",
     "lulzimg",
     "pimpandhost",
@@ -40,7 +41,8 @@ _FILTER_SEARCH = [
     "imgbox",
     "turboimagehost",
     "imx.to/",
-    "localhost:5000"]
+    "localhost:5000",
+    "turboimg.net/"]
 
 DEFAULT_SETTINGS = {
     "profile-name": "default",
@@ -55,7 +57,7 @@ DEFAULT_SETTINGS = {
     "unique_pathname": {"enabled": True, "name": ""},
     "generate_filenames": {"enabled": True, "name": "image"},
     "images_to_search": {
-        "jpg": True, 
+        "jpg": True,
         "png": False,
         "gif": False,
         "bmp": False,
@@ -68,7 +70,7 @@ DEFAULT_SETTINGS = {
     "form_search": {"enabled": True, "include_original_host": False},
     "notify-done": True,
     "auto-download": False
-    }
+}
 
 
 def setup():
@@ -83,7 +85,7 @@ def setup():
         save_profile(load_settings())
 
 
-def load_settings():
+def load_settings() -> dict:
     """
     load_settings()
     takes in the name of the file to load. Doesnt require full path just the name of the file and extension
@@ -97,7 +99,7 @@ def load_settings():
     return settings
 
 
-def save_settings(settings):
+def save_settings(settings: dict):
     _check_path_exists()
     with open(SETTINGS_PATH, "w") as fp:
         fp.write(json.dumps(settings))
@@ -108,7 +110,7 @@ def _check_path_exists():
         os.mkdir(PATH)
 
 
-def format_filename(s):
+def format_filename(s: str) -> str:
     """Take a string and return a valid filename constructed from the string.
         Uses a whitelist approach: any characters not present in valid_chars are
         removed. Also spaces are replaced with underscores.
@@ -121,11 +123,11 @@ def format_filename(s):
         """
     valid_chars = f"-_.() {string.ascii_letters}{string.digits}"
     filename = ''.join(c for c in s if c in valid_chars)
-    filename = filename.replace(' ','_') # I don't like spaces in filenames.
+    filename = filename.replace(' ', '_')  # I don't like spaces in filenames.
     return filename
 
 
-def assign_unique_name(url, title):
+def assign_unique_name(url: str, title: str):
     """
     assign_unique_name(str, str)
     loads the settings file and adds a unique folder name
@@ -140,7 +142,7 @@ def assign_unique_name(url, title):
     save_settings(settings)
 
 
-def url_to_filename(url, ext):
+def url_to_filename(url: str, ext: str) -> str:
     """strips the url and converts the last path name which is normally the filename
     and uses the ext if no ext found in the Url. use is_valid_content_type
     in the parsing.py file to determine what the url content-type is.
@@ -168,7 +170,7 @@ def url_to_filename(url, ext):
     return ""
 
 
-def rename_file(path):
+def rename_file(path: str) -> str:
     """checks the file for a match in the path. Creates a unique filename until no match is found
 
     Args:
@@ -189,7 +191,7 @@ def rename_file(path):
     return path
 
 
-def image_exists(path, stream_bytes):
+def image_exists(path: str, stream_bytes: bytes) -> str:
     """scans the path for images and checks the checksum of the stream_bytes and file_bytes
 
     Args:
@@ -210,12 +212,12 @@ def image_exists(path, stream_bytes):
                         hash1 = hashlib.md5(fp.read()).digest()
                         hash2 = hashlib.md5(stream_bytes).digest()
                         if hash1 == hash2:
-                            # weve got a duplicate return the pathname
+                            # we've got a duplicate return the pathname
                             return entry.path
-    return None
+    return ""
 
 
-def load_from_file(url):
+def load_from_file(url: str):
     """bit of a patch to mimick the requests handle using a namedtuple
     no code broken and fits in ok
 
@@ -237,7 +239,7 @@ def load_from_file(url):
     return fake_request
 
 
-def load_profiles():
+def load_profiles() -> list:
     """loads all profile settings from profile dir
 
     Returns:
@@ -245,17 +247,21 @@ def load_profiles():
     """
     profiles = []
     if os.path.exists(PROFILES_PATH):
-        with os.scandir(PROFILES_PATH) as it:
-            for entry in it:
+        it = os.scandir(PROFILES_PATH)
+        while 1:
+            try:
+                entry = it.__next__()
                 if entry.is_file() and entry.path.endswith(PROFILE_EXT):
                     profiles.append(os.path.splitext(entry.name)[0])
+            except StopIteration:
+                break
     else:
         os.mkdir(PROFILES_PATH)
 
     return profiles
 
 
-def save_profile(settings):
+def save_profile(settings: dict):
     """Creates a profile json file using settings["profile-name"] in the profiles dir
 
     Args:
@@ -268,7 +274,7 @@ def save_profile(settings):
         fp.write(json.dumps(settings))
 
 
-def use_profile(name):
+def use_profile(name: str) -> bool:
     """loads the profile associated with name. Makes a copy of it and saves it to settings.json. 
     Also loads the previous profile and saves it to profiles dir
 
@@ -281,18 +287,22 @@ def use_profile(name):
     # save the current existing profile
     save_profile(load_settings())
     if os.path.exists(PROFILES_PATH):
-        with os.scandir(PROFILES_PATH) as it:
-            for entry in it:
+        it = os.scandir(PROFILES_PATH)
+        while 1:
+            try:
+                entry = it.__next__()
                 if entry.is_file() and entry.path.endswith(PROFILE_EXT):
                     if os.path.splitext(entry.name)[0] == name:
                         # overwrite the old settings with the newly selected one
                         with open(entry.path, "r") as fp:
                             save_settings(json.loads(fp.read()))
                         return True
+            except StopIteration:
+                break
     return False
 
 
-def delete_profile(name):
+def delete_profile(name: str) -> bool:
     """deletes the profile file. If deleted profile is used then load default profile settings instead
 
     Args:
@@ -314,5 +324,5 @@ def delete_profile(name):
                     # it is so use default profile instead
                     save_settings(DEFAULT_SETTINGS)
                 return True
-        
+
     return False
