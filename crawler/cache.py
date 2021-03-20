@@ -1,16 +1,17 @@
-import sqlite3
-import time
-import logging
-from sqlite3 import Error
-
-import crawler.options as options
-
-___description__ = """
+"""
 cache.py
 
 uses sqlite to store ignored images and broken links
 this will optimize the performance of the scraper searches
 """
+
+import sqlite3
+import time
+import logging
+from sqlite3 import Error
+from functools import partial
+
+import crawler.options as options
 
 _Log = logging.getLogger(__name__)
 
@@ -32,15 +33,21 @@ QUERY_DELETE_IGNORE = """DELETE FROM ignored WHERE url=?
 
 QUERY_URL_IGNORE = "SELECT * FROM ignored WHERE url=?"
 
+connect_to_cache = partial(sqlite3.connect, database=options.SQL_PATH, check_same_thread=False)
+
 
 def initialize_ignore():
     """
     Creates the ignore table if one doesnt exist
     """
-    conn = _create_connection(options.SQL_PATH)
-    if conn:
-        _create_table(conn, CACHE_TABLE)
+    try:
+        conn = connect_to_cache()
+        # Create the Table if not exist
+        cur = conn.cursor()
+        cur.execute(CACHE_TABLE)
         conn.close()
+    except Error as err:
+        _Log.error(err.__str__())
 
 
 def add_ignore(url: str, reason: str, width: int, height: int):
@@ -54,10 +61,12 @@ def add_ignore(url: str, reason: str, width: int, height: int):
 
         Note: A timestamp is also added to the entry
     """
-    conn = _create_connection(options.SQL_PATH)
-    if conn:
+    try:
+        conn = connect_to_cache()
         _add_entry(conn, url, reason, width, height)
         conn.close()
+    except Error as err:
+        _Log.error(err.__str__())
 
 
 def delete_ignore(url: str):
@@ -66,9 +75,13 @@ def delete_ignore(url: str):
     Args:
         url (str): The url to be deleted
     """
-    conn = _create_connection(options.SQL_PATH)
-    if conn:
-        _delete_entries(conn, url)
+    try:
+        conn = connect_to_cache()
+        cur = conn.cursor()
+        cur.execute(QUERY_DELETE_IGNORE, (url,))
+        conn.commit()
+    except Error as err:
+        _Log.error(err.__str__())
 
 
 def query_ignore(url: str) -> list:
@@ -81,13 +94,16 @@ def query_ignore(url: str) -> list:
         [str]: returns an iterator of urls that match None is nothing found
     """
     rows = []
-    conn = _create_connection(options.SQL_PATH)
-    if conn:
+    try:
+        conn = connect_to_cache()
         cur = conn.cursor()
         cur.execute(QUERY_URL_IGNORE, (url,))
         rows = cur.fetchall()
         conn.close()
-    return rows
+    except Error as err:
+        _Log.error(err.__str__())
+    finally:
+        return rows
 
 
 def check_cache_for_image(url: str, settings: dict) -> bool:
@@ -112,21 +128,8 @@ def check_cache_for_image(url: str, settings: dict) -> bool:
     return False
 
 
-def _create_connection(dbpath: str) -> sqlite3.Connection:
-    """
-    create_connection(str)
-    path to the db want to connect to
-    will create a new DB if no path found
-    """
-    conn = None
-    try:
-        conn = sqlite3.connect(dbpath, check_same_thread=False)
-    except Error as err:
-        _Log.error(err.__str__())
-    return conn
-
-
-def _add_entry(conn, url, reason, width, height):
+def _add_entry(conn: sqlite3.Connection, url: str, reason: str, width: int, height: int) -> int:
+    # Returns the Row ID if match has been found
     values = (
         url,
         reason,
@@ -138,19 +141,4 @@ def _add_entry(conn, url, reason, width, height):
     # append the time stamp on the end
     cur.execute(QUERY_INSERT_IGNORE, values)
     conn.commit()
-
     return cur.lastrowid
-
-
-def _delete_entries(conn, url):
-    cur = conn.cursor()
-    cur.execute(QUERY_DELETE_IGNORE, (url,))
-    conn.commit()
-
-
-def _create_table(conn, sql_table):
-    try:
-        cur = conn.cursor()
-        cur.execute(sql_table)
-    except Error as err:
-        _Log.error(err.__str__())
