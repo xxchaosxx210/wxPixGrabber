@@ -43,7 +43,7 @@ def initialize_ignore():
         conn.close()
 
 
-def add_ignore(url, reason, width, height):
+def add_ignore(url: str, reason: str, width: int, height: int):
     """Add an entry into ignore table
 
     Args:
@@ -60,7 +60,7 @@ def add_ignore(url, reason, width, height):
         conn.close()
 
 
-def delete_ignore(url):
+def delete_ignore(url: str):
     """Delete entry with a url that matches in the database
 
     Args:
@@ -71,7 +71,7 @@ def delete_ignore(url):
         _delete_entries(conn, url)
 
 
-def query_ignore(url):
+def query_ignore(url: str) -> list:
     """Checks if a url is in the database
 
     Args:
@@ -90,7 +90,7 @@ def query_ignore(url):
     return rows
 
 
-def check_cache_for_image(url, settings):
+def check_cache_for_image(url: str, settings: dict) -> bool:
     """
     checks if url is in database and checks the image
     minimum width and height returns false
@@ -98,11 +98,11 @@ def check_cache_for_image(url, settings):
     """
     result = query_ignore(url)
     if result:
-        urldata = result[0]
-        if urldata[1] == "small-image":
+        url_data = result[0]
+        if url_data[1] == "small-image":
             width = settings["minimum_image_resolution"]["width"]
             height = settings["minimum_image_resolution"]["height"]
-            if width > urldata[2] and height > urldata[3]:
+            if width > url_data[2] and height > url_data[3]:
                 # minimum resolution has changed
                 # delete the entry
                 delete_ignore(url)
@@ -112,7 +112,7 @@ def check_cache_for_image(url, settings):
     return False
 
 
-def _create_connection(dbpath):
+def _create_connection(dbpath: str) -> sqlite3.Connection:
     """
     create_connection(str)
     path to the db want to connect to

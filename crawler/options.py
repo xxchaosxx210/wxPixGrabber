@@ -11,9 +11,10 @@ import string
 import hashlib
 import mimetypes
 from collections import namedtuple
-from io import BytesIO
 
 from crawler.mime import IMAGE_EXTS
+
+VALID_FILE_NAME_CHARS = f"-_.() {string.ascii_letters}{string.digits}"
 
 DEBUG = True
 VERSION = "0.1"
@@ -121,9 +122,8 @@ def format_filename(s: str) -> str:
         an invalid filename.
         
         """
-    valid_chars = f"-_.() {string.ascii_letters}{string.digits}"
-    filename = ''.join(c for c in s if c in valid_chars)
-    filename = filename.replace(' ', '_')  # I don't like spaces in filenames.
+    filename = ''.join(c for c in s if c in VALID_FILE_NAME_CHARS)
+    filename = filename.replace(' ', '_')
     return filename
 
 
@@ -155,9 +155,9 @@ def url_to_filename(url: str, ext: str) -> str:
     Returns:
         [str]: returns the converted filename. Empty string if unable to convert
     """
-    presult = parse.urlparse(url)
-    if presult:
-        pathname = url2pathname(getattr(presult, "path", ""))
+    parse_result = parse.urlparse(url)
+    if parse_result:
+        pathname = url2pathname(getattr(parse_result, "path", ""))
         if pathname:
             split_paths = os.path.split(pathname)
             if split_paths:
@@ -179,14 +179,14 @@ def rename_file(path: str) -> str:
     Returns:
         str: returns the new path name
     """
-    splitpath = os.path.split(path)
-    if splitpath:
-        filename = splitpath[-1]
+    split_path = os.path.split(path)
+    if split_path:
+        filename = split_path[-1]
         name, ext = os.path.splitext(filename)
         index = 0
         while os.path.exists(path):
             filename = f"{name}_{index}{ext}"
-            path = os.path.join(splitpath[0], filename)
+            path = os.path.join(split_path[0], filename)
             index += 1
     return path
 
@@ -199,7 +199,7 @@ def image_exists(path: str, stream_bytes: bytes) -> str:
         stream_bytes (b): byte stream of image
 
     Returns:
-        str: returns the file path if their is a match. None if no match found
+        str: returns the file path if their is a match.
     """
     with os.scandir(path) as it:
         for entry in it:

@@ -96,7 +96,7 @@ def download_image(filename: str, response: Response, settings: dict):
                     message.data["message"] = "Renamed path"
                     message.data["path"] = full_path
                 elif settings["file_exists"] == "skip":
-                    # close the stream and dont write to disk
+                    # close the stream and don't write to disk
                     message.data["message"] = "Skipped file"
                     message.data["path"] = full_path
                     byte_stream.close()
