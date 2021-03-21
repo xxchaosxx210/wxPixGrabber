@@ -10,6 +10,10 @@ from crawler.mime import image_ext_pattern
 
 _Log = logging.getLogger(__name__)
 
+url_pattern = re.compile(
+    r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+['
+    r'a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})')
+
 
 def compile_filter_list(filter_settings) -> Pattern:
     """compiles a filter list into a regular expression pattern.

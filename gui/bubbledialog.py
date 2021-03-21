@@ -15,7 +15,7 @@ _MIN_VELOCITY = 20
 _MAX_VELOCITY = 100
 
 _MIN_BUBBLE_SIZE = 2
-_MAX_BUBBLE_SIZE = 10
+_MAX_BUBBLE_SIZE = 7
 
 _MIN_BUBBLE_AMOUNT = 100
 _MAX_BUBBLE_AMOUNT = 200
@@ -33,7 +33,7 @@ class Bubble:
     brush: wx.Brush
     pen: wx.Pen
 
-    def __init__(self, canvas: wx.Panel, x: int, y: int, radius: int):
+    def __init__(self, canvas: wx.Window, x: int, y: int, radius: int):
         self.diameter = radius * 2
         self.radius = radius
         self.position = Vector(x, y)
@@ -51,7 +51,7 @@ class Bubble:
         self.check_bounds()
 
     def check_bounds(self):
-        threshold = 5
+        threshold = 2
         rect = self.canvas.GetRect()
         if self.rect.bottom <= rect.top:
             self.off_screen = True
@@ -75,10 +75,10 @@ def _random_velocity(_min: int = _MIN_VELOCITY, _max: int = _MAX_VELOCITY) -> in
     return random.randint(_min, _max)
 
 
-def generate_random_bubble(canvas: wx.Panel, rect: wx.Rect) -> Bubble:
+def generate_random_bubble(canvas: wx.Window, rect: wx.Rect) -> Bubble:
     start_x = random.randint(0, int(round(rect.width)))
     start_y = random.randint(rect.height, rect.height + 100)
-    radius = random.randint(3, 17)
+    radius = random.randint(_MIN_BUBBLE_SIZE, _MAX_BUBBLE_SIZE)
     return Bubble(canvas, start_x, start_y, radius)
 
 
@@ -101,14 +101,14 @@ class BubbleDialog(wx.Dialog):
 
         self.default_size = wx.Rect(0, 0, *size)
 
-    def _on_close(self, evt: wx.CloseEvent):
+    def _on_close(self, evt: wx.SizeEvent):
         self.canvas.queue.put("quit")
         evt.Skip()
 
 
 class TextBox:
 
-    def __init__(self, canvas: wx.Panel, lines: list):
+    def __init__(self, canvas: wx.Window, lines: list):
         self.lines = []
         for index, line in enumerate(lines):
             if index == 0:
@@ -122,6 +122,11 @@ class TextBox:
         self.bck_brush = wx.Brush(wx.Colour(*_TEXT_BOX_COLOUR_FILL))
 
     def resize(self, rect: wx.Rect):
+        """
+        resize the textbox and lines
+        :param rect:
+        :return:
+        """
         for line in self.lines:
             line.update()
         self._define_size()
@@ -130,18 +135,29 @@ class TextBox:
         self.centre_lines()
 
     def _define_size(self):
+        """
+        defines the size of the TextBox
+        :return:
+        """
         rect = wx.Rect(0, 0, 0, 0)
         self.rect.height = self.PADDING
         for line in self.lines:
+            # iterate through each line and set the TextBox around the line with
+            # the largest width and height
             if line.rect.width > rect.width:
                 rect.width = line.rect.width + self.PADDING
             if line.rect.height > rect.height:
                 rect.height = line.rect.height
+            # grow our TextBox to fit the next line of Text include Padding
             self.rect.height += line.rect.height
             self.rect.height += self.PADDING
         self.rect.width = rect.width
 
     def centre_lines(self):
+        """
+        centres the lines within the bounds of the TextBox Rect
+        :return:
+        """
         y_offset = self.rect.y + self.PADDING
         for line in self.lines:
             line.rect.y = y_offset
@@ -154,7 +170,7 @@ class TextBox:
 
 class Line:
 
-    def __init__(self, canvas: wx.Panel, text: str, header: str):
+    def __init__(self, canvas: wx.Window, text: str, header: str):
         self.text = text
         self.canvas = canvas
         self.font = canvas.GetFont()
@@ -167,6 +183,10 @@ class Line:
         self.rect = wx.Rect(0, 0, 0, 0)
 
     def update(self):
+        """
+        this is called within the Canvas onsize event. Sets the Line width and Height
+        :return:
+        """
         dc = wx.ClientDC(self.canvas)
         size = dc.GetFullTextExtent(self.text, self.font)
         self.rect.width = size[0]
@@ -176,21 +196,30 @@ class Line:
         return f"x = {self.rect.x}, y = {self.rect.y}, width = {self.rect.width}, height = {self.rect.height}"
 
 
-class Canvas(wx.Panel):
+class Canvas(wx.Window):
 
-    def __init__(self, parent: wx.Dialog, _id: int, lines: list):
-        super().__init__(parent, _id)
+    def __init__(self, parent: BubbleDialog, _id: int, lines: list):
+        super().__init__(parent=parent, id=_id)
+
+        # buffered drawing. Not sure if is this needed
         self.SetDoubleBuffered(True)
         self._bitmap = wx.Bitmap()
+
+        # setup the paint colours
         self.dc_bck = _DCColour(wx.Pen(wx.Colour(*_BACKGROUND_COLOUR)),
                                 wx.Brush(wx.Colour(*_BACKGROUND_COLOUR)))
         Bubble.brush = wx.Brush(wx.Colour(*_BUBBLE_COLOUR_FILL))
         Bubble.pen = wx.Pen(wx.Colour(*_BUBBLE_COLOUR_OUTLINE))
+
+        # initialize the paint objects
         self.textbox = TextBox(self, lines)
         self.bubbles = []
+
         self.frame_rate = get_display_rate()
+
         self.queue = queue.Queue()
         self.thread = threading.Thread(target=self.loop)
+
         self.Bind(wx.EVT_PAINT, self._on_paint)
         self.Bind(wx.EVT_SIZE, self._on_size)
         self.Bind(wx.EVT_LEFT_UP, self._on_left_up, self)
@@ -205,6 +234,11 @@ class Canvas(wx.Panel):
         self.textbox.resize(self.GetRect())
 
     def start_frame_loop(self, evt: wx.InitDialogEvent):
+        """
+        setup all the bubbles from the middle of the screen and start the animation thread
+        :param evt:
+        :return:
+        """
         rect = self.GetParent().default_size
         for i in range(random.randint(_MIN_BUBBLE_AMOUNT, _MAX_BUBBLE_AMOUNT)):
             start_x = random.randint(0, int(round(rect.width)))
@@ -214,6 +248,10 @@ class Canvas(wx.Panel):
         self.thread.start()
 
     def loop(self):
+        """
+        animation loop
+        :return:
+        """
         _quit = threading.Event()
         while not _quit.is_set():
             try:
@@ -221,9 +259,11 @@ class Canvas(wx.Panel):
                 if msg == "quit":
                     _quit.set()
             except queue.Empty:
+                # Get the current delta time
                 dt = time.monotonic() / 10000000
                 if dt > 0.16:
                     dt = 0.16
+                # regenerate any off screen bubbles
                 for bubble in reversed(self.bubbles):
                     bubble.update(dt)
                     if bubble.off_screen:
