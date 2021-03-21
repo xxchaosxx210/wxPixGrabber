@@ -60,7 +60,7 @@ class MainWindow(wx.Frame):
         timer_quit.set()
         self.detached_frame.Destroy()
         self.app.commander.queue.put(Message(
-            thread=const.THREAD_MAIN, event=const.EVENT_QUIT, _id=0, data=None, status=const.STATUS_OK))
+            thread=const.THREAD_MAIN, event=const.EVENT_QUIT, _id=0, data={}, status=const.STATUS_OK))
         self.app.commander.thread.join()
         evt.Skip()
     
@@ -78,7 +78,7 @@ class MainWindow(wx.Frame):
         if msg.thread == const.THREAD_COMMANDER:
             # MESSAGE
             if msg.event == const.EVENT_MESSAGE:
-                self.sbar.SetStatusText(msg.data["message"])
+                self.SetStatusText(msg.data["message"])
 
             # ALL TASKS COMPLETED
             elif msg.event == const.EVENT_COMPLETE:
@@ -123,7 +123,8 @@ class MainWindow(wx.Frame):
             # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dldpanel.treeview.set_searching(msg.id)
-                if self.is_detachable():
+                # Detach Progress frame if option set
+                if options.load_settings().get("detach-progress", True):
                     self.detached_frame.Show()
                 else:
                     self.detached_frame.Hide()
@@ -136,7 +137,7 @@ class MainWindow(wx.Frame):
         self.dldpanel.errors.reset_stat()
         self.dldpanel.ignored.reset_stat()
         self.dldpanel.imgsaved.reset_stat()
-        self.sbar.SetStatusText("Starting Tasks...")
+        self.SetStatusText("Starting Tasks...")
         # disable the fetch and start buttons while searching
         self.dldpanel.enable_controls(False)
     
@@ -148,13 +149,13 @@ class MainWindow(wx.Frame):
             notify.NotificationBar(self, -1, "", "PixGrabber has completed", timeout=notify.NOTIFY_LONG)
         # kill the timer thread
         timer_quit.set()
-        self.sbar.SetStatusText("All Tasks have completed")
+        self.SetStatusText("All Tasks have completed")
         self.dldpanel.progressbar.reset_progress(0)
         self.dldpanel.addressbar.txt_address.SetValue("")
         self.dldpanel.enable_controls(True)
     
     def _on_fetch_finished(self, msg):
-        self.sbar.SetStatusText(f"{len(msg.data['urls'])} Links found")
+        self.SetStatusText(f"{len(msg.data['urls'])} Links found")
         # Set the progress bar maximum range
         self.dldpanel.progressbar.reset_progress(len(msg.data.get("urls")))
         self.detached_frame.reset(len(msg.data.get("urls", [])))
@@ -178,8 +179,4 @@ class MainWindow(wx.Frame):
     
     def _on_fetch_ignored(self, msg):
         self.app.sounds["error"].Play()
-        self.sbar.SetStatusText(msg.data["message"])
-    
-    def is_detachable(self):
-        return options.load_settings().get("detach-progress", True)
-        
+        self.SetStatusText(msg.data["message"])
