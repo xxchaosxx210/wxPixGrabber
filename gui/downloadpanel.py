@@ -61,19 +61,19 @@ class DownloadPanel(wx.Panel):
         else:
             self.app.window.detached_frame.Show()
     
-    def on_fetch_button(self, evt):
+    def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
             self.app.commander.queue.put_nowait(
                 Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, _id=0, status=const.STATUS_OK, data=data))
 
-    def on_start_button(self, evt):
+    def start_tasks(self):
         self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data=None, _id=0))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, _id=0))
 
-    def on_stop_button(self, evt):
+    def stop_tasks(self):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data=None, _id=0, status=const.STATUS_OK))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data={}, _id=0, status=const.STATUS_OK))
     
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(
@@ -81,7 +81,7 @@ class DownloadPanel(wx.Panel):
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
             style=-wx.FD_FILE_MUST_EXIST|wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
-            self.addressbar.txt_address.SetValue(dlg.GetPaths()[0])
+            self.set_address_bar(dlg.GetPaths()[0])
         dlg.Destroy()
 
     def on_mouse_enter(self, text):
@@ -95,6 +95,9 @@ class DownloadPanel(wx.Panel):
         """
         self.addressbar.btn_fetch.Enable(state)
         self.addressbar.btn_start.Enable(state)
+
+    def set_address_bar(self, text: str):
+        self.addressbar.txt_address.SetValue(text)
 
 
 class AddressBar(wx.Panel):
@@ -113,10 +116,10 @@ class AddressBar(wx.Panel):
         self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
         self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
 
-        self.txt_address.Bind(wx.EVT_TEXT_ENTER, self.GetParent().on_fetch_button, self.txt_address)
-        self.btn_fetch.Bind(wx.EVT_BUTTON, self.GetParent().on_fetch_button, self.btn_fetch)
-        self.btn_stop.Bind(wx.EVT_BUTTON, self.GetParent().on_stop_button, self.btn_stop)
-        self.btn_start.Bind(wx.EVT_BUTTON, self.GetParent().on_start_button, self.btn_start)
+        self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
+        self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
+        self.btn_stop.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().stop_tasks(), self.btn_stop)
+        self.btn_start.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().start_tasks(), self.btn_start)
         btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")

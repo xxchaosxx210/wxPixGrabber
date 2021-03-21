@@ -25,7 +25,6 @@ _Log = logging.getLogger()
 
 ProfileSubMenuItem = namedtuple("ProfileSubMenuItem", ["id", "name"])
 
-ID_OPEN_URL = 101
 ID_OPEN_HTML = 102
 ID_SAVE = 103
 ID_LOAD_SAVE = 104
@@ -61,7 +60,6 @@ class PixGrabberMenuBar(wx.MenuBar):
         self._profile_ids = []
 
         menu = wx.Menu()
-        menu.Append(ID_OPEN_URL, "Open Url\tCtrl+U", "Enter a Url address to scan (Ctrl+U)")
         menu.Append(ID_OPEN_HTML, "Open HTML\tCtrl+H", "Open an HTML document from local disk (Ctrl+H)")
         menu.AppendSeparator()
         menu.Append(ID_OPEN_SAVE_PATH, "Open Save Path\tCtrl+Shift+O",
@@ -96,7 +94,6 @@ class PixGrabberMenuBar(wx.MenuBar):
         menu.Append(ID_ABOUT, "About", "About the Program and Developer")
         self.Append(menu, "&Help")   
 
-        parent.Bind(wx.EVT_MENU, self._on_open_url, id=ID_OPEN_URL)
         parent.Bind(wx.EVT_MENU, self._on_open_html, id=ID_OPEN_HTML)
         parent.Bind(wx.EVT_MENU, lambda evt: _open_save_path(), id=ID_OPEN_SAVE_PATH)
         parent.Bind(wx.EVT_MENU, self._on_save_scan, id=ID_SAVE)
@@ -110,7 +107,7 @@ class PixGrabberMenuBar(wx.MenuBar):
         parent.Bind(wx.EVT_MENU, self._on_scan_start, id=ID_SCAN_START)
         parent.Bind(wx.EVT_MENU, self._on_settings, id=ID_SCAN_SETTINGS)
         
-        parent.Bind(wx.EVT_MENU, self._on_help_document, id=ID_HELP_DOC)
+        parent.Bind(wx.EVT_MENU, lambda evt: webbrowser.open("README.md"), id=ID_HELP_DOC)
         parent.Bind(wx.EVT_MENU, self._on_about, id=ID_ABOUT)
     
     def create_profiles_submenu(self):
@@ -147,28 +144,28 @@ class PixGrabberMenuBar(wx.MenuBar):
                         data={"url": "http://localhost:5000/setup_test"}))
 
     def _on_fetch(self, evt):
-        _Log.info("Fetch Pressed")
+        self.app.window.dldpanel.fetch_link()
 
     def _on_scan_cancel(self, evt):
-        _Log.info("Cancel Pressed")
+        self.app.window.dldpanel.stop_tasks()
 
     def _on_scan_start(self, evt):
-        _Log.info("Start Pressed")
-
-    def _on_open_url(self, evt):
-        _Log.info("Open URL Pressed")
+        self.app.window.dldpanel.start_tasks()
     
     def _on_open_html(self, evt):
-        _Log.info("Open HTML File pressed")
+        dlg = wx.FileDialog(
+            parent=self, message="Choose an HTML Document to Search",
+            wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
+            style=-wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.app.window.dldpanel.set_address_bar(dlg.GetPaths()[0])
+        dlg.Destroy()
     
     def _on_save_scan(self, evt):
         _Log.info("Save scan pressed")
     
     def _on_load_save(self, evt):
         _Log.info("Load save pressed")
-    
-    def _on_help_document(self, evt):
-        _Log.info("Help documentation pressed")
     
     def _on_about(self, evt):
         dlg = BubbleDialog(self.parent, -1, "About",
