@@ -5,7 +5,11 @@ import threading
 import queue
 from collections import namedtuple
 
-from geometry.vector import Vector
+from geometry.vector import (
+    Vector,
+    random_direction,
+    rotate
+)
 
 _MIN_VELOCITY = 20
 _MAX_VELOCITY = 100
@@ -16,23 +20,66 @@ _MAX_BUBBLE_SIZE = 10
 _MIN_BUBBLE_AMOUNT = 100
 _MAX_BUBBLE_AMOUNT = 200
 
+_BACKGROUND_COLOUR = (173,216,230)
+_BUBBLE_COLOUR_FILL = (173, 216, 230)
+_BUBBLE_COLOUR_OUTLINE = (255, 255, 255)
+_TEXT_BOX_COLOUR_FILL = (200, 200, 200, 100)
+_TEXT_BOX_COLOUR_OUTLINE = (100, 100, 100, 255)
 _DCColour = namedtuple("Colour", ["pen", "brush"])
 
 
-def get_display_rate():
+class Bubble:
+
+    brush: wx.Brush
+    pen: wx.Pen
+
+    def __init__(self, canvas: wx.Panel, x: int, y: int, radius: int):
+        self.diameter = radius * 2
+        self.radius = radius
+        self.position = Vector(x, y)
+        self.canvas = canvas
+        self.rect = wx.Rect(x, y, self.diameter, self.diameter)
+        self.velocity = Vector(0, _random_velocity())
+        self.velocity.x = rotate(random.randint(0, 360)).x * _random_velocity(100, 200)
+        self.off_screen = False
+
+    def update(self, dt: float):
+        self.position.y = self.position.y - self.velocity.y * dt
+        self.position.x = self.position.x + self.velocity.x * dt
+        self.rect.x = self.position.x
+        self.rect.y = self.position.y
+        self.check_bounds()
+
+    def check_bounds(self):
+        threshold = 5
+        rect = self.canvas.GetRect()
+        if self.rect.bottom <= rect.top:
+            self.off_screen = True
+        elif self.rect.left < rect.left + threshold and self.velocity.x < 0.0:
+            self.velocity.x = -self.velocity.x
+        elif self.rect.right > rect.right - threshold and self.velocity.x > 0.0:
+            self.velocity.x = -self.velocity.x
+
+    def move(self, x: int, y: int):
+        if self.rect.left < x < self.rect.right:
+            if self.rect.top < y < self.rect.bottom:
+                self.velocity.x = random_direction().x * 300
+
+
+def get_display_rate() -> float:
     video_mode = wx.Display().GetCurrentMode()
     return 1 / video_mode.refresh
 
 
-def _random_velocity(_min=_MIN_VELOCITY, _max=_MAX_VELOCITY):
+def _random_velocity(_min: int = _MIN_VELOCITY, _max: int = _MAX_VELOCITY) -> int:
     return random.randint(_min, _max)
 
 
-def generate_random_bubble(rect: wx.Rect):
+def generate_random_bubble(canvas: wx.Panel, rect: wx.Rect) -> Bubble:
     start_x = random.randint(0, int(round(rect.width)))
     start_y = random.randint(rect.height, rect.height + 100)
     radius = random.randint(3, 17)
-    return Bubble(start_x, start_y, radius)
+    return Bubble(canvas, start_x, start_y, radius)
 
 
 class BubbleDialog(wx.Dialog):
@@ -54,30 +101,9 @@ class BubbleDialog(wx.Dialog):
 
         self.default_size = wx.Rect(0, 0, *size)
 
-    def _on_close(self, evt):
+    def _on_close(self, evt: wx.CloseEvent):
         self.canvas.queue.put("quit")
         evt.Skip()
-
-
-class Bubble:
-
-    def __init__(self, x, y, radius):
-        self.diameter = radius * 2
-        self.radius = radius
-        self.position = Vector(x, y)
-        self.velocity = Vector(x, y)
-        self.velocity.y = _random_velocity()
-        self.off_screen = False
-        self.brush = wx.Brush(wx.Colour(255, 255, 255))
-        self.pen = wx.Pen(wx.Colour(0, 0, 0), 1)
-
-    def update(self, dt: float):
-        self.position.y = self.position.y - self.velocity.y * dt
-        self.check_bounds()
-
-    def check_bounds(self):
-        if self.position.y <= 0:
-            self.off_screen = True
 
 
 class TextBox:
@@ -92,8 +118,8 @@ class TextBox:
             self.lines.append(Line(canvas, line, header))
         self.PADDING = 40
         self.rect = wx.Rect(0, 0, 0, 0)
-        self.bck_pen = wx.Pen(wx.Colour(100, 100, 100, 100), 2)
-        self.bck_brush = wx.Brush(wx.Colour(200, 200, 200, 220))
+        self.bck_pen = wx.Pen(wx.Colour(*_TEXT_BOX_COLOUR_OUTLINE), 2)
+        self.bck_brush = wx.Brush(wx.Colour(*_TEXT_BOX_COLOUR_FILL))
 
     def resize(self, rect: wx.Rect):
         for line in self.lines:
@@ -156,8 +182,10 @@ class Canvas(wx.Panel):
         super().__init__(parent, _id)
         self.SetDoubleBuffered(True)
         self._bitmap = wx.Bitmap()
-        self.dc_bck = _DCColour(wx.Pen(wx.Colour(255, 255, 255)),
-                                wx.Brush(wx.Colour(255, 255, 255)))
+        self.dc_bck = _DCColour(wx.Pen(wx.Colour(*_BACKGROUND_COLOUR)),
+                                wx.Brush(wx.Colour(*_BACKGROUND_COLOUR)))
+        Bubble.brush = wx.Brush(wx.Colour(*_BUBBLE_COLOUR_FILL))
+        Bubble.pen = wx.Pen(wx.Colour(*_BUBBLE_COLOUR_OUTLINE))
         self.textbox = TextBox(self, lines)
         self.bubbles = []
         self.frame_rate = get_display_rate()
@@ -165,19 +193,24 @@ class Canvas(wx.Panel):
         self.thread = threading.Thread(target=self.loop)
         self.Bind(wx.EVT_PAINT, self._on_paint)
         self.Bind(wx.EVT_SIZE, self._on_size)
+        self.Bind(wx.EVT_LEFT_UP, self._on_left_up, self)
+
+    def _on_left_up(self, evt: wx.MouseEvent):
+        for bubble in self.bubbles:
+            bubble.move(*evt.GetPosition())
 
     def _on_size(self, evt: wx.SizeEvent):
         self._bitmap = wx.Bitmap()
         self._bitmap.Create(evt.GetSize())
         self.textbox.resize(self.GetRect())
 
-    def start_frame_loop(self, evt):
-        rect = self.GetParent().GetSize()
+    def start_frame_loop(self, evt: wx.InitDialogEvent):
+        rect = self.GetParent().default_size
         for i in range(random.randint(_MIN_BUBBLE_AMOUNT, _MAX_BUBBLE_AMOUNT)):
             start_x = random.randint(0, int(round(rect.width)))
             start_y = random.randint(int(round(rect.height / 2)), rect.height + 100)
             radius = random.randint(_MIN_BUBBLE_SIZE, _MAX_BUBBLE_SIZE)
-            self.bubbles.append(Bubble(start_x, start_y, radius))
+            self.bubbles.append(Bubble(self, start_x, start_y, radius))
         self.thread.start()
 
     def loop(self):
@@ -195,22 +228,26 @@ class Canvas(wx.Panel):
                     bubble.update(dt)
                     if bubble.off_screen:
                         self.bubbles.remove(bubble)
-                        self.bubbles.append(generate_random_bubble(self.GetRect()))
+                        self.bubbles.append(generate_random_bubble(self, self.GetRect()))
                 self.Refresh()
 
-    def _on_paint(self, evt):
+    def _on_paint(self, evt: wx.PaintEvent):
         dc = wx.GCDC(wx.BufferedPaintDC(self, self._bitmap))
         dc.Clear()
+        # Draw Backgrounds
         dc.SetPen(self.dc_bck.pen)
         dc.SetBrush(self.dc_bck.brush)
         dc.DrawRectangle(0, 0, *self.GetSize())
+        # Draw Bubbles
+        dc.SetPen(Bubble.pen)
+        dc.SetBrush(Bubble.brush)
         for bubble in self.bubbles:
-            dc.SetPen(bubble.pen)
-            dc.SetBrush(bubble.brush)
-            dc.DrawCircle(bubble.position.x, bubble.position.y, bubble.radius)
+            dc.DrawCircle(bubble.rect.x, bubble.rect.y, bubble.radius)
+        # Draw Text Box
         dc.SetPen(self.textbox.bck_pen)
         dc.SetBrush(self.textbox.bck_brush)
         dc.DrawRectangle(rect=self.textbox.rect)
+        # Draw Lines
         dc.SetPen(wx.BLACK_PEN)
         dc.SetBrush(wx.BLACK_BRUSH)
         for line in self.textbox.lines:
