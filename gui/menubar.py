@@ -10,7 +10,7 @@ from collections import namedtuple
 
 from crawler.options import (
     VERSION,
-    DATE,
+    GIT_SOURCE,
     DEBUG,
     load_settings,
     save_settings,
@@ -45,6 +45,12 @@ ID_SCAN_DEBUG = 112
 ID_PROFILES = 113
 
 
+def _open_save_path():
+    path = load_settings().get("save_path", "")
+    if os.path.exists(path):
+        webbrowser.open(path)
+
+
 class PixGrabberMenuBar(wx.MenuBar):
 
     def __init__(self, parent=None, style=0):
@@ -58,7 +64,8 @@ class PixGrabberMenuBar(wx.MenuBar):
         menu.Append(ID_OPEN_URL, "Open Url\tCtrl+U", "Enter a Url address to scan (Ctrl+U)")
         menu.Append(ID_OPEN_HTML, "Open HTML\tCtrl+H", "Open an HTML document from local disk (Ctrl+H)")
         menu.AppendSeparator()
-        menu.Append(ID_OPEN_SAVE_PATH, "Open Save Path\tCtrl+Shift+O", "Opens Save Path in Explorer Window (Ctrl+Shift+O)")
+        menu.Append(ID_OPEN_SAVE_PATH, "Open Save Path\tCtrl+Shift+O",
+                    "Opens Save Path in Explorer Window (Ctrl+Shift+O)")
         menu.AppendSeparator()
         menu.Append(ID_SAVE, "Save\tCtrl+S", "Saves the last scan (Ctrl+S)")
         menu.Append(ID_LOAD_SAVE, "Load\tCtrl+L", "Load a save (Ctrl+L)")
@@ -83,17 +90,18 @@ class PixGrabberMenuBar(wx.MenuBar):
         self.Append(menu, "S&can")
 
         menu = wx.Menu()
-        menu.Append(ID_HELP_DOC, "Documentation\tCtrl+Shift+H", "A more in depth usage of PixGrabber what it is and what it does (Ctrl+Shift+H)")
+        menu.Append(ID_HELP_DOC, "Documentation\tCtrl+Shift+H",
+                    "A more in depth usage of PixGrabber what it is and what it does (Ctrl+Shift+H)")
         menu.AppendSeparator()
         menu.Append(ID_ABOUT, "About", "About the Program and Developer")
         self.Append(menu, "&Help")   
 
         parent.Bind(wx.EVT_MENU, self._on_open_url, id=ID_OPEN_URL)
         parent.Bind(wx.EVT_MENU, self._on_open_html, id=ID_OPEN_HTML)
-        parent.Bind(wx.EVT_MENU, self._open_save_path, id=ID_OPEN_SAVE_PATH)
+        parent.Bind(wx.EVT_MENU, lambda evt: _open_save_path(), id=ID_OPEN_SAVE_PATH)
         parent.Bind(wx.EVT_MENU, self._on_save_scan, id=ID_SAVE)
         parent.Bind(wx.EVT_MENU, self._on_load_save, id=ID_LOAD_SAVE)
-        parent.Bind(wx.EVT_MENU, lambda evt : self.parent.Close(), id=ID_EXIT)
+        parent.Bind(wx.EVT_MENU, lambda evt: self.parent.Close(), id=ID_EXIT)
 
         if DEBUG:
             parent.Bind(wx.EVT_MENU, self._on_debug, id=ID_SCAN_DEBUG)
@@ -116,20 +124,20 @@ class PixGrabberMenuBar(wx.MenuBar):
         self.profiles_submenu.Check(self._profile_ids[-1].id, True)
         self.parent.Bind(wx.EVT_MENU, self._on_load_profile, id=self._profile_ids[-1].id)
         profiles = load_profiles()
-        for pindex, profile_name in enumerate(profiles):
+        for profile_index, profile_name in enumerate(profiles):
             if profile_name not in "default":
-                self._profile_ids.append(ProfileSubMenuItem(pindex+10000, profile_name))
+                self._profile_ids.append(ProfileSubMenuItem(profile_index+10000, profile_name))
                 p = self._profile_ids[-1]
                 self.profiles_submenu.Append(p.id, p.name, kind=wx.ITEM_RADIO)
                 self.parent.Bind(wx.EVT_MENU, self._on_load_profile, id=p.id)
         settings = load_settings()
-        selected_profile = list(filter(lambda p : p.name == settings["profile-name"], self._profile_ids))[0]
+        selected_profile = list(filter(lambda p: p.name == settings["profile-name"], self._profile_ids))[0]
         self.profiles_submenu.Check(selected_profile.id, True)
 
     def _on_load_profile(self, evt):
         name = evt.GetEventObject().GetLabelText(evt.Id)
         use_profile(name)
-        self.app.window.sbar.SetStatusText(f"{name} has been loaded")
+        self.app.window.set_profile_status(name)
 
     def _on_debug(self, evt):
         self.app.commander.queue.put_nowait(
@@ -164,7 +172,7 @@ class PixGrabberMenuBar(wx.MenuBar):
     
     def _on_about(self, evt):
         dlg = BubbleDialog(self.parent, -1, "About",
-                            ["PixGrabber(c)", "Developed by Paul Millar", VERSION, DATE],
+                            ["PixGrabber(c)", "Developed by Paul Millar", GIT_SOURCE, VERSION],
                            size=(640, 480))
         dlg.ShowModal()
         dlg.Destroy()
@@ -184,8 +192,3 @@ class PixGrabberMenuBar(wx.MenuBar):
             save_settings(settings)
             self.create_profiles_submenu()
         dlg.Destroy()
-    
-    def _open_save_path(self, evt):
-        path = load_settings().get("save_path", "")
-        if os.path.exists(path):
-            webbrowser.open(path)

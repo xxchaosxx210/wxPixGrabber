@@ -121,9 +121,9 @@ class StatusTreeView(wx.TreeCtrl):
         children = self.children[msg.id]["children"]
         if children:
             img = self._img_complete_ok
-            ok_result = list(filter(lambda child : self.GetItemData(child["id"]).status == const.STATUS_OK, children))
+            ok_result = list(filter(lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK, children))
             if not ok_result:
-                error_result = list(filter(lambda child : self.GetItemData(child["id"]).status == const.STATUS_ERROR, children))
+                error_result = list(filter(lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR, children))
                 if error_result:
                     img = self._img_error
                 else:

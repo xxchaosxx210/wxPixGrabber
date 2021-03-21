@@ -18,7 +18,7 @@ VALID_FILE_NAME_CHARS = f"-_.() {string.ascii_letters}{string.digits}"
 
 DEBUG = True
 VERSION = "0.1"
-DATE = "March 2021"
+GIT_SOURCE = "https://github.com/xxchaosxx210"
 APP_NAME = "pixgrabber"
 
 if os.name == "nt":

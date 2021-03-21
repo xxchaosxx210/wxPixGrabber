@@ -101,7 +101,7 @@ class SettingsDialog(wx.Dialog):
         self.panel.timeout.set_timeout(
             settings.get("connection_timeout", 5))
 
-    def get_settings(self):
+    def get_settings(self) -> dict:
         """Like load_settings but in reverse. Should be called
         if the Dialog returns wx.ID_OK and save the returned settings json
 
@@ -293,6 +293,7 @@ class ProfilePanel(wx.Panel):
         super().__init__(parent=parent, id=id)
 
         self.dlg = dialog
+        self.app = wx.GetApp()
 
         settings = options.load_settings()
 
@@ -337,12 +338,15 @@ class ProfilePanel(wx.Panel):
             settings["profile-name"] = name
             options.save_profile(settings)
             options.use_profile(name)
+            self.app.window.set_profile_status(name)
             self.cmbox.Append(name)
             self.cmbox.SetStringSelection(name)
         dlg.Destroy()
 
     def _on_choice(self, evt):
-        options.use_profile(evt.GetString())
+        name = evt.GetString()
+        options.use_profile(name)
+        self.app.window.set_profile_status(name)
         self.dlg.load_settings(options.load_settings())
 
 
@@ -661,9 +665,7 @@ class TimeoutPanel(wx.Panel):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        MAX_TIMEOUT = 60
-
-        choices = list(map(lambda x: str(x + 1), range(MAX_TIMEOUT)))
+        choices = list(map(lambda x: str(x + 1), range(60)))
 
         self.choice = wx.Choice(self, -1,
                                 choices=choices)

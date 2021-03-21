@@ -37,13 +37,17 @@ class MainWindow(wx.Frame):
         # detach status frame
         self.detached_frame = DetachableFrame(self, -1, "")
 
+    def set_profile_status(self, profile_name: str):
+        self.SetStatusText(f"Profile: {profile_name}", 1)
+
     def _create_statusbar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
         font = self.sbar.GetFont()
         font.SetPointSize(10)
         self.sbar.SetFont(font)
-        self.sbar.SetFieldsCount(1)
+        self.sbar.SetFieldsCount(2, [-2, -1])
         self.SetStatusBar(self.sbar)
+        self.set_profile_status(options.load_settings()["profile-name"])
     
     def _load_icon(self):
         icon = wx.Icon()
