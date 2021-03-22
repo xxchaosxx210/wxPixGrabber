@@ -116,7 +116,7 @@ def download_image(filename: str, response: Response, settings: dict):
     return message
 
 
-class Grunt(mp.Process):
+class Task(mp.Process):
     """
     Worker thread which will search for images on the url passed into __init__
     """
@@ -134,14 +134,14 @@ class Grunt(mp.Process):
         """
         super().__init__()
         self.task_index = task_index
-        # grunts starting url
+        # tasks starting url
         self.urldata = urldata
         self.settings = settings
         self.file_index = 0
         self.filters = filters
         # Commander process message box
         self.comm_queue = commander_msg
-        # Grunts message box
+        # Tasks message box
         self.msgbox = mp.Queue()
         self.cancel = cancel_event
 

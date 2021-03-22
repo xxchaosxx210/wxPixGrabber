@@ -9,7 +9,7 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.mime as mime
 
-from crawler.task import Grunt
+from crawler.task import Task
 
 from crawler.message import Message
 import crawler.message as const
@@ -57,7 +57,7 @@ def tasks_alive(tasks: list) -> list:
     Returns:
         [list]: returns all active running tasks
     """
-    return list(filter(lambda grunt: grunt.is_alive(), tasks))
+    return list(filter(lambda task: task.is_alive(), tasks))
 
 
 def _reset_comm_props(properties: CommanderProperties):
@@ -143,9 +143,9 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                         cookiejar, filters = _init_start(props)
 
                         for task_index, urldata in enumerate(props.scanned_urls):
-                            grunt = Grunt(task_index, urldata, props.settings,
-                                          filters, msgbox, props.cancel_all)
-                            props.tasks.append(grunt)
+                            task = Task(task_index, urldata, props.settings,
+                                        filters, msgbox, props.cancel_all)
+                            props.tasks.append(task)
 
                         # reset the tasks counter this is used to keep track of
                         # tasks that have been  started once a running thread has been notified
@@ -258,7 +258,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
 
             elif r.thread == const.THREAD_TASK:
                 if r.event == const.EVENT_FINISHED:
-                    # one grunt is gone start another
+                    # one task is gone start another
                     if props.counter < len(props.tasks):
                         if not props.cancel_all.is_set():
                             # start the next task if not cancelled and increment the counter
@@ -271,16 +271,16 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                     # Pass the Task Finished event to the Main Thread
                     main_queue.put_nowait(r)
                 elif r.event == const.EVENT_BLACKLIST:
-                    # check the props.blacklist with urldata and notify Grunt process
+                    # check the props.blacklist with urldata and notify Task process
                     # if no duplicate and added then True returned
                     process_index = r.data["index"]
-                    grunt = props.tasks[process_index]
+                    task = props.tasks[process_index]
                     if not props.blacklist.exists(r.data["urldata"]):
                         props.blacklist.add(r.data["urldata"])
                         blacklist_added = True
                     else:
                         blacklist_added = False
-                    grunt.msgbox.put(Message(
+                    task.msgbox.put(Message(
                         thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
                         status=const.STATUS_OK, data={"added": blacklist_added}, _id=0
                     ))
@@ -293,8 +293,8 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
         finally:
             if props.task_running:
                 # check if all props.tasks are finished
-                # and that the grunt props.counter is greater or
-                # equal to the size of grunt tasks 
+                # and that the task props.counter is greater or
+                # equal to the size of task tasks
                 # if so cleanup
                 # and notify main thread
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
