@@ -261,10 +261,14 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                     # one grunt is gone start another
                     if props.counter < len(props.tasks):
                         if not props.cancel_all.is_set():
+                            # start the next task if not cancelled and increment the counter
                             props.tasks[props.counter].start()
+                            props.counter += 1
                         else:
-                            props.tasks[props.counter].run()
-                        props.counter += 1
+                            # if cancel flag been set
+                            # set the counter to its limit and this will force a Task Complete
+                            props.counter = len(props.tasks)
+                    # Pass the Task Finished event to the Main Thread
                     main_queue.put_nowait(r)
                 elif r.event == const.EVENT_BLACKLIST:
                     # check the props.blacklist with urldata and notify Grunt process
