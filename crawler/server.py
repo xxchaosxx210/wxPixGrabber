@@ -137,7 +137,7 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
             _ServerHandler.queue.put_nowait(Message(
                 thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
                 status=const.STATUS_OK, data={"html": html,
-                                              "url": url}, _id=0))
+                                              "url": url}, id=0))
             self.send_response(200)
             self.end_headers()
         else:

@@ -118,7 +118,6 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
 
     main_queue.put_nowait(Message(
         thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
-        status=const.STATUS_OK, _id=0,
         data={"message": "Commander thread has loaded. Waiting to scan"}))
 
     props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(),
@@ -135,8 +134,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                 if r.event == const.EVENT_QUIT:
                     props.cancel_all.set()
                     main_queue.put(
-                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, status=const.STATUS_OK,
-                                _id=0, data={}))
+                        Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, data={}))
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
                     if not props.task_running:
@@ -156,9 +154,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                         props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
                         # notify main thread so can initialize UI
                         main_queue.put_nowait(
-                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, _id=0,
-                                    status=const.STATUS_OK,
-                                    data={}))
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
                 elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
                         props.cancel_all.clear()
@@ -167,7 +163,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                         urldata = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
-                            status=const.STATUS_OK, _id=0, data={"message": f"Connecting to {r.data['url']}..."}))
+                            data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
                             try:
                                 fetch_response = options.load_from_file(r.data["url"])
@@ -200,25 +196,24 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
-                                                status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
-                                                                                     "title": html_title,
-                                                                                     "url": r.data["url"]}))
+                                                data={"urls": props.scanned_urls,
+                                                      "title": html_title,
+                                                      "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
-                                        Message(thread=const.THREAD_COMMANDER, _id=0,
-                                                data={"message": "No Links Found :("}, status=const.STATUS_OK,
+                                        Message(thread=const.THREAD_COMMANDER, data={"message": "No Links Found :("},
                                                 event=const.EVENT_MESSAGE))
                             fetch_response.close()
                         except Exception as err:
                             # couldn't connect
                             main_queue.put_nowait(Message(
                                 thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
-                                _id=0, data={"message": err.__str__(), "url": r.data["url"]}))
+                                data={"message": err.__str__(), "url": r.data["url"]}))
                     else:
                         # Task still running ignore request
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
-                            _id=0, data={"message": "Tasks still running", "url": r.data["url"]}))
+                            data={"message": "Tasks still running", "url": r.data["url"]}))
 
                 elif r.event == const.EVENT_CANCEL:
                     props.cancel_all.set()
@@ -242,19 +237,15 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                                              filters=filters) > 0:
                             main_queue.put_nowait(
                                 Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
-                                        status=const.STATUS_OK, _id=0, data={"urls": props.scanned_urls,
-                                                                             "title": html_title,
-                                                                             "url": r.data["url"]}))
+                                        data={"urls": props.scanned_urls, "title": html_title, "url": r.data["url"]}))
                             # Message ourselves and start the search
                             msgbox.put_nowait(
-                                Message(thread=const.THREAD_MAIN, event=const.EVENT_START,
-                                        status=const.STATUS_OK, data={}, _id=0))
+                                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
                         else:
                             # Nothing found notify main thread
                             main_queue.put_nowait(
-                                Message(thread=const.THREAD_COMMANDER, _id=0, data={"message": "No Links Found :("},
-                                        status=const.STATUS_OK,
-                                        event=const.EVENT_MESSAGE))
+                                Message(thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+                                        data={"message": "No Links Found :("}))
 
             elif r.thread == const.THREAD_TASK:
                 if r.event == const.EVENT_FINISHED:
@@ -281,9 +272,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                     else:
                         blacklist_added = False
                     task.msgbox.put(Message(
-                        thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
-                        status=const.STATUS_OK, data={"added": blacklist_added}, _id=0
-                    ))
+                        thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST, data={"added": blacklist_added}))
                 else:
                     # something pass onto main thread
                     main_queue.put_nowait(r)
@@ -300,7 +289,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                 if len(tasks_alive(props.tasks)) == 0 and props.counter >= len(props.tasks):
                     main_queue.put_nowait(Message(
                         thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE,
-                        _id=0, status=const.STATUS_OK, data={}))
+                        id=0, status=const.STATUS_OK, data={}))
                     _reset_comm_props(props)
                 else:
                     # cancel flag is set. Start counting to timeout

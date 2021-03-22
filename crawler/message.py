@@ -1,6 +1,7 @@
 """
 Description: Messaging system between Processes and Threads
 """
+from dataclasses import dataclass
 
 # thread ID
 THREAD_COMMANDER = 1001
@@ -29,20 +30,11 @@ STATUS_START = 12
 STATUS_IGNORED = 13
 
 
+@dataclass
 class Message:
 
-    def __init__(self, thread: int, event: int, status: int, _id: int, data: dict):
-        """
-
-        Args:
-            thread: (int) - Thread ID
-            event: (int) - Event ID
-            status: (int) - Status ID
-            _id: (int) - Process or Thread ID
-            data: (dict) - extra information. Determined by the Event
-        """
-        self.event = event
-        self.thread = thread
-        self.id = _id
-        self.data = data
-        self.status = status
+    thread: int
+    event: int
+    status: int = STATUS_OK
+    id: int = 0
+    data: dict = None

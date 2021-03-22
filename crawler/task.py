@@ -32,10 +32,10 @@ def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
         try:
             fp.write(bytes_stream.getbuffer())
             return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                           status=const.STATUS_OK, _id=0, data={"message": "image saved", "url": path})
+                           status=const.STATUS_OK, id=0, data={"message": "image saved", "url": path})
         except Exception as err:
             return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                           status=const.STATUS_ERROR, _id=0,
+                           status=const.STATUS_ERROR, id=0,
                            data={"message": err.__str__(), "url": path})
 
 
@@ -73,7 +73,7 @@ def create_save_path(settings: dict):
 
 
 def download_image(filename: str, response: Response, settings: dict):
-    message = Message(thread=const.THREAD_TASK, _id=0, status=const.STATUS_IGNORED,
+    message = Message(thread=const.THREAD_TASK, id=0, status=const.STATUS_IGNORED,
                       event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
 
     byte_stream = _response_to_stream(response)
@@ -151,7 +151,7 @@ class Task(mp.Process):
         if image then save
         """
         self.comm_queue.put_nowait(Message(thread=const.THREAD_TASK, event=const.EVENT_SEARCHING,
-                                           _id=self.task_index, status=const.STATUS_OK, data={}))
+                                           id=self.task_index, status=const.STATUS_OK, data={}))
         # initialize the list containing UrlData objects
         data_list = []
         # check the file extension
@@ -191,14 +191,14 @@ class Task(mp.Process):
             except UnidentifiedImageError as err:
                 # Couldn't load the Image from Stream
                 self.comm_queue.put_nowait(Message(
-                    thread=const.THREAD_TASK, _id=self.task_index, data={"url": response.url, "message": err.__str__()},
+                    thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": err.__str__()},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
             return []
         else:
             if not cache.query_ignore(response.url):
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
                 self.comm_queue.put_nowait(Message(
-                    thread=const.THREAD_TASK, _id=self.task_index,
+                    thread=const.THREAD_TASK, id=self.task_index,
                     data={"url": response.url, "message": "Unknown File Type"},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_IGNORED))
         return data_list
@@ -213,7 +213,7 @@ class Task(mp.Process):
             thread=const.THREAD_TASK,
             event=const.EVENT_BLACKLIST,
             data={"index": self.task_index, "urldata": url_data, "url": url_data.url},
-            _id=self.task_index, status=const.STATUS_OK
+            id=self.task_index, status=const.STATUS_OK
         ))
         reply = self.msgbox.get()
         return reply.data["added"]
@@ -232,7 +232,7 @@ class Task(mp.Process):
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
                         data={"url": url_data.url, "message": err.__str__()},
-                        _id=self.task_index, status=const.STATUS_ERROR))
+                        id=self.task_index, status=const.STATUS_ERROR))
         finally:
             return url_list
 
@@ -241,7 +241,7 @@ class Task(mp.Process):
             cookie_jar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK,
-                        _id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING,
+                        id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING,
                         data={"url": self.urldata.url}))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
@@ -265,4 +265,4 @@ class Task(mp.Process):
     def notify_finished(self, status: int, message: str):
         self.comm_queue.put_nowait(Message(
             thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED,
-            _id=self.task_index, data={"message": message, "url": self.urldata.url}))
+            id=self.task_index, data={"message": message, "url": self.urldata.url}))

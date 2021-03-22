@@ -65,15 +65,15 @@ class DownloadPanel(wx.Panel):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
             self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, _id=0, status=const.STATUS_OK, data=data))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, id=0, status=const.STATUS_OK, data=data))
 
     def start_tasks(self):
         self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, _id=0))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, id=0))
 
     def stop_tasks(self):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data={}, _id=0, status=const.STATUS_OK))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data={}, id=0, status=const.STATUS_OK))
     
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(

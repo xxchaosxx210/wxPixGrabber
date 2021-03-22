@@ -139,18 +139,18 @@ class PixGrabberMenuBar(wx.MenuBar):
     def _on_debug(self, evt):
         self.app.commander.queue.put_nowait(
                 Message(thread=const.THREAD_MAIN, 
-                        event=const.EVENT_FETCH, _id=0,
+                        event=const.EVENT_FETCH, id=0,
                         status=const.STATUS_OK, 
                         data={"url": "http://localhost:5000/setup_test"}))
 
     def _on_fetch(self, evt):
-        self.app.window.dldpanel.fetch_link()
+        self.app.window.dld_panel.fetch_link()
 
     def _on_scan_cancel(self, evt):
-        self.app.window.dldpanel.stop_tasks()
+        self.app.window.dld_panel.stop_tasks()
 
     def _on_scan_start(self, evt):
-        self.app.window.dldpanel.start_tasks()
+        self.app.window.dld_panel.start_tasks()
     
     def _on_open_html(self, evt):
         dlg = wx.FileDialog(
@@ -158,7 +158,7 @@ class PixGrabberMenuBar(wx.MenuBar):
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
             style=-wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
-            self.app.window.dldpanel.set_address_bar(dlg.GetPaths()[0])
+            self.app.window.dld_panel.set_address_bar(dlg.GetPaths()[0])
         dlg.Destroy()
     
     def _on_save_scan(self, evt):
