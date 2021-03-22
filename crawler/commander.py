@@ -68,9 +68,10 @@ def _reset_comm_props(properties: CommanderProperties):
     properties.time_counter = 0.0
 
 
-def _start_max_tasks(tasks: list, max_tasks: int, counter: int) -> int:
+def _start_max_tasks(tasks: list, max_tasks: int) -> int:
     # This function will be called to start the Process Pool
     # returns an integer to how many Tasks have been started
+    counter = 0
     for th in tasks:
         if counter >= max_tasks:
             break
@@ -149,9 +150,8 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                         # tasks that have been  started once a running thread has been notified
                         # this thread counter is incremented counter is checked with length of props.tasks
                         # once the counter has reached length then then all tasks have been complete
-                        props.counter = 0
-                        max_connections = round(int(props.settings["max_connections"]))
-                        props.counter = _start_max_tasks(props.tasks, max_connections, props.counter)
+                        max_connections = props.settings["max_connections"]
+                        props.counter = _start_max_tasks(props.tasks, max_connections)
                         # notify main thread so can initialize UI
                         main_queue.put_nowait(
                             Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
