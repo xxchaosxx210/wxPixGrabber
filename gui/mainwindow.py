@@ -22,7 +22,7 @@ class MainWindow(wx.Frame):
         super().__init__(**kw)
 
         self.app = wx.GetApp()
-        self._create_statusbar()
+        self._create_status_bar()
         self._load_icon()
         self.SetMenuBar(PixGrabberMenuBar(parent=self))
 
@@ -40,7 +40,7 @@ class MainWindow(wx.Frame):
     def set_profile_status(self, profile_name: str):
         self.SetStatusText(f"Profile: {profile_name}", 1)
 
-    def _create_statusbar(self):
+    def _create_status_bar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
         font = self.sbar.GetFont()
         font.SetPointSize(10)
@@ -109,7 +109,7 @@ class MainWindow(wx.Frame):
                 self.dldpanel.progressbar.increment()
                 self.dldpanel.treeview.child_complete(msg)
                 self.detached_frame.add_progress()
-            # IMAGE ERRROR
+            # IMAGE ERROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dldpanel.treeview.add_url(msg)
                 self.dldpanel.errors.add_stat()
@@ -150,7 +150,7 @@ class MainWindow(wx.Frame):
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
-            notify.NotificationBar(self, -1, "", "PixGrabber has completed", timeout=notify.NOTIFY_LONG)
+            notify.NotificationBar(None, -1, "", "PixGrabber has completed", timeout=notify.NOTIFY_LONG)
         # kill the timer thread
         timer_quit.set()
         self.SetStatusText("All Tasks have completed")
@@ -169,7 +169,7 @@ class MainWindow(wx.Frame):
         if msg.data.get("urls", []):
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
-                self.dldpanel.on_start_button(None)
+                self.dldpanel.start_tasks()
     
     def _on_fetch_error(self, msg):
         self.app.sounds["error"].Play()
