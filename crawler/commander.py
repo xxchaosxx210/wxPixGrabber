@@ -185,6 +185,203 @@ def _request_url(url_data: UrlData, cookie_jar: CookieJar, props: _CommanderProp
         return response
 
 
+class Commander(threading.Thread):
+
+    def __init__(self, main_queue: mp.Queue):
+        super().__init__()
+        self.main_queue = main_queue
+        self.msg_box = mp.Queue()
+        self.settings = None
+        self.scanned_urls = []
+        self.blacklist = []
+        self.counter = 0
+        self.cancel_all = mp.Event()
+        self.task_running = False
+        self.tasks = []
+        self.quit_thread = mp.Event()
+        self.time_counter = 0.0
+
+    def run(self):
+        # create an ignore table in the sqlite file
+        cache.initialize_ignore()
+        self.main_queue.put_nowait(Message(
+            thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+            data={"message": "Commander thread has loaded. Waiting to scan"}))
+        while not self.quit_thread.is_set():
+            try:
+                if self.task_running:
+                    r = self.msg_box.get(timeout=_QUEUE_TIMEOUT)
+                else:
+                    r = self.msg_box.get(timeout=None)
+                if r.thread == const.THREAD_MAIN:
+                    if r.event == const.EVENT_QUIT:
+                        self.cancel_all.set()
+                        self.main_queue.put(
+                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, data={}))
+                        self.quit_thread.set()
+                    elif r.event == const.EVENT_START:
+                        if not self.task_running:
+                            if self._start_tasks() > 0:
+                                # notify main thread so can initialize UI
+                                self.main_queue.put_nowait(
+                                    Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
+                            else:
+                                self.main_queue.put_nowait(Message(const.THREAD_COMMANDER, const.EVENT_MESSAGE,
+                                                              data={"message": "Could not start Tasks"}))
+                    elif r.event == const.EVENT_FETCH:
+                        if not self.task_running:
+                            self.main_queue.put_nowait(Message(
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+                                data={"message": f"Connecting to {r.data['url']}..."}))
+                            try:
+                                url_data, cookie_jar = _init_fetch(r.data["url"], self)
+                                fetch_response = _request_url(url_data, cookie_jar, self)
+                                ext = mime.is_valid_content_type(r.data["url"], fetch_response.headers["Content-Type"],
+                                                                 self.settings["images_to_search"])
+                                if ext == mime.EXT_HTML:
+                                    soup, html_title, filters = _parse_response(fetch_response.text, r.data["url"],
+                                                                                self.settings["filter-search"])
+                                    # find images and links, set the include_form to False on level 1 scan
+                                    # compile our filter matches only add those from the filter list
+                                    if parsing.sort_soup(url=r.data["url"], soup=soup, urls=self.scanned_urls,
+                                                         include_forms=False, images_only=False,
+                                                         thumbnails_only=self.settings.get("thumbnails_only", True),
+                                                         filters=filters) > 0:
+                                        self.main_queue.put_nowait(
+                                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
+                                                    data={"urls": self.scanned_urls,
+                                                          "title": html_title, "url": r.data["url"]}))
+                                    else:
+                                        self.main_queue.put_nowait(
+                                            Message(thread=const.THREAD_COMMANDER,
+                                                    data={"message": "No Links Found :("},
+                                                    event=const.EVENT_MESSAGE))
+                                fetch_response.close()
+                            except Exception as err:
+                                # couldn't connect
+                                self.main_queue.put_nowait(Message(
+                                    thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
+                                    data={"message": err.__str__(), "url": r.data["url"]}))
+                        else:
+                            # Task still running ignore request
+                            self.main_queue.put_nowait(Message(
+                                thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
+                                data={"message": "Tasks still running", "url": r.data["url"]}))
+
+                    elif r.event == const.EVENT_CANCEL:
+                        self.cancel_all.set()
+
+                elif r.thread == const.THREAD_SERVER:
+                    if r.event == const.EVENT_SERVER_READY:
+                        if not self.task_running:
+                            # Initialize and load settings
+                            _init_fetch("", self)
+                            soup, html_title, filters = _parse_response(r.data["html"], "",
+                                                                        self.settings["filter-search"])
+                            if parsing.sort_soup(url=r.data["url"], soup=soup,
+                                                 urls=self.scanned_urls, include_forms=False, images_only=False,
+                                                 thumbnails_only=self.settings.get("thumbnails_only", True),
+                                                 filters=filters) > 0:
+                                self.main_queue.put_nowait(
+                                    Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
+                                            data={"urls": self.scanned_urls, "title": html_title,
+                                                  "url": r.data["url"]}))
+                                # Message ourselves and start the search
+                                self.msg_box.put_nowait(
+                                    Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
+                            else:
+                                # Nothing found notify main thread
+                                self.main_queue.put_nowait(
+                                    Message(thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
+                                            data={"message": "No Links Found :("}))
+
+                elif r.thread == const.THREAD_TASK:
+                    if r.event == const.EVENT_FINISHED:
+                        # one task is gone start another
+                        if self.counter < len(self.tasks):
+                            if not self.cancel_all.is_set():
+                                # start the next task if not cancelled and increment the counter
+                                self.tasks[self.counter].start()
+                                self.counter += 1
+                            else:
+                                # if cancel flag been set the counter to its limit and this will force a Task Complete
+                                self.counter = len(self.tasks)
+                        self.main_queue.put_nowait(r)
+                    elif r.event == const.EVENT_BLACKLIST:
+                        # check the self.blacklist with url_data and notify Task process
+                        # if no duplicate and added then True returned
+                        process_index = r.data["index"]
+                        task = self.tasks[process_index]
+                        if not self.blacklist.exists(r.data["urldata"]):
+                            self.blacklist.add(r.data["urldata"])
+                            blacklist_added = True
+                        else:
+                            blacklist_added = False
+                        task.msgbox.put(Message(
+                            thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
+                            data={"added": blacklist_added}))
+                    else:
+                        # something pass onto main thread
+                        self.main_queue.put_nowait(r)
+            except queue.Empty:
+                pass
+
+            finally:
+                if self.task_running:
+                    # check if all self.tasks are finished
+                    # and that the task self.counter is greater or
+                    # equal to the size of task tasks
+                    # if so cleanup
+                    # and notify main thread
+                    if len(tasks_alive(self.tasks)) == 0 and self.counter >= len(self.tasks):
+                        self.main_queue.put_nowait(Message(
+                            thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE,
+                            id=0, status=const.STATUS_OK, data={}))
+                        self._reset()
+                    else:
+                        # cancel flag is set. Start counting to timeout
+                        # then start terminating processing
+                        if self.cancel_all.is_set():
+                            if self.time_counter >= self.settings["connection_timeout"]:
+                                # kill any hanging tasks
+                                for task in self.tasks:
+                                    if task.is_alive():
+                                        task.terminate()
+                                        self.counter += 1
+                            else:
+                                self.time_counter += _QUEUE_TIMEOUT
+
+    def _start_max_tasks(self, max_tasks: int):
+        # This function will be called to start the Process Pool
+        # returns an integer to how many Tasks have been started
+        self.counter = 0
+        for th in self.tasks:
+            if self.counter >= max_tasks:
+                break
+            else:
+                th.start()
+                self.counter += 1
+
+    def _start_tasks(self) -> int:
+        cookiejar, filters = _init_start(self)
+        for task_index, url_data in enumerate(self.scanned_urls):
+            self.tasks.append(Task(task_index, url_data, self.settings, filters, self.msg_box, self.cancel_all))
+        # reset the tasks counter this is used to keep track of
+        # tasks that have been  started once a running thread has been notified
+        # this thread counter is incremented counter is checked with length of self.tasks
+        # once the counter has reached length then then all tasks have been complete
+        self._start_max_tasks(self.settings["max_connections"])
+        return self.counter
+
+    def _reset(self):
+        self.cancel_all.clear()
+        self.tasks = []
+        self.task_running = 0
+        self.blacklist.clear()
+        self.time_counter = 0.0
+
+
+
 def _thread(main_queue: mp.Queue, msg_box: mp.Queue):
     """main task handler thread
 
