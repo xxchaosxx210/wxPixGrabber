@@ -11,7 +11,7 @@ from geometry.vector import (
     rotate
 )
 
-_MIN_VELOCITY = 20
+_MIN_VELOCITY = 10
 _MAX_VELOCITY = 100
 
 _MIN_BUBBLE_SIZE = 2
@@ -40,7 +40,7 @@ class Bubble:
         self.canvas = canvas
         self.rect = wx.Rect(x, y, self.diameter, self.diameter)
         self.velocity = Vector(0, _random_velocity())
-        self.velocity.x = rotate(random.randint(0, 360)).x * _random_velocity(100, 200)
+        self.velocity.x = rotate(random.randint(0, 360)).x * _random_velocity(_MIN_VELOCITY, _MAX_VELOCITY)
         self.off_screen = False
 
     def update(self, dt: float):

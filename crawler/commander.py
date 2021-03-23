@@ -43,6 +43,8 @@ class Commander(threading.Thread):
         self.tasks = []
         self.quit_thread = mp.Event()
         self.time_counter = 0.0
+        self.filters = None
+        self.cookie_jar = None
 
     def _start_max_tasks(self, max_tasks: int):
         # This function will be called to start the Process Pool
@@ -95,7 +97,7 @@ class Commander(threading.Thread):
             thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE, data={}))
 
     def _check_blacklist(self, url_data: UrlData, task_index: int):
-        # check the self.blacklist with urldata and notify Task process
+        # check the self.blacklist with url_data and notify Task process
         # if no duplicate and added then True returned
         blacklist_added = self.blacklist.exists(url_data)
         if not blacklist_added:
@@ -106,76 +108,81 @@ class Commander(threading.Thread):
         task.msgbox.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
                                 data={"added": blacklist_added}))
 
+    def _init_start_tasks(self):
+        self.tasks = []
+        self.task_running = True
+        self.blacklist.clear()
+        self.settings = options.load_settings()
+        self.cookie_jar = load_cookies(self.settings)
+        self.filters = parsing.compile_filter_list(self.settings["filter-search"])
+
+    def _init_fetch(self):
+        self.scanned_urls = []
+        self.tasks = []
+        self.cancel_all.clear()
+        self.settings = options.load_settings()
+        self.cookie_jar = load_cookies(self.settings)
+
+    def _search_html(self, html_doc: str, url: str):
+        soup = parsing.parse_html(html_doc)
+        html_title = getattr(soup.find("title"), "text", "")
+        options.assign_unique_name("", html_title)
+        # Setup Search filters and find matches within forms, links and images
+        self.filters = parsing.compile_filter_list(self.settings["filter-search"])
+        if parsing.sort_soup(url=url, soup=soup,
+                             urls=self.scanned_urls, include_forms=False, images_only=False,
+                             thumbnails_only=self.settings.get("thumbnails_only", True),
+                             filters=self.filters) > 0:
+            self.message_fetch_ok(html_title, url)
+            # Message ourselves and start the search
+            self.queue.put_nowait(
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
+        else:
+            self.message_main("No Links Found :(")
+
     def run(self):
         # create an ignore table in the sqlite file
         cache.initialize_ignore()
+        # Notify main thread that Commander has started
         self.message_main("Commander thread has loaded. Waiting to scan")
-
         while not self.quit_thread.is_set():
             try:
                 if self.task_running:
                     r = self.queue.get(timeout=_QUEUE_TIMEOUT)
                 else:
                     r = self.queue.get(timeout=None)
+
                 if r.thread == const.THREAD_MAIN:
                     if r.event == const.EVENT_QUIT:
                         self.cancel_all.set()
                         self.message_quit()
                         self.quit_thread.set()
+
                     elif r.event == const.EVENT_START:
                         if not self.task_running:
-                            cookiejar, filters = _init_start(self)
-
-                            for task_index, urldata in enumerate(self.scanned_urls):
-                                task = Task(task_index, urldata, self.settings,
-                                            filters, self.queue, self.cancel_all)
-                                self.tasks.append(task)
-
-                            # reset the tasks counter this is used to keep track of
-                            # tasks that have been  started once a running thread has been notified
-                            # this thread counter is incremented counter is checked with length of self.tasks
-                            # once the counter has reached length then then all tasks have been complete
+                            self._init_start_tasks()
+                            for task_index, url_data in enumerate(self.scanned_urls):
+                                self.tasks.append(Task(task_index, url_data, self.settings,
+                                                       self.filters, self.queue, self.cancel_all))
                             self._start_max_tasks(self.settings["max_connections"])
                             # notify main thread so can initialize UI
                             self.message_start()
+
                     elif r.event == const.EVENT_FETCH:
                         if not self.task_running:
-                            self.cancel_all.clear()
-                            self.settings = options.load_settings()
-                            cookiejar = load_cookies(self.settings)
-                            urldata = UrlData(r.data["url"], method="GET")
+                            self._init_fetch()
+                            url_data = UrlData(r.data["url"], method="GET")
                             self.message_main(f"Connecting to {r.data['url']}...")
                             try:
                                 try:
                                     fetch_response = options.load_from_file(r.data["url"])
                                 except FileNotFoundError:
-                                    fetch_response = request_from_url(urldata, cookiejar, self.settings)
+                                    fetch_response = request_from_url(url_data, self.cookie_jar, self.settings)
                                 ext = mime.is_valid_content_type(r.data["url"],
                                                                  fetch_response.headers["Content-Type"],
                                                                  self.settings["images_to_search"])
                                 if ext == mime.EXT_HTML:
-                                    html_doc = fetch_response.text
-                                    # parse the html
-                                    soup = parsing.parse_html(html_doc)
-                                    # get the url title
-                                    # amd add a unique path name to the save path
-                                    html_title = getattr(soup.find("title"), "text", "")
-                                    options.assign_unique_name(
-                                        fetch_response.url, html_title)
-                                    # scrape links and images from document
-                                    self.scanned_urls = []
-                                    # find images and links
-                                    # set the include_form to False on level 1 scan
-                                    # compile our filter matches only add those from the filter list
-                                    filters = parsing.compile_filter_list(self.settings["filter-search"])
-                                    if parsing.sort_soup(url=r.data["url"], soup=soup,
-                                                         urls=self.scanned_urls, include_forms=False,
-                                                         images_only=False,
-                                                         thumbnails_only=self.settings.get("thumbnails_only", True),
-                                                         filters=filters) > 0:
-                                        self.message_fetch_ok(html_title, r.data["url"])
-                                    else:
-                                        self.message_main("No Links Found :(")
+                                    self._search_html(fetch_response.text, r.data["url"])
                                 fetch_response.close()
                             except Exception as err:
                                 # couldn't connect
@@ -189,26 +196,8 @@ class Commander(threading.Thread):
                 elif r.thread == const.THREAD_SERVER:
                     if r.event == const.EVENT_SERVER_READY:
                         if not self.task_running:
-                            # Initialize and load settings
-                            self.cancel_all.clear()
-                            self.scanned_urls = []
-                            self.settings = options.load_settings()
-                            # Parse the HTML sent from the Server and assign a unique Path name if required
-                            soup = parsing.parse_html(r.data["html"])
-                            html_title = getattr(soup.find("title"), "text", "")
-                            options.assign_unique_name("", html_title)
-                            # Setup Search filters and find matches within forms, links and images
-                            filters = parsing.compile_filter_list(self.settings["filter-search"])
-                            if parsing.sort_soup(url=r.data["url"], soup=soup,
-                                                 urls=self.scanned_urls, include_forms=False, images_only=False,
-                                                 thumbnails_only=self.settings.get("thumbnails_only", True),
-                                                 filters=filters) > 0:
-                                self.message_fetch_ok(html_title, r.data["url"])
-                                # Message ourselves and start the search
-                                self.queue.put_nowait(
-                                    Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
-                            else:
-                                self.message_main("No Links Found :(")
+                            self._init_fetch()
+                            self._search_html(r.data["html"], "")
 
                 elif r.thread == const.THREAD_TASK:
                     if r.event == const.EVENT_FINISHED:
@@ -226,24 +215,18 @@ class Commander(threading.Thread):
                     elif r.event == const.EVENT_BLACKLIST:
                         self._check_blacklist(r.data["urldata"], r.data["index"])
                     else:
-                        # something pass onto main thread
                         self.main_queue.put_nowait(r)
             except queue.Empty:
                 pass
-
             finally:
                 if self.task_running:
-                    # check if all self.tasks are finished
-                    # and that the task self.counter is greater or
-                    # equal to the size of task tasks
-                    # if so cleanup
-                    # and notify main thread
+                    # check if all self.tasks are finished and that the task self.counter is greater or
+                    # equal to the size of task tasks. if so cleanup and notify main thread
                     if len(tasks_alive(self.tasks)) == 0 and self.counter >= len(self.tasks):
                         self.message_complete()
                         self._reset()
                     else:
-                        # cancel flag is set. Start counting to timeout
-                        # then start terminating processing
+                        # cancel flag is set. Start counting to timeout, then start terminating processing
                         if self.cancel_all.is_set():
                             if self.time_counter >= self.settings["connection_timeout"]:
                                 # kill any hanging tasks
@@ -265,14 +248,3 @@ def tasks_alive(tasks: list) -> list:
         [list]: returns all active running tasks
     """
     return list(filter(lambda task: task.is_alive(), tasks))
-
-
-def _init_start(properties: Commander) -> tuple:
-    # initialize commander threads variables and return new objects
-    properties.tasks = []
-    properties.task_running = True
-    properties.blacklist.clear()
-    properties.settings = options.load_settings()
-    cj = load_cookies(properties.settings)
-    filters = parsing.compile_filter_list(properties.settings["filter-search"])
-    return cj, filters
