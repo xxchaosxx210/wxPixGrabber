@@ -36,7 +36,7 @@ class Commander:
 
 
 @dataclass
-class CommanderProperties:
+class _CommanderProperties:
     settings: dict
     scanned_urls: list
     blacklist: Blacklist
@@ -61,7 +61,7 @@ def tasks_alive(tasks: list) -> list:
     return list(filter(lambda task: task.is_alive(), tasks))
 
 
-def _reset_comm_props(properties: CommanderProperties):
+def _reset_comm_props(properties: _CommanderProperties):
     properties.cancel_all.clear()
     properties.tasks = []
     properties.task_running = 0
@@ -93,11 +93,11 @@ def create_commander(main_queue: mp.Queue) -> Commander:
     """
     msg_queue = mp.Queue()
     return Commander(
-        threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msgbox": msg_queue}),
+        threading.Thread(target=_thread, kwargs={"main_queue": main_queue, "msg_box": msg_queue}),
         msg_queue)
 
 
-def _init_start(properties: CommanderProperties) -> tuple:
+def _init_start(properties: _CommanderProperties) -> tuple:
     # initialize commander threads variables and return new objects
     properties.tasks = []
     properties.task_running = 1
@@ -108,14 +108,10 @@ def _init_start(properties: CommanderProperties) -> tuple:
     return cj, filters
 
 
-def _start_tasks(props: CommanderProperties) -> int:
+def _start_tasks(props: _CommanderProperties) -> int:
     cookiejar, filters = _init_start(props)
-
     for task_index, url_data in enumerate(props.scanned_urls):
-        task = Task(task_index, url_data, props.settings,
-                    filters, msgbox, props.cancel_all)
-        props.tasks.append(task)
-
+        props.tasks.append(Task(task_index, url_data, props.settings, filters, props.msg_box, props.cancel_all))
     # reset the tasks counter this is used to keep track of
     # tasks that have been  started once a running thread has been notified
     # this thread counter is incremented counter is checked with length of props.tasks
@@ -125,12 +121,12 @@ def _start_tasks(props: CommanderProperties) -> int:
     return props.counter
 
 
-def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
+def _thread(main_queue: mp.Queue, msg_box: mp.Queue):
     """main task handler thread
 
     Args:
-        main_queue (object): atomic Queue object used to send messages to main thread
-        msgbox (object): the atomic Queue object to receive messages from
+        main_queue (Queue): atomic Queue object used to send messages to main thread
+        msg_box (Queue): the atomic Queue object to receive messages from
     """
     # create an ignore table in the sqlite file
     cache.initialize_ignore()
@@ -139,16 +135,17 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
         thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
         data={"message": "Commander thread has loaded. Waiting to scan"}))
 
-    props = CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(),
-                                counter=0, cancel_all=mp.Event(), task_running=0,
-                                tasks=[], quit_thread=mp.Event(), time_counter=0.0)
+    props = _CommanderProperties(settings={}, scanned_urls=[], blacklist=Blacklist(),
+                                 counter=0, cancel_all=mp.Event(), task_running=0,
+                                 tasks=[], quit_thread=mp.Event(), time_counter=0.0,
+                                 msg_box=msg_box)
 
     while not props.quit_thread.is_set():
         try:
             if props.task_running:
-                r = msgbox.get(timeout=_QUEUE_TIMEOUT)
+                r = props.msg_box.get(timeout=_QUEUE_TIMEOUT)
             else:
-                r = msgbox.get(timeout=None)
+                r = props.msg_box.get(timeout=None)
             if r.thread == const.THREAD_MAIN:
                 if r.event == const.EVENT_QUIT:
                     props.cancel_all.set()
@@ -157,22 +154,13 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                     props.quit_thread.set()
                 elif r.event == const.EVENT_START:
                     if not props.task_running:
-                        cookiejar, filters = _init_start(props)
-
-                        for task_index, url_data in enumerate(props.scanned_urls):
-                            task = Task(task_index, url_data, props.settings,
-                                        filters, msgbox, props.cancel_all)
-                            props.tasks.append(task)
-
-                        # reset the tasks counter this is used to keep track of
-                        # tasks that have been  started once a running thread has been notified
-                        # this thread counter is incremented counter is checked with length of props.tasks
-                        # once the counter has reached length then then all tasks have been complete
-                        max_connections = props.settings["max_connections"]
-                        props.counter = _start_max_tasks(props.tasks, max_connections)
-                        # notify main thread so can initialize UI
-                        main_queue.put_nowait(
-                            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
+                        if _start_tasks(props) > 0:
+                            # notify main thread so can initialize UI
+                            main_queue.put_nowait(
+                                Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
+                        else:
+                            main_queue.put_nowait(Message(const.THREAD_COMMANDER, const.EVENT_MESSAGE,
+                                                          data={"message": "Could not start Tasks"}))
                 elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
                         props.cancel_all.clear()
@@ -256,7 +244,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                                 Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
                                         data={"urls": props.scanned_urls, "title": html_title, "url": r.data["url"]}))
                             # Message ourselves and start the search
-                            msgbox.put_nowait(
+                            props.msg_box.put_nowait(
                                 Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
                         else:
                             # Nothing found notify main thread
