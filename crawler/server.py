@@ -93,7 +93,7 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
     def _send_jpg(self, relative_path):
         # sends the requested image
         self.send_response(200)
-        self.send_header("Content-Type", MIME_JPG)
+        self.send_header("Co ntent-Type", MIME_JPG)
         self.end_headers()
         # get the filename nd append to a full path
         path, filename = os.path.split(relative_path)

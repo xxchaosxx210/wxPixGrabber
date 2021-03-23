@@ -3,6 +3,8 @@ import logging
 import multiprocessing as mp
 import queue
 from dataclasses import dataclass
+from requests import Response
+from http.cookiejar import CookieJar
 
 import crawler.cache as cache
 import crawler.parsing as parsing
@@ -121,6 +123,68 @@ def _start_tasks(props: _CommanderProperties) -> int:
     return props.counter
 
 
+def _init_fetch(url: str, props: _CommanderProperties) -> tuple:
+    """
+    clears initializes the CommanderProperties, loads settings and returns
+    Args:
+        url: the url to go fetch from
+        props: the commander property dataclass
+
+    Returns:
+        tuple - UrlData, CookieJar
+
+    """
+    props.scanned_urls = []
+    props.cancel_all.clear()
+    props.settings = options.load_settings()
+    if url:
+        cookie_jar = load_cookies(props.settings)
+        url_data = UrlData(url, method="GET")
+    else:
+        cookie_jar = None
+        url_data = None
+    return url_data, cookie_jar
+
+
+def _parse_response(html_doc: str, url: str, filter_settings: dict) -> tuple:
+    """
+    Parses the HTML
+    Args:
+        html_doc: html text to parse
+        url: the url to convert a unique folder name into
+        filter_settings: a dict of words to search for this will be compiled to a regex pattern
+
+    Returns:
+        tuple - BeautifulSoup, str, Pattern
+
+    """
+    soup = parsing.parse_html(html_doc)
+    html_title = getattr(soup.find("title"), "text", "")
+    options.assign_unique_name(url, html_title)
+    filters = parsing.compile_filter_list(filter_settings)
+    return soup, html_title, filters
+
+
+def _request_url(url_data: UrlData, cookie_jar: CookieJar, props: _CommanderProperties) -> Response:
+    """
+    Attempts to load from file first and connects to Url if filenotfound
+    Args:
+        url_data:
+        cookie_jar:
+        props:
+
+    Returns:
+        Tuple: requests.Response
+    """
+    response = None
+    try:
+        response = options.load_from_file(url_data.url)
+    except FileNotFoundError:
+        response = request_from_url(url_data, cookie_jar, props.settings)
+    finally:
+        return response
+
+
 def _thread(main_queue: mp.Queue, msg_box: mp.Queue):
     """main task handler thread
 
@@ -163,47 +227,27 @@ def _thread(main_queue: mp.Queue, msg_box: mp.Queue):
                                                           data={"message": "Could not start Tasks"}))
                 elif r.event == const.EVENT_FETCH:
                     if not props.task_running:
-                        props.cancel_all.clear()
-                        props.settings = options.load_settings()
-                        cookiejar = load_cookies(props.settings)
-                        url_data = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
                             data={"message": f"Connecting to {r.data['url']}..."}))
                         try:
-                            try:
-                                fetch_response = options.load_from_file(r.data["url"])
-                            except FileNotFoundError:
-                                fetch_response = request_from_url(url_data, cookiejar, props.settings)
-                            ext = mime.is_valid_content_type(r.data["url"],
-                                                             fetch_response.headers["Content-Type"],
+                            url_data, cookie_jar = _init_fetch(r.data["url"], props)
+                            fetch_response = _request_url(url_data, cookie_jar, props)
+                            ext = mime.is_valid_content_type(r.data["url"], fetch_response.headers["Content-Type"],
                                                              props.settings["images_to_search"])
                             if ext == mime.EXT_HTML:
-                                html_doc = fetch_response.text
-                                # parse the html
-                                soup = parsing.parse_html(html_doc)
-                                # get the url title
-                                # amd add a unique path name to the save path
-                                html_title = getattr(soup.find("title"), "text", "")
-                                options.assign_unique_name(
-                                    fetch_response.url, html_title)
-                                # scrape links and images from document
-                                props.scanned_urls = []
-                                # find images and links
-                                # set the include_form to False on level 1 scan
+                                soup, html_title, filters = _parse_response(fetch_response.text, r.data["url"],
+                                                                            props.settings["filter-search"])
+                                # find images and links, set the include_form to False on level 1 scan
                                 # compile our filter matches only add those from the filter list
-                                filters = parsing.compile_filter_list(props.settings["filter-search"])
-                                if parsing.sort_soup(url=r.data["url"], soup=soup,
-                                                     urls=props.scanned_urls,
-                                                     include_forms=False,
-                                                     images_only=False,
+                                if parsing.sort_soup(url=r.data["url"], soup=soup, urls=props.scanned_urls,
+                                                     include_forms=False, images_only=False,
                                                      thumbnails_only=props.settings.get("thumbnails_only", True),
                                                      filters=filters) > 0:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
                                                 data={"urls": props.scanned_urls,
-                                                      "title": html_title,
-                                                      "url": r.data["url"]}))
+                                                      "title": html_title, "url": r.data["url"]}))
                                 else:
                                     main_queue.put_nowait(
                                         Message(thread=const.THREAD_COMMANDER, data={"message": "No Links Found :("},
@@ -225,17 +269,10 @@ def _thread(main_queue: mp.Queue, msg_box: mp.Queue):
 
             elif r.thread == const.THREAD_SERVER:
                 if r.event == const.EVENT_SERVER_READY:
-                    if props.task_running == 0:
+                    if not props.task_running:
                         # Initialize and load settings
-                        props.cancel_all.clear()
-                        props.scanned_urls = []
-                        props.settings = options.load_settings()
-                        # Parse the HTML sent from the Server and assign a unique Path name if required
-                        soup = parsing.parse_html(r.data["html"])
-                        html_title = getattr(soup.find("title"), "text", "")
-                        options.assign_unique_name("", html_title)
-                        # Setup Search filters and find matches within forms, links and images
-                        filters = parsing.compile_filter_list(props.settings["filter-search"])
+                        _init_fetch("", props)
+                        soup, html_title, filters = _parse_response(r.data["html"], "", props.settings["filter-search"])
                         if parsing.sort_soup(url=r.data["url"], soup=soup,
                                              urls=props.scanned_urls, include_forms=False, images_only=False,
                                              thumbnails_only=props.settings.get("thumbnails_only", True),

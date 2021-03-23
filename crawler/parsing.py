@@ -15,7 +15,7 @@ url_pattern = re.compile(
     r'a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})')
 
 
-def compile_filter_list(filter_settings) -> Pattern:
+def compile_filter_list(filter_settings: dict) -> Pattern:
     """compiles a filter list into a regular expression pattern.
     Call this before, calling sort soup
 
