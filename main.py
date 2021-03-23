@@ -14,7 +14,7 @@ from resources.globals import (
     load_bitmaps
 )
 
-from crawler.commander import create_commander
+from crawler.commander import Commander
 import crawler.message as const
 from crawler.server import server_process
 from crawler.options import setup as setup_options
@@ -45,8 +45,8 @@ class PixGrabberApp(wx.App):
         # Setup the message Queues amd start the background thread
         self.queue = mp.Queue()
         threading.Thread(target=self.commander_message_handler).start()
-        self.commander = create_commander(self.queue)
-        self.commander.thread.start()
+        self.commander = Commander(self.queue)
+        self.commander.start()
 
         # start the server for handling our Web Browser extension requests
         self.server = mp.Process(target=server_process, kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})

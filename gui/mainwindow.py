@@ -65,7 +65,7 @@ class MainWindow(wx.Frame):
         self.detached_frame.Destroy()
         self.app.commander.queue.put(Message(
             thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data={}, status=const.STATUS_OK))
-        self.app.commander.thread.join()
+        self.app.commander.join()
         evt.Skip()
     
     def message_from_thread(self, msg: Message):
