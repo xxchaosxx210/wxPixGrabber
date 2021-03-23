@@ -112,7 +112,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
 
     Args:
         main_queue (object): atomic Queue object used to send messages to main thread
-        msgbox (object): the atomic Queue object to recieve messages from
+        msgbox (object): the atomic Queue object to receive messages from
     """
     # create an ignore table in the sqlite file
     cache.initialize_ignore()
