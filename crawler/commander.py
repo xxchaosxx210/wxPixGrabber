@@ -46,6 +46,7 @@ class CommanderProperties:
     tasks: list
     quit_thread: mp.Event
     time_counter: float
+    msg_box: queue.Queue
 
 
 def tasks_alive(tasks: list) -> list:
@@ -107,6 +108,23 @@ def _init_start(properties: CommanderProperties) -> tuple:
     return cj, filters
 
 
+def _start_tasks(props: CommanderProperties) -> int:
+    cookiejar, filters = _init_start(props)
+
+    for task_index, url_data in enumerate(props.scanned_urls):
+        task = Task(task_index, url_data, props.settings,
+                    filters, msgbox, props.cancel_all)
+        props.tasks.append(task)
+
+    # reset the tasks counter this is used to keep track of
+    # tasks that have been  started once a running thread has been notified
+    # this thread counter is incremented counter is checked with length of props.tasks
+    # once the counter has reached length then then all tasks have been complete
+    max_connections = props.settings["max_connections"]
+    props.counter = _start_max_tasks(props.tasks, max_connections)
+    return props.counter
+
+
 def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
     """main task handler thread
 
@@ -141,8 +159,8 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                     if not props.task_running:
                         cookiejar, filters = _init_start(props)
 
-                        for task_index, urldata in enumerate(props.scanned_urls):
-                            task = Task(task_index, urldata, props.settings,
+                        for task_index, url_data in enumerate(props.scanned_urls):
+                            task = Task(task_index, url_data, props.settings,
                                         filters, msgbox, props.cancel_all)
                             props.tasks.append(task)
 
@@ -160,7 +178,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                         props.cancel_all.clear()
                         props.settings = options.load_settings()
                         cookiejar = load_cookies(props.settings)
-                        urldata = UrlData(r.data["url"], method="GET")
+                        url_data = UrlData(r.data["url"], method="GET")
                         main_queue.put_nowait(Message(
                             thread=const.THREAD_COMMANDER, event=const.EVENT_MESSAGE,
                             data={"message": f"Connecting to {r.data['url']}..."}))
@@ -168,7 +186,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                             try:
                                 fetch_response = options.load_from_file(r.data["url"])
                             except FileNotFoundError:
-                                fetch_response = request_from_url(urldata, cookiejar, props.settings)
+                                fetch_response = request_from_url(url_data, cookiejar, props.settings)
                             ext = mime.is_valid_content_type(r.data["url"],
                                                              fetch_response.headers["Content-Type"],
                                                              props.settings["images_to_search"])
@@ -187,8 +205,7 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                                 # set the include_form to False on level 1 scan
                                 # compile our filter matches only add those from the filter list
                                 filters = parsing.compile_filter_list(props.settings["filter-search"])
-                                if parsing.sort_soup(url=r.data["url"],
-                                                     soup=soup,
+                                if parsing.sort_soup(url=r.data["url"], soup=soup,
                                                      urls=props.scanned_urls,
                                                      include_forms=False,
                                                      images_only=False,
@@ -256,13 +273,11 @@ def _thread(main_queue: mp.Queue, msgbox: mp.Queue):
                             props.tasks[props.counter].start()
                             props.counter += 1
                         else:
-                            # if cancel flag been set
-                            # set the counter to its limit and this will force a Task Complete
+                            # if cancel flag been set the counter to its limit and this will force a Task Complete
                             props.counter = len(props.tasks)
-                    # Pass the Task Finished event to the Main Thread
                     main_queue.put_nowait(r)
                 elif r.event == const.EVENT_BLACKLIST:
-                    # check the props.blacklist with urldata and notify Task process
+                    # check the props.blacklist with url_data and notify Task process
                     # if no duplicate and added then True returned
                     process_index = r.data["index"]
                     task = props.tasks[process_index]
