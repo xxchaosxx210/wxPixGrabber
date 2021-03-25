@@ -28,6 +28,31 @@ _Log = logging.getLogger(__name__)
 _QUEUE_TIMEOUT = 0.1
 
 
+def _start_max_tasks(tasks: list, max_tasks_to_start: int) -> int:
+    # This function will be called to start the Process Pool
+    # returns an integer to how many Tasks have been started
+    counter = 0
+    for th in tasks:
+        if counter >= max_tasks_to_start:
+            break
+        else:
+            th.start()
+            counter += 1
+    return counter
+
+
+def tasks_alive(tasks: list) -> list:
+    """checks how many tasks are still running
+
+    Args:
+        tasks (list): The list of Tasks to check
+
+    Returns:
+        [list]: returns all active running tasks
+    """
+    return list(filter(lambda task: task.is_alive(), tasks))
+
+
 class Commander(threading.Thread):
 
     def __init__(self, main_queue: mp.Queue):
@@ -134,9 +159,10 @@ class Commander(threading.Thread):
                              thumbnails_only=self.settings.get("thumbnails_only", True),
                              filters=self.filters) > 0:
             self.message_fetch_ok(html_title, url)
-            # Message ourselves and start the search
-            self.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
+            if self.settings["auto-download"]:
+                # Message ourselves and start the tasks
+                self.queue.put_nowait(
+                    Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
         else:
             self.message_main("No Links Found :(")
 
@@ -148,59 +174,59 @@ class Commander(threading.Thread):
         while not self.quit_thread.is_set():
             try:
                 if self.task_running:
-                    r = self.queue.get(timeout=_QUEUE_TIMEOUT)
+                    msg = self.queue.get(timeout=_QUEUE_TIMEOUT)
                 else:
-                    r = self.queue.get(timeout=None)
+                    msg = self.queue.get(timeout=None)
 
-                if r.thread == const.THREAD_MAIN:
-                    if r.event == const.EVENT_QUIT:
+                if msg.thread == const.THREAD_MAIN:
+                    if msg.event == const.EVENT_QUIT:
                         self.cancel_all.set()
                         self.message_quit()
                         self.quit_thread.set()
 
-                    elif r.event == const.EVENT_START:
+                    elif msg.event == const.EVENT_START:
                         if not self.task_running:
                             self._init_start_tasks()
                             for task_index, url_data in enumerate(self.scanned_urls):
                                 self.tasks.append(Task(task_index, url_data, self.settings,
                                                        self.filters, self.queue, self.cancel_all))
-                            self._start_max_tasks(self.settings["max_connections"])
+                            self.counter = _start_max_tasks(self.tasks, self.settings["max_connections"])
                             # notify main thread so can initialize UI
                             self.message_start()
 
-                    elif r.event == const.EVENT_FETCH:
+                    elif msg.event == const.EVENT_FETCH:
                         if not self.task_running:
                             self._init_fetch()
-                            url_data = UrlData(r.data["url"], method="GET")
-                            self.message_main(f"Connecting to {r.data['url']}...")
+                            url_data = UrlData(msg.data["url"], method="GET")
+                            self.message_main(f"Connecting to {msg.data['url']}...")
                             try:
                                 try:
-                                    fetch_response = options.load_from_file(r.data["url"])
+                                    fetch_response = options.load_from_file(msg.data["url"])
                                 except FileNotFoundError:
                                     fetch_response = request_from_url(url_data, self.cookie_jar, self.settings)
-                                ext = mime.is_valid_content_type(r.data["url"],
+                                ext = mime.is_valid_content_type(msg.data["url"],
                                                                  fetch_response.headers["Content-Type"],
                                                                  self.settings["images_to_search"])
                                 if ext == mime.EXT_HTML:
-                                    self._search_html(fetch_response.text, r.data["url"])
+                                    self._search_html(fetch_response.text, msg.data["url"])
                                 fetch_response.close()
                             except Exception as err:
                                 # couldn't connect
-                                self.message_fetch_error(err.__str__(), r.data["url"])
+                                self.message_fetch_error(err.__str__(), msg.data["url"])
                         else:
-                            self.message_fetch_ignored(r.data["url"], "Tasks still running")
+                            self.message_fetch_ignored(msg.data["url"], "Tasks still running")
 
-                    elif r.event == const.EVENT_CANCEL:
+                    elif msg.event == const.EVENT_CANCEL:
                         self.cancel_all.set()
 
-                elif r.thread == const.THREAD_SERVER:
-                    if r.event == const.EVENT_SERVER_READY:
+                elif msg.thread == const.THREAD_SERVER:
+                    if msg.event == const.EVENT_SERVER_READY:
                         if not self.task_running:
                             self._init_fetch()
-                            self._search_html(r.data["html"], "")
+                            self._search_html(msg.data["html"], "")
 
-                elif r.thread == const.THREAD_TASK:
-                    if r.event == const.EVENT_FINISHED:
+                elif msg.thread == const.THREAD_TASK:
+                    if msg.event == const.EVENT_FINISHED:
                         # one task is gone start another
                         if self.counter < len(self.tasks):
                             if not self.cancel_all.is_set():
@@ -211,11 +237,11 @@ class Commander(threading.Thread):
                                 # if cancel flag been set the counter to its limit and this will force a Task Complete
                                 self.counter = len(self.tasks)
                         # Pass the Task Finished event to the Main Thread
-                        self.main_queue.put_nowait(r)
-                    elif r.event == const.EVENT_BLACKLIST:
-                        self._check_blacklist(r.data["urldata"], r.data["index"])
+                        self.main_queue.put_nowait(msg)
+                    elif msg.event == const.EVENT_BLACKLIST:
+                        self._check_blacklist(msg.data["urldata"], msg.data["index"])
                     else:
-                        self.main_queue.put_nowait(r)
+                        self.main_queue.put_nowait(msg)
             except queue.Empty:
                 pass
             finally:
@@ -237,14 +263,3 @@ class Commander(threading.Thread):
                             else:
                                 self.time_counter += _QUEUE_TIMEOUT
 
-
-def tasks_alive(tasks: list) -> list:
-    """checks how many tasks are still running
-
-    Args:
-        tasks (list): The list of Tasks to check
-
-    Returns:
-        [list]: returns all active running tasks
-    """
-    return list(filter(lambda task: task.is_alive(), tasks))

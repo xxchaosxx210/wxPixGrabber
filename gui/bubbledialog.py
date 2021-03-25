@@ -28,6 +28,22 @@ _TEXT_BOX_COLOUR_OUTLINE = (0, 175, 229, 200)
 _DCColour = namedtuple("Colour", ["pen", "brush"])
 
 
+def _get_time(previous_time: float) -> tuple:
+    """
+
+    Args:
+        previous_time: is the previous time
+
+    Returns:
+        tuple - delta_time of current_time and previous_time, new previous_time
+
+    """
+    current_time = time.time()
+    delta_time = current_time - previous_time
+    previous_time = current_time
+    return delta_time, previous_time
+
+
 class Bubble:
 
     brush: wx.Brush
@@ -253,6 +269,7 @@ class Canvas(wx.Window):
         :return:
         """
         _quit = threading.Event()
+        previous_time = time.time()
         while not _quit.is_set():
             try:
                 msg = self.queue.get(timeout=self.frame_rate)
@@ -260,9 +277,7 @@ class Canvas(wx.Window):
                     _quit.set()
             except queue.Empty:
                 # Get the current delta time
-                dt = time.monotonic() / 10000000
-                if dt > 0.16:
-                    dt = 0.16
+                dt, previous_time = _get_time(previous_time)
                 # regenerate any off screen bubbles
                 for bubble in reversed(self.bubbles):
                     bubble.update(dt)

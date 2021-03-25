@@ -22,6 +22,22 @@ def _fade_frame(frame: wx.Frame):
         time.sleep(0.001000)
 
 
+def _get_time(previous_time: float) -> tuple:
+    """
+
+    Args:
+        previous_time: is the previous time
+
+    Returns:
+        tuple - delta_time of current_time and previous_time, new previous_time
+
+    """
+    current_time = time.time()
+    delta_time = current_time - previous_time
+    previous_time = current_time
+    return delta_time, previous_time
+
+
 class NotificationBar(wx.Frame):
 
     def __init__(self, parent, _id, title="", message="", timeout=NOTIFY_SHORT):
@@ -47,9 +63,9 @@ class NotificationBar(wx.Frame):
         self.position = Vector(self.end_point.x, screen_height)
 
         if timeout == NOTIFY_SHORT:
-            vel_y = 20
+            vel_y = 150
         elif timeout == NOTIFY_LONG:
-            vel_y = 10
+            vel_y = 100
         else:
             raise AttributeError("timeout should be either NOTIFY_SHORT or NOTIFY_LONG")
         self.velocity = Vector(self.position.x, vel_y)
@@ -68,14 +84,13 @@ class NotificationBar(wx.Frame):
 
     def loop(self):
         _quit = threading.Event()
+        prev_time = time.time()
         while not _quit.is_set():
             try:
                 if self._queue.get(timeout=self._time_out) == "quit":
                     _quit.set()
             except queue.Empty:
-                dt = time.monotonic() / 1000000
-                if dt > 0.16:
-                    dt = 0.16
+                dt, prev_time = _get_time(prev_time)
                 # Move our frame up
                 if self.position.y > self.end_point.y:
                     self.move_frame(dt)
