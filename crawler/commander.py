@@ -64,10 +64,8 @@ class Commander(threading.Thread):
         self.blacklist = Blacklist()
         self.counter = 0
         self.cancel_all = mp.Event()
-        self.task_running = False
         self.tasks = []
         self.quit_thread = mp.Event()
-        self.time_counter = 0.0
         self.filters = None
         self.cookie_jar = None
 
@@ -85,9 +83,7 @@ class Commander(threading.Thread):
     def _reset(self):
         self.cancel_all.clear()
         self.tasks = []
-        self.task_running = False
         self.blacklist.clear()
-        self.time_counter = 0.0
 
     def message_main(self, message: str):
         self.main_queue.put_nowait(Message(
@@ -135,7 +131,6 @@ class Commander(threading.Thread):
 
     def _init_start_tasks(self):
         self.tasks = []
-        self.task_running = True
         self.blacklist.clear()
         self.settings = options.load_settings()
         self.cookie_jar = load_cookies(self.settings)
@@ -171,9 +166,11 @@ class Commander(threading.Thread):
         cache.initialize_ignore()
         # Notify main thread that Commander has started
         self.message_main("Commander thread has loaded. Waiting to scan")
+        time_counter = 0.0
+        task_running = False
         while not self.quit_thread.is_set():
             try:
-                if self.task_running:
+                if task_running:
                     msg = self.queue.get(timeout=_QUEUE_TIMEOUT)
                 else:
                     msg = self.queue.get(timeout=None)
@@ -185,17 +182,23 @@ class Commander(threading.Thread):
                         self.quit_thread.set()
 
                     elif msg.event == const.EVENT_START:
-                        if not self.task_running:
+                        if not task_running:
+                            time_counter = 0.0
+                            task_running = True
                             self._init_start_tasks()
                             for task_index, url_data in enumerate(self.scanned_urls):
                                 self.tasks.append(Task(task_index, url_data, self.settings,
                                                        self.filters, self.queue, self.cancel_all))
                             self.counter = _start_max_tasks(self.tasks, self.settings["max_connections"])
-                            # notify main thread so can initialize UI
-                            self.message_start()
+                            if self.counter > 0:
+                                # notify main thread so can initialize UI
+                                self.message_start()
+                            else:
+                                task_running = False
+                                self.message_main("Could not start Tasks")
 
                     elif msg.event == const.EVENT_FETCH:
-                        if not self.task_running:
+                        if not task_running:
                             self._init_fetch()
                             url_data = UrlData(msg.data["url"], method="GET")
                             self.message_main(f"Connecting to {msg.data['url']}...")
@@ -221,7 +224,7 @@ class Commander(threading.Thread):
 
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
-                        if not self.task_running:
+                        if not task_running:
                             self._init_fetch()
                             self._search_html(msg.data["html"], "")
 
@@ -245,7 +248,7 @@ class Commander(threading.Thread):
             except queue.Empty:
                 pass
             finally:
-                if self.task_running:
+                if task_running:
                     # check if all self.tasks are finished and that the task self.counter is greater or
                     # equal to the size of task tasks. if so cleanup and notify main thread
                     if len(tasks_alive(self.tasks)) == 0 and self.counter >= len(self.tasks):
@@ -254,12 +257,11 @@ class Commander(threading.Thread):
                     else:
                         # cancel flag is set. Start counting to timeout, then start terminating processing
                         if self.cancel_all.is_set():
-                            if self.time_counter >= self.settings["connection_timeout"]:
+                            if time_counter >= self.settings["connection_timeout"]:
                                 # kill any hanging tasks
                                 for task in self.tasks:
                                     if task.is_alive():
                                         task.terminate()
                                         self.counter += 1
                             else:
-                                self.time_counter += _QUEUE_TIMEOUT
-
+                                time_counter += _QUEUE_TIMEOUT
