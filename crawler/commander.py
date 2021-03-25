@@ -13,14 +13,10 @@ from crawler.task import Task
 from crawler.message import Message
 import crawler.message as const
 
-from crawler.types import (
-    Blacklist,
-    UrlData
-)
-
 from crawler.webrequest import (
     request_from_url,
-    load_cookies
+    load_cookies,
+    UrlData
 )
 
 _Log = logging.getLogger(__name__)
@@ -60,29 +56,17 @@ class Commander(threading.Thread):
         self.main_queue = main_queue
         self.queue = mp.Queue()
         self.settings = {}
-        self.scanned_urls = []
-        self.blacklist = Blacklist()
-        self.counter = 0
+        self.scanned_urls = {}
+        self.blacklist = {}
         self.cancel_all = mp.Event()
         self.tasks = []
         self.quit_thread = mp.Event()
         self.filters = None
         self.cookie_jar = None
 
-    def _start_max_tasks(self, max_tasks: int):
-        # This function will be called to start the Process Pool
-        # returns an integer to how many Tasks have been started
-        self.counter = 0
-        for th in self.tasks:
-            if self.counter >= max_tasks:
-                break
-            else:
-                th.start()
-                self.counter += 1
-
     def _reset(self):
         self.cancel_all.clear()
-        self.tasks = []
+        self.tasks.clear()
         self.blacklist.clear()
 
     def message_main(self, message: str):
@@ -120,9 +104,9 @@ class Commander(threading.Thread):
     def _check_blacklist(self, url_data: UrlData, task_index: int):
         # check the self.blacklist with url_data and notify Task process
         # if no duplicate and added then True returned
-        blacklist_added = self.blacklist.exists(url_data)
+        blacklist_added = repr(url_data.__dict__) in self.blacklist
         if not blacklist_added:
-            self.blacklist.add(url_data)
+            self.blacklist[repr(url_data.__dict__)] = 1
         # flip the boolean to tell the task thread to either continue or not search for the next link
         blacklist_added = not blacklist_added
         task = self.tasks[task_index]
@@ -137,7 +121,7 @@ class Commander(threading.Thread):
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
 
     def _init_fetch(self):
-        self.scanned_urls = []
+        self.scanned_urls = {}
         self.tasks = []
         self.cancel_all.clear()
         self.settings = options.load_settings()
@@ -149,10 +133,13 @@ class Commander(threading.Thread):
         options.assign_unique_name("", html_title)
         # Setup Search filters and find matches within forms, links and images
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
-        if parsing.sort_soup(url=url, soup=soup,
-                             urls=self.scanned_urls, include_forms=False, images_only=False,
-                             thumbnails_only=self.settings.get("thumbnails_only", True),
-                             filters=self.filters) > 0:
+        self.scanned_urls = parsing.sort_soup(url=url,
+                                              soup=soup,
+                                              include_forms=False,
+                                              images_only=False,
+                                              thumbnails_only=self.settings.get("thumbnails_only", True),
+                                              filters=self.filters)
+        if self.scanned_urls:
             self.message_fetch_ok(html_title, url)
             if self.settings["auto-download"]:
                 # Message ourselves and start the tasks
@@ -168,6 +155,7 @@ class Commander(threading.Thread):
         self.message_main("Commander thread has loaded. Waiting to scan")
         time_counter = 0.0
         task_running = False
+        counter = 0
         while not self.quit_thread.is_set():
             try:
                 if task_running:
@@ -186,11 +174,11 @@ class Commander(threading.Thread):
                             time_counter = 0.0
                             task_running = True
                             self._init_start_tasks()
-                            for task_index, url_data in enumerate(self.scanned_urls):
+                            for task_index, url_data in enumerate(self.scanned_urls.values()):
                                 self.tasks.append(Task(task_index, url_data, self.settings,
                                                        self.filters, self.queue, self.cancel_all))
-                            self.counter = _start_max_tasks(self.tasks, self.settings["max_connections"])
-                            if self.counter > 0:
+                            counter = _start_max_tasks(self.tasks, self.settings["max_connections"])
+                            if counter > 0:
                                 # notify main thread so can initialize UI
                                 self.message_start()
                             else:
@@ -226,19 +214,19 @@ class Commander(threading.Thread):
                     if msg.event == const.EVENT_SERVER_READY:
                         if not task_running:
                             self._init_fetch()
-                            self._search_html(msg.data["html"], "")
+                            self._search_html(msg.data["html"], "pixgrabber-extension")
 
                 elif msg.thread == const.THREAD_TASK:
                     if msg.event == const.EVENT_FINISHED:
                         # one task is gone start another
-                        if self.counter < len(self.tasks):
+                        if counter < len(self.tasks):
                             if not self.cancel_all.is_set():
                                 # start the next task if not cancelled and increment the counter
-                                self.tasks[self.counter].start()
-                                self.counter += 1
+                                self.tasks[counter].start()
+                                counter += 1
                             else:
                                 # if cancel flag been set the counter to its limit and this will force a Task Complete
-                                self.counter = len(self.tasks)
+                                counter = len(self.tasks)
                         # Pass the Task Finished event to the Main Thread
                         self.main_queue.put_nowait(msg)
                     elif msg.event == const.EVENT_BLACKLIST:
@@ -249,11 +237,12 @@ class Commander(threading.Thread):
                 pass
             finally:
                 if task_running:
-                    # check if all self.tasks are finished and that the task self.counter is greater or
+                    # check if all self.tasks are finished and that the task counter is greater or
                     # equal to the size of task tasks. if so cleanup and notify main thread
-                    if len(tasks_alive(self.tasks)) == 0 and self.counter >= len(self.tasks):
+                    if len(tasks_alive(self.tasks)) == 0 and counter >= len(self.tasks):
                         self.message_complete()
                         self._reset()
+                        task_running = False
                     else:
                         # cancel flag is set. Start counting to timeout, then start terminating processing
                         if self.cancel_all.is_set():
@@ -262,6 +251,7 @@ class Commander(threading.Thread):
                                 for task in self.tasks:
                                     if task.is_alive():
                                         task.terminate()
-                                        self.counter += 1
+                                        counter += 1
                             else:
                                 time_counter += _QUEUE_TIMEOUT
+

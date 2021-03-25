@@ -15,15 +15,13 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
-from crawler.types import UrlData
-
 from crawler.message import Message
-
 import crawler.message as const
 
 from crawler.webrequest import (
     request_from_url,
-    load_cookies
+    load_cookies,
+    UrlData
 )
 
 
@@ -145,15 +143,14 @@ class Task(mp.Process):
         self.msgbox = mp.Queue()
         self.cancel = cancel_event
 
-    def search_response(self, response: Response, include_forms: bool) -> list:
+    def search_response(self, response: Response, include_forms: bool) -> dict:
         """
         if html parse look for image sources
         if image then save
         """
+        urls = {}
         self.comm_queue.put_nowait(Message(thread=const.THREAD_TASK, event=const.EVENT_SEARCHING,
                                            id=self.task_index, status=const.STATUS_OK, data={}))
-        # initialize the list containing UrlData objects
-        data_list = []
         # check the file extension
         ext = mime.is_valid_content_type(
             response.url,
@@ -164,13 +161,12 @@ class Task(mp.Process):
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
-            parsing.sort_soup(url=response.url,
-                              soup=soup,
-                              urls=data_list,
-                              include_forms=include_forms,
-                              images_only=True,
-                              thumbnails_only=False,
-                              filters=self.filters)
+            urls = parsing.sort_soup(url=response.url,
+                                     soup=soup,
+                                     include_forms=include_forms,
+                                     images_only=True,
+                                     thumbnails_only=False,
+                                     filters=self.filters)
         elif ext in mime.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
                 # if so then append thread index and file_index to make a unique identifier
@@ -193,7 +189,7 @@ class Task(mp.Process):
                 self.comm_queue.put_nowait(Message(
                     thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": err.__str__()},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
-            return []
+            return {}
         else:
             if not cache.query_ignore(response.url):
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
@@ -201,7 +197,7 @@ class Task(mp.Process):
                     thread=const.THREAD_TASK, id=self.task_index,
                     data={"url": response.url, "message": "Unknown File Type"},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_IGNORED))
-        return data_list
+        return urls
 
     def add_url(self, url_data: UrlData) -> bool:
         """
@@ -218,15 +214,15 @@ class Task(mp.Process):
         reply = self.msgbox.get()
         return reply.data["added"]
 
-    def follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> list:
+    def follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> dict:
         """
         follow_url(object, object)
         request url and parse the response
         """
-        url_list = []
+        urls = {}
         try:
             response = request_from_url(url_data, cookie_jar, self.settings)
-            url_list = self.search_response(response, self.settings["form_search"]["enabled"])
+            urls = self.search_response(response, self.settings["form_search"]["enabled"])
             response.close()
         except Exception as err:
             self.comm_queue.put_nowait(
@@ -234,7 +230,7 @@ class Task(mp.Process):
                         data={"url": url_data.url, "message": err.__str__()},
                         id=self.task_index, status=const.STATUS_ERROR))
         finally:
-            return url_list
+            return urls
 
     def run(self):
         if not self.cancel.is_set():
@@ -248,11 +244,11 @@ class Task(mp.Process):
             if self.add_url(self.urldata):
                 # Level 1
                 level_one_urls = self.follow_url(self.urldata, cookie_jar)
-                for level_one_url_data in level_one_urls:
+                for level_one_url_data in level_one_urls.values():
                     if self.add_url(level_one_url_data):
                         # Level 2
                         level_two_urls = self.follow_url(level_one_url_data, cookie_jar)
-                        for level_two_url_data in level_two_urls:
+                        for level_two_url_data in level_two_urls.values():
                             if self.add_url(level_two_url_data):
                                 # Level 3
                                 self.follow_url(level_two_url_data, cookie_jar)

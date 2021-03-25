@@ -2,11 +2,26 @@ import requests
 import browser_cookie3
 from http.cookiejar import CookieJar
 from requests import Response
-
-from crawler.types import UrlData
+from dataclasses import dataclass
 import crawler.cache as cache
 
 FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
+
+
+@dataclass
+class UrlData:
+    """
+    url: the URL link of the source
+    method: GET or POST method
+    action: if POST FORM request then action will contain the URL
+    data: contains POST data to send
+    tag: can be either A or IMG
+    """
+    url: str
+    method: str = "GET"
+    action: str = ""
+    data: dict = None
+    tag: str = ""
 
 
 def load_cookies(settings: dict) -> CookieJar:

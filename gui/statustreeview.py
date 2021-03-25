@@ -67,14 +67,13 @@ class StatusTreeView(wx.TreeCtrl):
 
     def populate(self, msg: const.Message):
         url = msg.data["url"]
-        links = msg.data["urls"]
         self.clear()
         self.root = self.AddRoot(url)
         self.SetItemData(self.root, msg)
         self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Normal)
         self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Expanded)
 
-        for link in links:
+        for link in msg.data["urls"].values():
             child = self.AppendItem(self.root, link.url)
             self.children.append({"id": child, "children": []})
             self.SetItemData(child, None)
