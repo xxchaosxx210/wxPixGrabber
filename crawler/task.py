@@ -161,12 +161,14 @@ class Task(mp.Process):
             # if html document then parse the text
             soup = parsing.parse_html(response.text)
             # search for links in soup
-            urls = parsing.sort_soup(url=response.url,
-                                     soup=soup,
-                                     include_forms=include_forms,
-                                     images_only=True,
-                                     thumbnails_only=False,
-                                     filters=self.filters)
+            for url_index, url in enumerate(parsing.sort_soup(url=response.url,
+                                                              soup=soup,
+                                                              include_forms=include_forms,
+                                                              images_only=True,
+                                                              thumbnails_only=False,
+                                                              filters=self.filters)):
+                if url:
+                    urls[url_index] = url
         elif ext in mime.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
                 # if so then append thread index and file_index to make a unique identifier

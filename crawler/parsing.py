@@ -73,8 +73,9 @@ def parse_html(html: str) -> BeautifulSoup:
 
 
 def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
-              images_only: bool, thumbnails_only: bool, filters: Pattern) -> dict:
+              images_only: bool, thumbnails_only: bool, filters: Pattern):
     """Filters for Anchor, Image and Forms in the HTML soup object
+    Use this function as a Generator
 
     Args:
         url (str): The Url source of the soup being passed
@@ -85,15 +86,8 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
         filters (object): Compiled regular expression pattern. Only add links with filter matches
 
     Returns:
-        urls (list): The list container that will contain UrlData objects that have been filtered
+        generator object
     """
-
-    # sort_soup(str, str, list, bool, bool)
-    # searches for images, forms and anchor tags in BeautifulSoup object
-    # stores them in urls and returns then size of the urls list
-    # urls is a list of UrlData objects
-    # returns tuple (int, str) length of urls and title name
-
     urls = {}
 
     if include_forms:
@@ -101,6 +95,7 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
         for form in soup.find_all("form"):
             url_data = process_form(url, form)
             urls[url] = url_data
+            yield url_data
 
     ignored_images = {}
     if not images_only:
@@ -112,60 +107,86 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                 if thumbnails_only:
                     img_tag = a_tag.find("img")
                     if img_tag:
-                        _append_link(url, a_tag.get("href"), urls, "a", filters)
-                        ignored_images[img_tag.get("src")] = 1
+                        try:
+                            url_data = _append_link(url, a_tag.get("href"), urls, "a", filters)
+                            yield url_data
+                        except LookupError as err:
+                            _Log.info(err.__str__())
+                        finally:
+                            ignored_images[img_tag.get("src")] = 1
                 else:
-                    _append_link(url, a_tag.get("href", ""), urls, "a", filters)
+                    try:
+                        url_data = _append_link(url, a_tag.get("href", ""), urls, "a", filters)
+                        yield url_data
+                    except LookupError as err:
+                        _Log.info(err.__str__())
 
     # search image tags
     for img_tag in soup.find_all("img"):
         if thumbnails_only:
             if not img_tag.get("src") in ignored_images:
-                _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+                try:
+                    url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+                    yield url_data
+                except LookupError as err:
+                    _Log.info(err.__str__())
         else:
-            _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+            try:
+                url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+                yield url_data
+            except LookupError as err:
+                _Log.info(err.__str__())
 
     # search images in meta data
     for meta_tag in soup.find_all("meta", content=image_ext_pattern):
-        _append_link(url, meta_tag.get("content", ""), urls, "img", filters)
+        try:
+            url_data = _append_link(url, meta_tag.get("content", ""), urls, "img", filters)
+            yield url_data
+        except LookupError as err:
+            _Log.info(err.__str__())
 
-    return urls
 
-
-def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern) -> bool:
-    """appends Url to url_data_list if all patterns and filters match
-
+def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern) -> UrlData:
+    """
+    Takes in the original Url and Src Url found from the Tag. Tries to join them together to get
+    the correct path. Filters out Root index and Parent paths. Finally checks the Regex filtered pattern
+    if match found and not already added to Urls dict then returns UrlData object
+    Raises LookupError if criteria not met
     Args:
-        full_url (str): The Url of the HTML source
-        src (str): The Url to append
-        urls (list): Global list of UrlData dicts. The src will appened to this list of all patterns match
-        tag (str): The tag the src was found in..ie <a> or <img>
-        filters (re.Pattern): compiled filter object used to match patterns
+        full_url: the url from the source of the parsed Html
+        src: the source Url found from the Tag on parsed Html
+        urls: dict container which stores all added UrlData objects
+        tag: TagName of src url either IMG or A. This will be added to the UrlData object
+        filters: regex pattern. If match found then Url is added to urls dict
+
+    Returns:
+        UrlData object
     """
     if src:
         parsed_src = parse.urlparse(src)
         if not parsed_src.netloc:
             # if no net location then add it from source url
+            _Log.info(f"No Netloc found for {src}. Joining {src} to full_url")
             url = parse.urljoin(full_url, src)
             parsed_src = parse.urlparse(url)
         else:
             url = src
         if not parsed_src.scheme:
-            # Try https?
+            _Log.info(f"No Scheme found. Appending HTTPS scheme to {url}")
             url = parse.urljoin("https://", url)
         # parse the source URl
         parsed_url = parse.urlparse(full_url)
         if parsed_src.netloc == parsed_url.netloc:
             if parsed_src.path == parsed_url.path:
-                return False
+                raise LookupError(f"Url and src Url paths both match. Ignoring {src}")
             # same net location so make sure we don't search paths before the tree like the root index
             len_src = len(list(filter(lambda item: item, parsed_src.path.split("/"))))
             len_url = len(list(filter(lambda item: item, parsed_url.path.split("/"))))
             if len_src <= len_url:
-                return False
+                raise LookupError(f"Length of source is less or equal to length of url. Ignoring {src}")
         # Ignore root index. Maybe add option here?
         if not parsed_src.path or parsed_src.path == "/":
-            return False
+            raise LookupError(f"Ignoring Root index from {src}")
         # Filter the URL
         if filters.search(url):
             # make sure we don't have a duplicate
@@ -173,5 +194,10 @@ def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern
             url_data = UrlData(url=url, action="", method="GET", data={}, tag=tag)
             if url not in urls:
                 urls[url] = url_data
-                return True
-        return False
+                return url_data
+            else:
+                raise LookupError(f"{url} already added to urls")
+        else:
+            LookupError(f"{url} did not match filtered pattern")
+    else:
+        raise LookupError(f"No src found in _append_link")

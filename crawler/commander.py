@@ -130,7 +130,7 @@ class Commander(threading.Thread):
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
 
     def _init_fetch(self, tasks: dict):
-        self.scanned_urls = {}
+        self.scanned_urls.clear()
         tasks.clear()
         self.cancel_all.clear()
         self.settings = options.load_settings()
@@ -142,12 +142,15 @@ class Commander(threading.Thread):
         options.assign_unique_name("", html_title)
         # Setup Search filters and find matches within forms, links and images
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
-        self.scanned_urls = parsing.sort_soup(url=url,
-                                              soup=soup,
-                                              include_forms=False,
-                                              images_only=False,
-                                              thumbnails_only=self.settings.get("thumbnails_only", True),
-                                              filters=self.filters)
+        for scanned_index, url_data in enumerate(parsing.sort_soup(url=url,
+                                                                   soup=soup,
+                                                                   include_forms=False,
+                                                                   images_only=False,
+                                                                   thumbnails_only=self.settings.get("thumbnails_only",
+                                                                                                     True),
+                                                                   filters=self.filters)):
+            if url_data:
+                self.scanned_urls[scanned_index] = url_data
         if self.scanned_urls:
             self.message_fetch_ok(html_title, url)
             if self.settings["auto-download"]:
