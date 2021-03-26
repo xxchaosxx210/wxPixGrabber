@@ -166,7 +166,8 @@ class Task(mp.Process):
                                                               include_forms=include_forms,
                                                               images_only=True,
                                                               thumbnails_only=False,
-                                                              filters=self.filters)):
+                                                              filters=self.filters,
+                                                              img_exts=self.settings["images_to_search"])):
                 if url:
                     urls[url_index] = url
         elif ext in mime.IMAGE_EXTS:

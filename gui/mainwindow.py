@@ -159,14 +159,15 @@ class MainWindow(wx.Frame):
         self.dld_panel.enable_controls(True)
     
     def _on_fetch_finished(self, msg: Message):
-        self.SetStatusText(f"{len(msg.data['urls'])} Links found")
+        urls_length = msg.data.get("urls", {}).__len__()
+        self.SetStatusText(f"{urls_length} Links found")
         # Set the progress bar maximum range
-        self.dld_panel.progressbar.reset_progress(len(msg.data.get("urls")))
-        self.detached_frame.reset(len(msg.data.get("urls", [])))
+        self.dld_panel.progressbar.reset_progress(urls_length)
+        self.detached_frame.reset(urls_length)
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
-        self.SetTitle(msg.data["title"])
-        if msg.data.get("urls", []):
+        self.SetTitle(f'{msg.data["title"]} - Links found: {urls_length}')
+        if msg.data.get("urls", {}):
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
                 self.dld_panel.start_tasks()

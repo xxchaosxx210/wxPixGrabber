@@ -148,7 +148,8 @@ class Commander(threading.Thread):
                                                                    images_only=False,
                                                                    thumbnails_only=self.settings.get("thumbnails_only",
                                                                                                      True),
-                                                                   filters=self.filters)):
+                                                                   filters=self.filters,
+                                                                   img_exts=self.settings["images_to_search"])):
             if url_data:
                 self.scanned_urls[scanned_index] = url_data
         if self.scanned_urls:

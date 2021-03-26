@@ -1,4 +1,5 @@
 import re
+import os
 from urllib import parse
 from bs4.element import Tag
 from bs4 import BeautifulSoup
@@ -6,7 +7,10 @@ import logging
 from typing import Pattern
 
 from crawler.webrequest import UrlData
-from crawler.mime import image_ext_pattern
+from crawler.mime import (
+    image_ext_pattern,
+    IMAGE_EXTS
+)
 
 _Log = logging.getLogger(__name__)
 
@@ -73,11 +77,12 @@ def parse_html(html: str) -> BeautifulSoup:
 
 
 def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
-              images_only: bool, thumbnails_only: bool, filters: Pattern):
+              images_only: bool, thumbnails_only: bool, filters: Pattern, img_exts: dict):
     """Filters for Anchor, Image and Forms in the HTML soup object
     Use this function as a Generator
 
     Args:
+        img_exts:
         url (str): The Url source of the soup being passed
         soup (object): The HTML soup object constructed from BeautifulSoup
         include_forms (bool): Add Form Tags and Input within the sort
@@ -108,7 +113,7 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                     img_tag = a_tag.find("img")
                     if img_tag:
                         try:
-                            url_data = _append_link(url, a_tag.get("href"), urls, "a", filters)
+                            url_data = _append_link(url, a_tag.get("href"), urls, "a", filters, img_exts)
                             yield url_data
                         except LookupError as err:
                             _Log.info(err.__str__())
@@ -116,7 +121,7 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                             ignored_images[img_tag.get("src")] = 1
                 else:
                     try:
-                        url_data = _append_link(url, a_tag.get("href", ""), urls, "a", filters)
+                        url_data = _append_link(url, a_tag.get("href", ""), urls, "a", filters, img_exts)
                         yield url_data
                     except LookupError as err:
                         _Log.info(err.__str__())
@@ -126,13 +131,13 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
         if thumbnails_only:
             if not img_tag.get("src") in ignored_images:
                 try:
-                    url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+                    url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters, img_exts)
                     yield url_data
                 except LookupError as err:
                     _Log.info(err.__str__())
         else:
             try:
-                url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters)
+                url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters, img_exts)
                 yield url_data
             except LookupError as err:
                 _Log.info(err.__str__())
@@ -140,13 +145,13 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
     # search images in meta data
     for meta_tag in soup.find_all("meta", content=image_ext_pattern):
         try:
-            url_data = _append_link(url, meta_tag.get("content", ""), urls, "img", filters)
+            url_data = _append_link(url, meta_tag.get("content", ""), urls, "img", filters, img_exts)
             yield url_data
         except LookupError as err:
             _Log.info(err.__str__())
 
 
-def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern) -> UrlData:
+def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern, img_ext: dict) -> UrlData:
     """
     Takes in the original Url and Src Url found from the Tag. Tries to join them together to get
     the correct path. Filters out Root index and Parent paths. Finally checks the Regex filtered pattern
@@ -164,6 +169,10 @@ def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern
     """
     if src:
         parsed_src = parse.urlparse(src)
+        path, ext = os.path.splitext(parsed_src.path)
+        if ext in IMAGE_EXTS:
+            if not img_ext.get(ext[1:], False):
+                raise LookupError(f"Image extension found. Not included in Search {src}")
         if not parsed_src.netloc:
             # if no net location then add it from source url
             _Log.info(f"No Netloc found for {src}. Joining {src} to full_url")
@@ -189,8 +198,6 @@ def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern
             raise LookupError(f"Ignoring Root index from {src}")
         # Filter the URL
         if filters.search(url):
-            # make sure we don't have a duplicate
-            # filter through the url_data list
             url_data = UrlData(url=url, action="", method="GET", data={}, tag=tag)
             if url not in urls:
                 urls[url] = url_data
