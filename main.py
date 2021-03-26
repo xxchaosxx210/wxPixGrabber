@@ -27,7 +27,7 @@ class PixGrabberApp(wx.App):
     def __init__(self, **kwargs):
         self.window = None
         super().__init__(**kwargs)
-    
+
     def OnInit(self):
         self._initialize_resources()
         setup_options()
@@ -36,7 +36,7 @@ class PixGrabberApp(wx.App):
         self.SetTopWindow(self.window)
         self._initialize_threads()
         return super().OnInit()
-    
+
     def _initialize_resources(self):
         self.bitmaps = load_bitmaps()
         self.sounds = load_wavs()
@@ -49,7 +49,8 @@ class PixGrabberApp(wx.App):
         self.commander.start()
 
         # start the server for handling our Web Browser extension requests
-        self.server = mp.Process(target=server_process, kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
+        self.server = mp.Process(target=server_process,
+                                 kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
         self.server.start()
 
     def commander_message_handler(self):

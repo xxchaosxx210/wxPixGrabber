@@ -25,7 +25,16 @@ _QUEUE_TIMEOUT = 0.1
 
 
 def _start_max_tasks(tasks: list, max_tasks_to_start: int) -> int:
-    # This function will be called to start the Process Pool
+    """
+    Start the Process Pool by Max Connections
+    Args:
+        tasks:
+        max_tasks_to_start:
+
+    Returns:
+        int: the amount of tasks started
+    """
+    # start the Process Pool
     # returns an integer to how many Tasks have been started
     counter = 0
     for th in tasks:
@@ -102,16 +111,21 @@ class Commander(threading.Thread):
             thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE, data={}))
 
     def _check_blacklist(self, url_data: UrlData, task_index: int):
-        # check the self.blacklist with url_data and notify Task process
-        # if no duplicate and added then True returned
-        blacklist_added = repr(url_data.__dict__) in self.blacklist
-        if not blacklist_added:
+        """
+        This method gets called when a Task requests if a Url has already been searched from
+        another Task.
+        Args:
+            url_data: the url to check
+            task_index: The index of the task
+        """
+        black_list_added = repr(url_data.__dict__) in self.blacklist
+        if not black_list_added:
             self.blacklist[repr(url_data.__dict__)] = 1
-        # flip the boolean to tell the task thread to either continue or not search for the next link
-        blacklist_added = not blacklist_added
         task = self.tasks[task_index]
-        task.msgbox.put(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_BLACKLIST,
-                                data={"added": blacklist_added}))
+        # flip the black_list_added boolean
+        task.msgbox.put(Message(thread=const.THREAD_COMMANDER,
+                                event=const.EVENT_BLACKLIST,
+                                data={"added": not black_list_added}))
 
     def _init_start_tasks(self):
         self.tasks = []
@@ -183,6 +197,7 @@ class Commander(threading.Thread):
                                 self.message_start()
                             else:
                                 task_running = False
+                                self._reset()
                                 self.message_main("Could not start Tasks")
 
                     elif msg.event == const.EVENT_FETCH:

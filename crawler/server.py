@@ -47,7 +47,7 @@ def server_process(host: str, port: int, a_queue: Queue):
 
     Args:
         host (str): The IP address of the Server localhost by Default
-        port (int): Port address for the Server 5000 by Default 
+        port (int): Port address for the Server 5000 by Default
         a_queue (Queue): Queue object. A Message object will be sent. Create it from the calling process and setup a Queue loop to recieve the message
                          with a const.EVENT_SERVER_READY flag when a /set-html request has been sent from PixGrabber Browser extension.
                          example...
@@ -93,7 +93,7 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
     def _send_jpg(self, relative_path):
         # sends the requested image
         self.send_response(200)
-        self.send_header("Co ntent-Type", MIME_JPG)
+        self.send_header("Content-Type", MIME_JPG)
         self.end_headers()
         # get the filename nd append to a full path
         path, filename = os.path.split(relative_path)
@@ -137,7 +137,7 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
             _ServerHandler.queue.put_nowait(Message(
                 thread=const.THREAD_SERVER, event=const.EVENT_SERVER_READY,
                 status=const.STATUS_OK, data={"html": html,
-                                              "url": url}, id=0))
+                                              "url": url}))
             self.send_response(200)
             self.end_headers()
         else:
