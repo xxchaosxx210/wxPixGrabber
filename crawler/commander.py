@@ -87,17 +87,31 @@ class Commander(mp.Process):
         self.main_queue.put_nowait(
             Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
 
-    def message_fetch_ok(self, html_title: str, url: str):
+    def fetch_complete_message(self, length: int, title: str):
         self.main_queue.put_nowait(
-            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH,
-                    data={"urls": self.scanned_urls, "title": html_title, "url": url}))
+            Message(thread=const.THREAD_COMMANDER,
+                    event=const.EVENT_FETCH_COMPLETE,
+                    status=const.STATUS_OK,
+                    data={"length": length, "title": title}))
 
-    def message_fetch_error(self, err: str, url: str):
+    def fetch_update_message(self, url_data: UrlData):
+        self.main_queue.put_nowait(
+            Message(thread=const.THREAD_COMMANDER,
+                    event=const.EVENT_FETCH,
+                    data={"url_data": url_data}))
+
+    def fetch_start_message(self, title: str, url: str):
+        self.main_queue.put_nowait(
+            Message(thread=const.THREAD_COMMANDER,
+                    event=const.EVENT_FETCH_START,
+                    data={"title": title, "url": url}))
+
+    def fetch_error_message(self, err: str, url: str):
         self.main_queue.put_nowait(Message(
             thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
             data={"message": err, "url": url}))
 
-    def message_fetch_ignored(self, url: str, message: str):
+    def ignored_error_message(self, url: str, message: str):
         self.main_queue.put_nowait(Message(
             thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
             data={"message": message, "url": url}))
@@ -141,6 +155,7 @@ class Commander(mp.Process):
         options.assign_unique_name("", html_title)
         # Setup Search filters and find matches within forms, links and images
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
+        self.fetch_start_message(html_title, url)
         for scanned_index, url_data in enumerate(parsing.sort_soup(url=url,
                                                                    soup=soup,
                                                                    include_forms=False,
@@ -151,8 +166,9 @@ class Commander(mp.Process):
                                                                    img_exts=self.settings["images_to_search"])):
             if url_data:
                 self.scanned_urls[scanned_index] = url_data
+                self.fetch_update_message(url_data)
         if self.scanned_urls:
-            self.message_fetch_ok(html_title, url)
+            self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
             if self.settings["auto-download"]:
                 # Message ourselves and start the tasks
                 self.queue.put_nowait(
@@ -231,9 +247,9 @@ class Commander(mp.Process):
                                 fetch_response.close()
                             except Exception as err:
                                 # couldn't connect
-                                self.message_fetch_error(err.__str__(), msg.data["url"])
+                                self.fetch_error_message(err.__str__(), msg.data["url"])
                         else:
-                            self.message_fetch_ignored(msg.data["url"], "Tasks still running")
+                            self.ignored_error_message(msg.data["url"], "Tasks still running")
 
                     elif msg.event == const.EVENT_CANCEL:
                         self.cancel_tasks.set()

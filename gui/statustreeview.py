@@ -40,7 +40,6 @@ class StatusTreeView(wx.TreeCtrl):
             wx.MessageBox(data.get("message", ""), "Info", parent=self._parent)
 
     def __init__(self, parent: wx.Window, _id: int):
-        self.root = None
         self.children = []
         super().__init__(parent=parent, id=_id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
         self.app = wx.GetApp()
@@ -65,26 +64,26 @@ class StatusTreeView(wx.TreeCtrl):
         self.PopupMenu(menu)
         menu.Destroy()
 
-    def populate(self, msg: const.Message):
-        url = msg.data["url"]
+    def create_root(self, msg: const.Message):
         self.clear()
-        self.root = self.AddRoot(url)
-        self.SetItemData(self.root, msg)
-        self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Normal)
-        self.SetItemImage(self.root, self._img_link, wx.TreeItemIcon_Expanded)
+        self.children.clear()
+        root = self.AddRoot(msg.data["url"])
+        self.SetItemData(root, msg)
+        self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Normal)
+        self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Expanded)
 
-        for link in msg.data["urls"].values():
-            child = self.AppendItem(self.root, link.url)
-            self.children.append({"id": child, "children": []})
-            self.SetItemData(child, None)
-            if link.tag == "a":
-                self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
-                self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Expanded)
-            else:
-                self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Normal)
-                self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Expanded)
-            self.Expand(child)
-        self.Expand(self.root)
+    def add_to_root(self, msg: const.Message):
+        root = self.GetRootItem()
+        url_data = msg.data["url_data"]
+        child = self.AppendItem(root, url_data.url)
+        self.children.append({"id": child, "children": []})
+        self.SetItemData(child, msg)
+        if url_data.tag == "a":
+            self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
+            self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Expanded)
+        else:
+            self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Normal)
+            self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Expanded)
     
     def add_url(self, msg: const.Message):
         child = self.children[msg.id]

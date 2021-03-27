@@ -89,16 +89,21 @@ class MainWindow(wx.Frame):
                 self._on_scraping_complete()
 
             # FETCH HAS COMPLETED
-            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_OK:
+            elif msg.event == const.EVENT_FETCH:
+                self.dld_panel.treeview.add_to_root(msg)
+            elif msg.event == const.EVENT_FETCH_START:
+                self.SetTitle(f'{msg.data["title"]}')
+                self.dld_panel.treeview.create_root(msg)
+            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_OK:
                 self._on_fetch_finished(msg)
-                self.dld_panel.treeview.populate(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
             # FETCH ERROR
-            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_ERROR:
+            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
                 self._on_fetch_error(msg)
             # FETCH IGNORED
-            elif msg.event == const.EVENT_FETCH and msg.status == const.STATUS_IGNORED:
+            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
                 self._on_fetch_ignored(msg)
+
             # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
                 self._on_start_scraping()
@@ -159,7 +164,7 @@ class MainWindow(wx.Frame):
         self.dld_panel.enable_controls(True)
     
     def _on_fetch_finished(self, msg: Message):
-        urls_length = msg.data.get("urls", {}).__len__()
+        urls_length = msg.data["length"]
         self.SetStatusText(f"{urls_length} Links found")
         # Set the progress bar maximum range
         self.dld_panel.progressbar.reset_progress(urls_length)
@@ -167,7 +172,8 @@ class MainWindow(wx.Frame):
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
         self.SetTitle(f'{msg.data["title"]} - Links found: {urls_length}')
-        if msg.data.get("urls", {}):
+        if urls_length > 0:
+            self.dld_panel.treeview.Expand(self.dld_panel.treeview.GetRootItem())
             if options.load_settings()["auto-download"]:
                 # start the download automatically no wait
                 self.dld_panel.start_tasks()
