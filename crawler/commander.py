@@ -108,12 +108,12 @@ class Commander(mp.Process):
 
     def fetch_error_message(self, err: str, url: str):
         self.main_queue.put_nowait(Message(
-            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_ERROR,
+            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH_COMPLETE, status=const.STATUS_ERROR,
             data={"message": err, "url": url}))
 
     def ignored_error_message(self, url: str, message: str):
         self.main_queue.put_nowait(Message(
-            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH, status=const.STATUS_IGNORED,
+            thread=const.THREAD_COMMANDER, event=const.EVENT_FETCH_COMPLETE, status=const.STATUS_IGNORED,
             data={"message": message, "url": url}))
 
     def message_complete(self):
@@ -167,8 +167,8 @@ class Commander(mp.Process):
             if url_data:
                 self.scanned_urls[scanned_index] = url_data
                 self.fetch_update_message(url_data)
+        self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
         if self.scanned_urls:
-            self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
             if self.settings["auto-download"]:
                 # Message ourselves and start the tasks
                 self.queue.put_nowait(

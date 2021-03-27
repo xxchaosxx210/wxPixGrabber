@@ -41,4 +41,7 @@ def timer_thread(callback):
             if minutes > 60:
                 hours += 1
                 minutes = 0
-        callback(format_time(hours, minutes, seconds))
+        try:
+            callback(format_time(hours, minutes, seconds))
+        except RuntimeError as err:
+            print(err.__str__())

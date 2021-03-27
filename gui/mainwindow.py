@@ -1,15 +1,15 @@
 import wx
+import threading
+
+import crawler.message as const
+import gui.notificationbar as notify
+import crawler.options as options
 
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
-import gui.notificationbar as notify
 from gui.detachprogress import DetachableFrame
-
+from gui.fetchdialog import FetchDialog
 from crawler.message import Message
-import crawler.message as const
-
-import crawler.options as options
-
 from timer import (
     create_timer_thread,
     timer_quit
@@ -25,6 +25,7 @@ class MainWindow(wx.Frame):
         self._create_status_bar()
         self._load_icon()
         self.SetMenuBar(PixGrabberMenuBar(parent=self))
+        self._fetch_dlg = None
 
         self.dld_panel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -88,20 +89,26 @@ class MainWindow(wx.Frame):
             elif msg.event == const.EVENT_COMPLETE:
                 self._on_scraping_complete()
 
-            # FETCH HAS COMPLETED
             elif msg.event == const.EVENT_FETCH:
                 self.dld_panel.treeview.add_to_root(msg)
+
             elif msg.event == const.EVENT_FETCH_START:
                 self.SetTitle(f'{msg.data["title"]}')
                 self.dld_panel.treeview.create_root(msg)
+                self._fetch_dlg = FetchDialog(self, -1, msg.data["url"])
+                threading.Thread(target=self._fetch_dlg.ShowModal).start()
+
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_OK:
+                self._fetch_dlg.Destroy()
                 self._on_fetch_finished(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
+                self._fetch_dlg.Destroy()
                 self._on_fetch_error(msg)
             # FETCH IGNORED
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
+                self._fetch_dlg.Destroy()
                 self._on_fetch_ignored(msg)
 
             # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
