@@ -170,6 +170,7 @@ class Commander(threading.Thread):
         task_running = False
         tasks = {}
         counter = 0
+        paused = mp.Event()
         while not self.quit_thread.is_set():
             try:
                 if task_running:
@@ -183,6 +184,15 @@ class Commander(threading.Thread):
                         self.message_quit()
                         self.quit_thread.set()
 
+                    elif msg.event == const.EVENT_PAUSE:
+                        if paused.is_set():
+                            paused.clear()
+                            for task in tasks.values():
+                                if task.is_alive():
+                                    task.msgbox.put_nowait("go!!!")
+                        else:
+                            paused.set()
+
                     elif msg.event == const.EVENT_START:
                         if not task_running:
                             time_counter = 0.0
@@ -194,7 +204,8 @@ class Commander(threading.Thread):
                                                          self.settings,
                                                          self.filters,
                                                          self.queue,
-                                                         self.cancel_all)
+                                                         self.cancel_all,
+                                                         paused)
                             counter = _start_max_tasks(tasks, self.settings["max_connections"])
                             if counter > 0:
                                 # notify main thread so can initialize UI

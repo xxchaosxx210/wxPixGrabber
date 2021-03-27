@@ -74,6 +74,10 @@ class DownloadPanel(wx.Panel):
     def stop_tasks(self):
         self.app.commander.queue.put_nowait(
             Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data={}, id=0, status=const.STATUS_OK))
+
+    def pause_tasks(self):
+        self.app.commander.queue.put_nowait(
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_PAUSE, data={}, status=const.STATUS_OK))
     
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(
@@ -95,6 +99,7 @@ class DownloadPanel(wx.Panel):
         """
         self.addressbar.btn_fetch.Enable(state)
         self.addressbar.btn_start.Enable(state)
+        self.addressbar.btn_pause.Enable(not state)
 
     def set_address_bar(self, text: str):
         self.addressbar.txt_address.SetValue(text)
@@ -114,16 +119,20 @@ class AddressBar(wx.Panel):
 
         self.btn_fetch = wx.BitmapButton(self, -1, bitmaps["fetch"])
         self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
+        self.btn_pause = wx.BitmapButton(self, -1, bitmaps["pause"])
+        self.btn_pause.Enable(False)
         self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
+        self.btn_pause.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().pause_tasks(), self.btn_pause)
         self.btn_stop.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().stop_tasks(), self.btn_stop)
         self.btn_start.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().start_tasks(), self.btn_start)
         btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")
         self.set_help_text(self.btn_start, "Start scanning the fetched Urls")
+        self.set_help_text(self.btn_pause, "Pause the running Tasks")
         self.set_help_text(self.btn_stop, "Stop the current Scan")
         self.set_help_text(self.txt_address, "Enter a Url or File path to go fetch")
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
@@ -136,6 +145,7 @@ class AddressBar(wx.Panel):
         hs.AddSpacer(20)
         hs.Add(self.btn_fetch, 0, wx.ALL|wx.EXPAND, 0)
         hs.Add(self.btn_stop, 0, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.btn_pause, 0, wx.ALL | wx.EXPAND, 0)
         hs.Add(self.btn_start, 0, wx.ALL|wx.EXPAND, 0)
     
         vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)

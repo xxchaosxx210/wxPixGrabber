@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import os
+import logging
 from io import BytesIO
 from http.cookiejar import CookieJar
 from typing import Pattern
@@ -23,6 +24,9 @@ from crawler.webrequest import (
     load_cookies,
     UrlData
 )
+
+
+_Log = logging.getLogger(__name__)
 
 
 def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
@@ -119,9 +123,14 @@ class Task(mp.Process):
     Worker thread which will search for images on the url passed into __init__
     """
 
-    def __init__(self, task_index: int, urldata: UrlData,
-                 settings: dict, filters: Pattern, commander_msg: mp.Queue,
-                 cancel_event: mp.Event):
+    def __init__(self,
+                 task_index: int,
+                 urldata: UrlData,
+                 settings: dict,
+                 filters: Pattern,
+                 commander_msg: mp.Queue,
+                 cancel_event: mp.Event,
+                 pause_event: mp.Event):
         """
         __init__(int, str, **kwargs)
         task_index should be a unique number
@@ -142,6 +151,7 @@ class Task(mp.Process):
         # Tasks message box
         self.msgbox = mp.Queue()
         self.cancel = cancel_event
+        self.pause = pause_event
 
     def search_response(self, response: Response, include_forms: bool) -> dict:
         """
@@ -246,12 +256,18 @@ class Task(mp.Process):
             # finds new links to images. Saves images to file
             if self.add_url(self.urldata):
                 # Level 1
+                if self.pause.is_set():
+                    self.wait()
                 level_one_urls = self.follow_url(self.urldata, cookie_jar)
                 for level_one_url_data in level_one_urls.values():
+                    if self.pause.is_set():
+                        self.wait()
                     if self.add_url(level_one_url_data):
                         # Level 2
                         level_two_urls = self.follow_url(level_one_url_data, cookie_jar)
                         for level_two_url_data in level_two_urls.values():
+                            if self.pause.is_set():
+                                self.wait()
                             if self.add_url(level_two_url_data):
                                 # Level 3
                                 self.follow_url(level_two_url_data, cookie_jar)
@@ -262,6 +278,12 @@ class Task(mp.Process):
             self.notify_finished(const.STATUS_OK, "Task has completed")
 
     def notify_finished(self, status: int, message: str):
+        if self.pause.is_set():
+            self.wait()
         self.comm_queue.put_nowait(Message(
             thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED,
             id=self.task_index, data={"message": message, "url": self.urldata.url}))
+
+    def wait(self):
+        _Log.info(f"Task #{self.task_index} has paused")
+        self.msgbox.get()
