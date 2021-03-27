@@ -1,4 +1,5 @@
 import multiprocessing as mp
+import threading
 import os
 import logging
 from io import BytesIO
@@ -118,7 +119,7 @@ def download_image(filename: str, response: Response, settings: dict):
     return message
 
 
-class Task(mp.Process):
+class Task(threading.Thread):
     """
     Worker thread which will search for images on the url passed into __init__
     """

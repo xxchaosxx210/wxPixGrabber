@@ -1,4 +1,3 @@
-import threading
 import logging
 import multiprocessing as mp
 import queue
@@ -56,7 +55,7 @@ def tasks_alive(tasks: dict) -> list:
     return list(filter(lambda task: task.is_alive(), tasks.values()))
 
 
-class Commander(threading.Thread):
+class Commander(mp.Process):
 
     def __init__(self, main_queue: mp.Queue):
         super().__init__()
@@ -65,13 +64,13 @@ class Commander(threading.Thread):
         self.settings = {}
         self.scanned_urls = {}
         self.blacklist = {}
-        self.cancel_all = mp.Event()
+        self.cancel_tasks = mp.Event()
         self.quit_thread = mp.Event()
         self.filters = None
         self.cookie_jar = None
 
     def _reset(self, tasks: dict):
-        self.cancel_all.clear()
+        self.cancel_tasks.clear()
         tasks.clear()
         self.blacklist.clear()
 
@@ -132,7 +131,7 @@ class Commander(threading.Thread):
     def _init_fetch(self, tasks: dict):
         self.scanned_urls.clear()
         tasks.clear()
-        self.cancel_all.clear()
+        self.cancel_tasks.clear()
         self.settings = options.load_settings()
         self.cookie_jar = load_cookies(self.settings)
 
@@ -169,7 +168,7 @@ class Commander(threading.Thread):
         time_counter = 0.0
         task_running = False
         tasks = {}
-        counter = 0
+        total_counter = 0
         paused = mp.Event()
         while not self.quit_thread.is_set():
             try:
@@ -180,7 +179,7 @@ class Commander(threading.Thread):
 
                 if msg.thread == const.THREAD_MAIN:
                     if msg.event == const.EVENT_QUIT:
-                        self.cancel_all.set()
+                        self.cancel_tasks.set()
                         self.message_quit()
                         self.quit_thread.set()
 
@@ -204,10 +203,10 @@ class Commander(threading.Thread):
                                                          self.settings,
                                                          self.filters,
                                                          self.queue,
-                                                         self.cancel_all,
+                                                         self.cancel_tasks,
                                                          paused)
-                            counter = _start_max_tasks(tasks, self.settings["max_connections"])
-                            if counter > 0:
+                            total_counter = _start_max_tasks(tasks, self.settings["max_connections"])
+                            if total_counter > 0:
                                 # notify main thread so can initialize UI
                                 self.message_start()
                             else:
@@ -237,7 +236,7 @@ class Commander(threading.Thread):
                             self.message_fetch_ignored(msg.data["url"], "Tasks still running")
 
                     elif msg.event == const.EVENT_CANCEL:
-                        self.cancel_all.set()
+                        self.cancel_tasks.set()
 
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
@@ -248,14 +247,14 @@ class Commander(threading.Thread):
                 elif msg.thread == const.THREAD_TASK:
                     if msg.event == const.EVENT_FINISHED:
                         # one task is gone start another
-                        if counter < tasks.__len__():
-                            if not self.cancel_all.is_set():
-                                # start the next task if not cancelled and increment the counter
-                                tasks.get(counter).start()
-                                counter += 1
+                        if total_counter < self.scanned_urls.__len__():
+                            if not self.cancel_tasks.is_set():
+                                # start the next task if not cancelled and increment the total_counter
+                                tasks.get(total_counter).start()
+                                total_counter += 1
                             else:
-                                # if cancel flag been set the counter to its limit and this will force a Task Complete
-                                counter = tasks.__len__()
+                                # if cancel flag been set the total_counter to its limit and this will force a Task Complete
+                                total_counter = tasks.__len__()
                         # Pass the Task Finished event to the Main Thread
                         self.main_queue.put_nowait(msg)
                     elif msg.event == const.EVENT_BLACKLIST:
@@ -266,20 +265,20 @@ class Commander(threading.Thread):
                 pass
             finally:
                 if task_running:
-                    # check if all self.tasks are finished and that the task counter is greater or
+                    # check if all self.tasks are finished and that the task total_counter is greater or
                     # equal to the size of task tasks. if so cleanup and notify main thread
-                    if len(tasks_alive(tasks)) == 0 and counter >= tasks.__len__():
+                    if len(tasks_alive(tasks)) == 0 and total_counter >= self.scanned_urls.__len__():
                         self.message_complete()
                         self._reset(tasks)
                         task_running = False
                     else:
                         # cancel flag is set. Start counting to timeout, then start terminating processing
-                        if self.cancel_all.is_set():
+                        if self.cancel_tasks.is_set():
                             if time_counter >= self.settings["connection_timeout"]:
                                 # kill any hanging tasks
                                 for task in tasks.values():
                                     if task.is_alive():
-                                        task.terminate()
-                                        counter += 1
+                                        del task
+                                        total_counter += 1
                             else:
                                 time_counter += _QUEUE_TIMEOUT
