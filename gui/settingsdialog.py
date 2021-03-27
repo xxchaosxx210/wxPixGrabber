@@ -582,7 +582,7 @@ class MaxConnectionsPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.slider = wx.Slider(self,
-                                -1, 10, 1, 30,
+                                -1, 10, 1, 100,
                                 style=wx.SL_HORIZONTAL | wx.SL_MIN_MAX_LABELS | wx.SL_LABELS)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)

@@ -253,8 +253,9 @@ class Commander(mp.Process):
                                 tasks.get(total_counter).start()
                                 total_counter += 1
                             else:
-                                # if cancel flag been set the total_counter to its limit and this will force a Task Complete
-                                total_counter = tasks.__len__()
+                                # if cancel flag been set the total_counter to its limit and this will force a Task
+                                # Complete
+                                total_counter = self.scanned_urls.__len__()
                         # Pass the Task Finished event to the Main Thread
                         self.main_queue.put_nowait(msg)
                     elif msg.event == const.EVENT_BLACKLIST:
