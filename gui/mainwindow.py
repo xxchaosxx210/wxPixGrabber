@@ -98,17 +98,16 @@ class MainWindow(wx.Frame):
                 timer_quit.set()
                 self._on_fetch_finished(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
-                self.dld_panel.progressbar.reset_progress(100)
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
                 timer_quit.set()
                 self._on_fetch_error(msg)
-                self.dld_panel.progressbar.reset_progress(100)
+                self.dld_panel.progressbar.reset_progress(0)
             # FETCH IGNORED
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
                 timer_quit.set()
                 self._on_fetch_ignored(msg)
-                self.dld_panel.progressbar.reset_progress(100)
+                self.dld_panel.progressbar.reset_progress(0)
 
             # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:

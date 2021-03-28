@@ -26,41 +26,42 @@ class DownloadPanel(wx.Panel):
         self.progressbar = ProgressPanel(self, -1)
 
         btn_detach.Bind(wx.EVT_BUTTON, self._on_detach_button, btn_detach)
-        btn_detach.Bind(wx.EVT_ENTER_WINDOW, lambda evt: self.app.window.SetStatusText("Show/Hide Detachable Progress Window"))
+        btn_detach.Bind(wx.EVT_ENTER_WINDOW,
+                        lambda evt: self.app.window.SetStatusText("Show/Hide Detachable Progress Window"))
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.addressbar, 1, wx.EXPAND|wx.ALL, BORDER)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.treeview, 1, wx.EXPAND|wx.ALL, BORDER)
-        vs.Add(hs, 1, wx.EXPAND|wx.ALL, BORDER)
+        hs.Add(self.addressbar, 1, wx.EXPAND | wx.ALL, BORDER)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, BORDER)
+
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(self.treeview, 1, wx.EXPAND | wx.ALL, BORDER)
+        vs.Add(hs, 1, wx.EXPAND | wx.ALL, BORDER)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.AddSpacer(BORDER)
-        hs.Add(btn_detach, 0, wx.EXPAND|wx.ALL, 0)
+        hs.Add(btn_detach, 0, wx.EXPAND | wx.ALL, 0)
         hs.AddStretchSpacer(1)
-        hs.Add(self.errors, 0, wx.EXPAND|wx.ALL, 2)
+        hs.Add(self.errors, 0, wx.EXPAND | wx.ALL, 2)
         hs.AddSpacer(BORDER)
-        hs.Add(self.ignored, 0, wx.EXPAND|wx.ALL, 2)
+        hs.Add(self.ignored, 0, wx.EXPAND | wx.ALL, 2)
         hs.AddSpacer(BORDER)
-        hs.Add(self.imgsaved, 0, wx.EXPAND|wx.ALL, 2)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, 2)
+        hs.Add(self.imgsaved, 0, wx.EXPAND | wx.ALL, 2)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 2)
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.progressbar, 1, wx.EXPAND|wx.ALL, BORDER)
-        vs.Add(hs, 0, wx.EXPAND|wx.ALL, BORDER)
+        hs.Add(self.progressbar, 1, wx.EXPAND | wx.ALL, BORDER)
+        vs.Add(hs, 0, wx.EXPAND | wx.ALL, BORDER)
 
         self.SetSizer(vs)
-    
+
     def _on_detach_button(self, evt):
         if self.app.window.detached_frame.IsShown():
             self.app.window.detached_frame.Hide()
         else:
             self.app.window.detached_frame.Show()
-    
+
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
@@ -69,7 +70,7 @@ class DownloadPanel(wx.Panel):
 
     def start_tasks(self):
         self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, id=0))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, id=0))
 
     def stop_tasks(self):
         self.app.commander.queue.put_nowait(
@@ -80,19 +81,19 @@ class DownloadPanel(wx.Panel):
     def pause_tasks(self):
         self.app.commander.queue.put_nowait(
             Message(thread=const.THREAD_MAIN, event=const.EVENT_PAUSE, data={}, status=const.STATUS_OK))
-    
+
     def on_btn_open_dir(self, evt):
         dlg = wx.FileDialog(
             parent=self, message="Choose an HTML Document to Search",
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
-            style=-wx.FD_FILE_MUST_EXIST|wx.FD_OPEN)
+            style=-wx.FD_FILE_MUST_EXIST | wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             self.set_address_bar(dlg.GetPaths()[0])
         dlg.Destroy()
 
     def on_mouse_enter(self, text):
         self.app.window.sbar.SetStatusText(text)
-    
+
     def enable_controls(self, state):
         """enabled or disables the download controls
 
@@ -113,7 +114,7 @@ class AddressBar(wx.Panel):
         super().__init__(*args, **kw)
 
         self.app = wx.GetApp()
-        
+
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
 
         bitmaps = wx.GetApp().bitmaps
@@ -142,26 +143,26 @@ class AddressBar(wx.Panel):
         vs = wx.BoxSizer(wx.VERTICAL)
 
         hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Url or HTML File")
-        hs.Add(self.txt_address, 1, wx.ALL|wx.EXPAND, 0)
-        hs.Add(btn_open, 0, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.txt_address, 1, wx.ALL | wx.EXPAND, 0)
+        hs.Add(btn_open, 0, wx.ALL | wx.EXPAND, 0)
         hs.AddSpacer(20)
-        hs.Add(self.btn_fetch, 0, wx.ALL|wx.EXPAND, 0)
-        hs.Add(self.btn_stop, 0, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.btn_fetch, 0, wx.ALL | wx.EXPAND, 0)
+        hs.Add(self.btn_stop, 0, wx.ALL | wx.EXPAND, 0)
         hs.Add(self.btn_pause, 0, wx.ALL | wx.EXPAND, 0)
-        hs.Add(self.btn_start, 0, wx.ALL|wx.EXPAND, 0)
-    
-        vs.Add(hs, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(self.btn_start, 0, wx.ALL | wx.EXPAND, 0)
+
+        vs.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
 
         self.SetSizer(vs)
-    
+
     def set_help_text(self, button, text):
         button.Bind(wx.EVT_ENTER_WINDOW,
-                    lambda evt: self.on_mouse_over_button(text), 
+                    lambda evt: self.on_mouse_over_button(text),
                     button)
 
     def on_mouse_over_button(self, text):
         self.app.window.sbar.SetStatusText(text)
-        
+
 
 class StatsPanel(wx.Panel):
 
@@ -173,49 +174,53 @@ class StatsPanel(wx.Panel):
 
         vs = wx.BoxSizer(wx.VERTICAL)
         hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(lbl, 1, wx.ALL|wx.EXPAND, 0)
+        hs.Add(lbl, 1, wx.ALL | wx.EXPAND, 0)
         hs.AddSpacer(BORDER)
-        hs.Add(self.value, 1, wx.ALL|wx.EXPAND, 0)
-        vs.Add(hs, 1, wx.ALL|wx.EXPAND)
+        hs.Add(self.value, 1, wx.ALL | wx.EXPAND, 0)
+        vs.Add(hs, 1, wx.ALL | wx.EXPAND)
         self.SetSizer(vs)
 
         self.stat = 0
-    
+
     def reset_stat(self):
         self.stat = 0
         self.value.SetLabel("0")
-    
+
     def add_stat(self):
         self.stat += 1
         self.value.SetLabel(self.stat.__str__())
-    
+
 
 class ProgressPanel(wx.Panel):
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
-        self.gauge = wx.Gauge(self, -1, 100)
+        self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
         self.time = wx.StaticText(self, -1, "00:00:00")
 
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(self.gauge, 1, wx.EXPAND|wx.ALL, 0)
-        box.Add(vs, 1, wx.ALL|wx.EXPAND, 0)
+        vs.Add(self.gauge, 1, wx.EXPAND | wx.ALL, 0)
+        box.Add(vs, 1, wx.ALL | wx.EXPAND, 0)
 
         box.AddSpacer(BORDER)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(self.time, 1, wx.EXPAND|wx.ALL, 0)
-        box.Add(vs, 0, wx.ALL|wx.EXPAND, 0)
+        vs.Add(self.time, 1, wx.EXPAND | wx.ALL, 0)
+        box.Add(vs, 0, wx.ALL | wx.EXPAND, 0)
 
         self.SetSizer(box)
-    
+
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
         self.gauge.SetValue(0)
-    
+
     def increment(self):
         value = self.gauge.GetValue()
-        self.gauge.SetValue(value + 1)
+        r = self.gauge.GetRange()
+        try:
+            self.gauge.SetValue(value + 1)
+        except Exception:
+            print("")

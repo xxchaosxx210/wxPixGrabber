@@ -157,6 +157,7 @@ class Commander(mp.Process):
         options.assign_unique_name("", html_title)
         # Setup Search filters and find matches within forms, links and images
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
+        # Notify the Main Process were starting the sort
         self.fetch_start_message(html_title, url)
         for scanned_index, url_data in enumerate(parsing.sort_soup(url=url,
                                                                    soup=soup,
@@ -172,11 +173,12 @@ class Commander(mp.Process):
             if cancel_flag.is_set():
                 break
         self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
+        # call the commander process to set the fetch_running to False
+        self.queue.put(Message(const.THREAD_MAIN, const.EVENT_FETCH_COMPLETE))
         if self.scanned_urls:
             if self.settings["auto-download"]:
                 # Message ourselves and start the tasks
-                self.queue.put_nowait(
-                    Message(thread=const.THREAD_MAIN, event=const.EVENT_START, data={}))
+                self.queue.put_nowait(Message(thread=const.THREAD_MAIN, event=const.EVENT_START))
         else:
             self.message_main("No Links Found :(")
 
@@ -191,6 +193,7 @@ class Commander(mp.Process):
         total_counter = 0
         paused = mp.Event()
         cancel_fetch = mp.Event()
+        fetch_running = False
         while not self.quit_thread.is_set():
             try:
                 if task_running:
@@ -235,10 +238,14 @@ class Commander(mp.Process):
                                 self.message_main("Could not start Tasks")
 
                     elif msg.event == const.EVENT_FETCH_CANCEL:
-                        cancel_fetch.set()
+                        if fetch_running:
+                            cancel_fetch.set()
+
+                    elif msg.event == const.EVENT_FETCH_COMPLETE:
+                        fetch_running = False
 
                     elif msg.event == const.EVENT_FETCH:
-                        if not task_running:
+                        if not task_running and not fetch_running:
                             self._init_fetch(tasks, cancel_fetch)
                             url_data = UrlData(msg.data["url"], method="GET")
                             self.message_main(f"Connecting to {msg.data['url']}...")
@@ -251,6 +258,7 @@ class Commander(mp.Process):
                                                                  fetch_response.headers["Content-Type"],
                                                                  self.settings["images_to_search"])
                                 if ext == mime.EXT_HTML:
+                                    fetch_running = True
                                     threading.Thread(target=self._search_html,
                                                      kwargs={"html_doc": fetch_response.text,
                                                              "url": msg.data["url"],
@@ -258,16 +266,19 @@ class Commander(mp.Process):
                                 fetch_response.close()
                             except Exception as err:
                                 # couldn't connect
+                                fetch_running = False
                                 self.fetch_error_message(err.__str__(), msg.data["url"])
                         else:
                             self.ignored_error_message(msg.data["url"], "Tasks still running")
 
                     elif msg.event == const.EVENT_CANCEL:
-                        self.cancel_tasks.set()
+                        if task_running:
+                            self.cancel_tasks.set()
 
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
-                        if not task_running:
+                        if not task_running and not fetch_running:
+                            fetch_running = True
                             self._init_fetch(tasks, cancel_fetch)
                             threading.Thread(target=self._search_html,
                                              kwargs={"html_doc": msg.data["html"],
