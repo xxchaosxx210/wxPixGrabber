@@ -73,7 +73,9 @@ class DownloadPanel(wx.Panel):
 
     def stop_tasks(self):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL, data={}, id=0, status=const.STATUS_OK))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_CANCEL))
+        self.app.commander.queue.put_nowait(
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH_CANCEL))
 
     def pause_tasks(self):
         self.app.commander.queue.put_nowait(

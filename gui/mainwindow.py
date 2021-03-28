@@ -92,21 +92,21 @@ class MainWindow(wx.Frame):
                 self.dld_panel.treeview.add_to_root(msg)
 
             elif msg.event == const.EVENT_FETCH_START:
-                self.dld_panel.progressbar.gauge.Pulse()
-                self.SetTitle(f'{msg.data["title"]}')
-                self.SetStatusText(f"Scanning {msg.data['url']}")
-                self.dld_panel.treeview.create_root(msg)
+                self._on_fetch_start(msg)
 
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_OK:
+                timer_quit.set()
                 self._on_fetch_finished(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
                 self.dld_panel.progressbar.reset_progress(100)
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
+                timer_quit.set()
                 self._on_fetch_error(msg)
                 self.dld_panel.progressbar.reset_progress(100)
             # FETCH IGNORED
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
+                timer_quit.set()
                 self._on_fetch_ignored(msg)
                 self.dld_panel.progressbar.reset_progress(100)
 
@@ -143,6 +143,14 @@ class MainWindow(wx.Frame):
                     self.detached_frame.Show()
                 else:
                     self.detached_frame.Hide()
+
+    def _on_fetch_start(self, msg: const.Message):
+        timer_quit.clear()
+        create_timer_thread(self._on_timer_callback).start()
+        self.dld_panel.progressbar.gauge.Pulse()
+        self.SetTitle(f'{msg.data["title"]}')
+        self.SetStatusText(f"Scanning {msg.data['url']}")
+        self.dld_panel.treeview.create_root(msg)
     
     def _on_start_scraping(self):
         # Start a new timer

@@ -1,5 +1,6 @@
 import logging
 import multiprocessing as mp
+import threading
 import queue
 
 import crawler.cache as cache
@@ -142,14 +143,15 @@ class Commander(mp.Process):
         self.cookie_jar = load_cookies(self.settings)
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
 
-    def _init_fetch(self, tasks: dict):
+    def _init_fetch(self, tasks: dict, cancel_fetch: mp.Event):
         self.scanned_urls.clear()
         tasks.clear()
+        cancel_fetch.clear()
         self.cancel_tasks.clear()
         self.settings = options.load_settings()
         self.cookie_jar = load_cookies(self.settings)
 
-    def _search_html(self, html_doc: str, url: str):
+    def _search_html(self, html_doc: str, url: str, cancel_flag: mp.Event):
         soup = parsing.parse_html(html_doc)
         html_title = getattr(soup.find("title"), "text", "")
         options.assign_unique_name("", html_title)
@@ -167,6 +169,8 @@ class Commander(mp.Process):
             if url_data:
                 self.scanned_urls[scanned_index] = url_data
                 self.fetch_update_message(url_data)
+            if cancel_flag.is_set():
+                break
         self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
         if self.scanned_urls:
             if self.settings["auto-download"]:
@@ -186,6 +190,7 @@ class Commander(mp.Process):
         tasks = {}
         total_counter = 0
         paused = mp.Event()
+        cancel_fetch = mp.Event()
         while not self.quit_thread.is_set():
             try:
                 if task_running:
@@ -229,9 +234,12 @@ class Commander(mp.Process):
                                 task_running = False
                                 self.message_main("Could not start Tasks")
 
+                    elif msg.event == const.EVENT_FETCH_CANCEL:
+                        cancel_fetch.set()
+
                     elif msg.event == const.EVENT_FETCH:
                         if not task_running:
-                            self._init_fetch(tasks)
+                            self._init_fetch(tasks, cancel_fetch)
                             url_data = UrlData(msg.data["url"], method="GET")
                             self.message_main(f"Connecting to {msg.data['url']}...")
                             try:
@@ -243,7 +251,10 @@ class Commander(mp.Process):
                                                                  fetch_response.headers["Content-Type"],
                                                                  self.settings["images_to_search"])
                                 if ext == mime.EXT_HTML:
-                                    self._search_html(fetch_response.text, msg.data["url"])
+                                    threading.Thread(target=self._search_html,
+                                                     kwargs={"html_doc": fetch_response.text,
+                                                             "url": msg.data["url"],
+                                                             "cancel_flag": cancel_fetch}).start()
                                 fetch_response.close()
                             except Exception as err:
                                 # couldn't connect
@@ -257,8 +268,11 @@ class Commander(mp.Process):
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
                         if not task_running:
-                            self._init_fetch(tasks)
-                            self._search_html(msg.data["html"], "pixgrabber-extension")
+                            self._init_fetch(tasks, cancel_fetch)
+                            threading.Thread(target=self._search_html,
+                                             kwargs={"html_doc": msg.data["html"],
+                                                     "url": "pixgrabber-extension",
+                                                     "cancel_flag": cancel_fetch}).start()
 
                 elif msg.thread == const.THREAD_TASK:
                     if msg.event == const.EVENT_FINISHED:
