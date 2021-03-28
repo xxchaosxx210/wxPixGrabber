@@ -82,11 +82,11 @@ class Commander(mp.Process):
 
     def message_quit(self):
         self.main_queue.put(
-            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT, data={}))
+            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_QUIT))
 
     def message_start(self):
         self.main_queue.put_nowait(
-            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START, data={}))
+            Message(thread=const.THREAD_COMMANDER, event=const.EVENT_START))
 
     def fetch_complete_message(self, length: int, title: str):
         self.main_queue.put_nowait(
@@ -119,7 +119,7 @@ class Commander(mp.Process):
 
     def message_complete(self):
         self.main_queue.put_nowait(Message(
-            thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE, data={}))
+            thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE))
 
     def _check_blacklist(self, url_data: UrlData, task: Task):
         """

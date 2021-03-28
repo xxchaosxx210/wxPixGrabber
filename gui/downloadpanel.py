@@ -66,11 +66,11 @@ class DownloadPanel(wx.Panel):
         if self.addressbar.txt_address.GetValue():
             data = {"url": self.addressbar.txt_address.GetValue()}
             self.app.commander.queue.put_nowait(
-                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, id=0, status=const.STATUS_OK, data=data))
+                Message(thread=const.THREAD_MAIN, event=const.EVENT_FETCH, data=data))
 
     def start_tasks(self):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_START, status=const.STATUS_OK, data={}, id=0))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_START))
 
     def stop_tasks(self):
         self.app.commander.queue.put_nowait(
@@ -80,9 +80,9 @@ class DownloadPanel(wx.Panel):
 
     def pause_tasks(self):
         self.app.commander.queue.put_nowait(
-            Message(thread=const.THREAD_MAIN, event=const.EVENT_PAUSE, data={}, status=const.STATUS_OK))
+            Message(thread=const.THREAD_MAIN, event=const.EVENT_PAUSE))
 
-    def on_btn_open_dir(self, evt):
+    def open_dir_dialog(self):
         dlg = wx.FileDialog(
             parent=self, message="Choose an HTML Document to Search",
             wildcard="(*.html,*.xhtml)|*.html;*.xhtml",
@@ -131,7 +131,7 @@ class AddressBar(wx.Panel):
         self.btn_pause.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().pause_tasks(), self.btn_pause)
         self.btn_stop.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().stop_tasks(), self.btn_stop)
         self.btn_start.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().start_tasks(), self.btn_start)
-        btn_open.Bind(wx.EVT_BUTTON, self.GetParent().on_btn_open_dir, btn_open)
+        btn_open.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().open_dir_dialog(), btn_open)
 
         self.set_help_text(self.btn_fetch, "Fetch Links found from the Url")
         self.set_help_text(self.btn_start, "Start scanning the fetched Urls")
@@ -219,8 +219,4 @@ class ProgressPanel(wx.Panel):
 
     def increment(self):
         value = self.gauge.GetValue()
-        r = self.gauge.GetRange()
-        try:
-            self.gauge.SetValue(value + 1)
-        except Exception:
-            print("")
+        self.gauge.SetValue(value + 1)
