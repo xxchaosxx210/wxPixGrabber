@@ -8,7 +8,6 @@ import crawler.options as options
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
 from gui.detachprogress import DetachableFrame
-from gui.fetchdialog import FetchDialog
 from crawler.message import Message
 from timer import (
     create_timer_thread,
@@ -93,23 +92,23 @@ class MainWindow(wx.Frame):
                 self.dld_panel.treeview.add_to_root(msg)
 
             elif msg.event == const.EVENT_FETCH_START:
+                self.dld_panel.progressbar.gauge.Pulse()
                 self.SetTitle(f'{msg.data["title"]}')
+                self.SetStatusText(f"Scanning {msg.data['url']}")
                 self.dld_panel.treeview.create_root(msg)
-                self._fetch_dlg = FetchDialog(self, -1, msg.data["url"])
-                threading.Thread(target=self._fetch_dlg.ShowModal).start()
 
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_OK:
-                self._fetch_dlg.Destroy()
                 self._on_fetch_finished(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
+                self.dld_panel.progressbar.reset_progress(100)
             # FETCH ERROR
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
-                self._fetch_dlg.Destroy()
                 self._on_fetch_error(msg)
+                self.dld_panel.progressbar.reset_progress(100)
             # FETCH IGNORED
             elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
-                self._fetch_dlg.Destroy()
                 self._on_fetch_ignored(msg)
+                self.dld_panel.progressbar.reset_progress(100)
 
             # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
