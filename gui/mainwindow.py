@@ -94,20 +94,16 @@ class MainWindow(wx.Frame):
             elif msg.event == const.EVENT_FETCH_START:
                 self._on_fetch_start(msg)
 
-            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_OK:
+            elif msg.event == const.EVENT_FETCH_COMPLETE:
                 timer_quit.set()
-                self._on_fetch_finished(msg)
                 self.dld_panel.addressbar.txt_address.SetValue("")
-            # FETCH ERROR
-            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_ERROR:
-                timer_quit.set()
-                self._on_fetch_error(msg)
-                self.dld_panel.progressbar.reset_progress(0)
-            # FETCH IGNORED
-            elif msg.event == const.EVENT_FETCH_COMPLETE and msg.status == const.STATUS_IGNORED:
-                timer_quit.set()
-                self._on_fetch_ignored(msg)
-                self.dld_panel.progressbar.reset_progress(0)
+                self.dld_panel.progressbar.reset_progress(100)
+                if msg.status == const.STATUS_OK:
+                    self._on_fetch_finished(msg)
+                elif msg.status == const.STATUS_ERROR:
+                    self._on_fetch_error(msg)
+                elif msg.status == const.STATUS_IGNORED:
+                    self._on_fetch_ignored(msg)
 
             # TASKS HAVE BEEN CREATED AND ARE NOW SEARCHING
             elif msg.event == const.EVENT_START and msg.status == const.STATUS_OK:
@@ -146,6 +142,8 @@ class MainWindow(wx.Frame):
     def _on_fetch_start(self, msg: const.Message):
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()
+        self.dld_panel.progressbar.reset_progress(10)
+        self.dld_panel.progressbar.gauge.SetValue(10)
         self.dld_panel.progressbar.gauge.Pulse()
         self.SetTitle(f'{msg.data["title"]}')
         self.SetStatusText(f"Scanning {msg.data['url']}")

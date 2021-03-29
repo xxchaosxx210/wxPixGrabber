@@ -1,10 +1,13 @@
 import wx
+import logging
 
 from gui.statustreeview import StatusTreeView
 from crawler.message import Message
 import crawler.message as const
 
 BORDER = 5
+
+_Log = logging.getLogger(__name__)
 
 
 class DownloadPanel(wx.Panel):
@@ -219,4 +222,7 @@ class ProgressPanel(wx.Panel):
 
     def increment(self):
         value = self.gauge.GetValue()
-        self.gauge.SetValue(value + 1)
+        try:
+            self.gauge.SetValue(value + 1)
+        except Exception as err:
+            _Log.error(err.__str__())
