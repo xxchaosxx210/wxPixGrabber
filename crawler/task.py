@@ -53,10 +53,12 @@ def _response_to_stream(response: Response) -> BytesIO:
 
 def create_save_path(settings: dict):
     """
-    create_save_path(object)
-    Settings object load from file
-    append the unique folder path if required
-    create the directory if not exists
+    Settings object load from file append the unique folder path if required. Create the directory if not exists
+    Args:
+        settings: the settings json object which contains the unique name if choosen
+
+    Returns:
+        path (str): returns the newly created path name
     """
     if not os.path.exists(settings["save_path"]):
         try:
@@ -76,8 +78,22 @@ def create_save_path(settings: dict):
 
 
 def download_image(filename: str, response: Response, settings: dict):
-    message = Message(thread=const.THREAD_TASK, id=0, status=const.STATUS_IGNORED,
-                      event=const.EVENT_DOWNLOAD_IMAGE, data={"message": "unknown", "url": response.url})
+    """
+
+    Args:
+        filename: the name of the file to be saved to. This may change depending on same filename
+        response: Response object returned from requests
+        settings: Settings json object used to find unique save path and what to do if same filename found
+
+    Returns:
+        message (object): Message object containing information about what happened. This should be passed
+                          onto the Commander thread and handled
+    """
+    message = Message(thread=const.THREAD_TASK,
+                      id=0,
+                      status=const.STATUS_IGNORED,
+                      event=const.EVENT_DOWNLOAD_IMAGE,
+                      data={"message": "unknown", "url": response.url})
 
     byte_stream = _response_to_stream(response)
     # check the image size is within our bounds
@@ -126,7 +142,7 @@ class Task(threading.Thread):
 
     def __init__(self,
                  task_index: int,
-                 urldata: UrlData,
+                 url_data: UrlData,
                  settings: dict,
                  filters: Pattern,
                  commander_msg: mp.Queue,
@@ -143,14 +159,14 @@ class Task(threading.Thread):
         super().__init__()
         self.task_index = task_index
         # tasks starting url
-        self.urldata = urldata
+        self.url_data = url_data
         self.settings = settings
         self.file_index = 0
         self.filters = filters
         # Commander process message box
         self.comm_queue = commander_msg
         # Tasks message box
-        self.msgbox = mp.Queue()
+        self.msg_box = mp.Queue()
         self.cancel = cancel_event
         self.pause = pause_event
 
@@ -225,7 +241,7 @@ class Task(threading.Thread):
             data={"index": self.task_index, "urldata": url_data, "url": url_data.url},
             id=self.task_index, status=const.STATUS_OK
         ))
-        reply = self.msgbox.get()
+        reply = self.msg_box.get()
         return reply.data["added"]
 
     def follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> dict:
@@ -252,14 +268,14 @@ class Task(threading.Thread):
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK,
                         id=self.task_index, status=const.STATUS_OK, event=const.EVENT_SCANNING,
-                        data={"url": self.urldata.url}))
+                        data={"url": self.url_data.url}))
             # Three Levels of looping each level parses
             # finds new links to images. Saves images to file
-            if self.add_url(self.urldata):
+            if self.add_url(self.url_data):
                 # Level 1
                 if self.pause.is_set():
                     self.wait()
-                level_one_urls = self.follow_url(self.urldata, cookie_jar)
+                level_one_urls = self.follow_url(self.url_data, cookie_jar)
                 for level_one_url_data in level_one_urls.values():
                     if self.pause.is_set():
                         self.wait()
@@ -283,8 +299,8 @@ class Task(threading.Thread):
             self.wait()
         self.comm_queue.put_nowait(Message(
             thread=const.THREAD_TASK, status=status, event=const.EVENT_FINISHED,
-            id=self.task_index, data={"message": message, "url": self.urldata.url}))
+            id=self.task_index, data={"message": message, "url": self.url_data.url}))
 
     def wait(self):
         _Log.info(f"Task #{self.task_index} has paused")
-        self.msgbox.get()
+        self.msg_box.get()
