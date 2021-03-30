@@ -121,6 +121,10 @@ class Commander(mp.Process):
         self.main_queue.put_nowait(Message(
             thread=const.THREAD_COMMANDER, event=const.EVENT_COMPLETE))
 
+    def message_pause(self, pause: bool):
+        self.main_queue.put_nowait(Message(
+            thread=const.THREAD_COMMANDER, event=const.EVENT_PAUSE, data={"pause": pause}))
+
     def _check_blacklist(self, url_data: UrlData, task: Task):
         """
         This method gets called when a Task requests if a Url has already been searched from
@@ -209,12 +213,15 @@ class Commander(mp.Process):
 
                     elif msg.event == const.EVENT_PAUSE:
                         if paused.is_set():
+                            # Unpause any running tasks
                             paused.clear()
                             for task in tasks.values():
                                 if task.is_alive():
                                     task.msgbox.put_nowait("go!!!")
                         else:
+                            # Pause all tasks
                             paused.set()
+                        self.message_pause(paused.is_set())
 
                     elif msg.event == const.EVENT_START:
                         if not task_running:

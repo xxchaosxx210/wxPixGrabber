@@ -1,9 +1,8 @@
 import wx
-import threading
 
 import crawler.message as const
-import gui.notificationbar as notify
 import crawler.options as options
+import gui.notificationbar as notify
 
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
@@ -83,6 +82,13 @@ class MainWindow(wx.Frame):
             # MESSAGE
             if msg.event == const.EVENT_MESSAGE:
                 self.SetStatusText(msg.data["message"])
+
+            elif msg.event == const.EVENT_PAUSE:
+                pause = msg.data["pause"]
+                if pause:
+                    self.SetStatusText("Paused Tasks")
+                else:
+                    self.SetStatusText("Resuming...")
 
             # ALL TASKS COMPLETED
             elif msg.event == const.EVENT_COMPLETE:

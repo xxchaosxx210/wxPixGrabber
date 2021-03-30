@@ -222,7 +222,5 @@ class ProgressPanel(wx.Panel):
 
     def increment(self):
         value = self.gauge.GetValue()
-        try:
+        if value < self.gauge.GetRange():
             self.gauge.SetValue(value + 1)
-        except Exception as err:
-            _Log.error(err.__str__())
