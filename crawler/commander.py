@@ -136,9 +136,9 @@ class Commander(mp.Process):
         if not black_list_added:
             self.blacklist[repr(url_data.__dict__)] = 1
         # flip the black_list_added boolean
-        task.msgbox.put(Message(thread=const.THREAD_COMMANDER,
-                                event=const.EVENT_BLACKLIST,
-                                data={"added": not black_list_added}))
+        task.msg_box.put(Message(thread=const.THREAD_COMMANDER,
+                                 event=const.EVENT_BLACKLIST,
+                                 data={"added": not black_list_added}))
 
     def _init_start_tasks(self, tasks: dict):
         tasks.clear()

@@ -86,7 +86,7 @@ def create_save_path(settings: dict):
     return path
 
 
-def download_image(filename: str, response: Response, settings: dict):
+def download_image(task: Task, filename: str, response: Response, settings: dict):
     """
 
     Args:
@@ -145,8 +145,9 @@ def download_image(filename: str, response: Response, settings: dict):
 
 
 class Task(threading.Thread):
+
     """
-    Worker thread which will search for images on the url passed into __init__
+    Worker thread for following the given Link and determining whether to save image
     """
 
     def __init__(self,
@@ -157,14 +158,6 @@ class Task(threading.Thread):
                  commander_msg: mp.Queue,
                  cancel_event: mp.Event,
                  pause_event: mp.Event):
-        """
-        __init__(int, str, **kwargs)
-        task_index should be a unique number
-        this can be used to create a unique filename
-        and can also identify the thread
-        first thread will be 0 and indexed that way
-        url is the universal resource locator to search and parse
-        """
         super().__init__()
         self.task_index = task_index
         # tasks starting url
