@@ -31,6 +31,15 @@ _Log = logging.getLogger(__name__)
 
 
 def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
+    """
+    Writes the buffer to file
+    Args:
+        path: the file path to save to
+        bytes_stream: the stream saving from
+
+    Returns:
+        Message object containing either STATUS_OK or STATUS_ERROR if could not save to file
+    """
     with open(path, "wb") as fp:
         try:
             fp.write(bytes_stream.getbuffer())
