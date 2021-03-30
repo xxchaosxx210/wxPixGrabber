@@ -83,11 +83,19 @@ class MainWindow(wx.Frame):
             if msg.event == const.EVENT_MESSAGE:
                 self.SetStatusText(msg.data["message"])
 
+            elif msg.event == const.EVENT_CANCEL:
+                self.dld_panel.set_progress_indeterminate()
+                self.SetStatusText(
+                    """Cancelling Tasks, Please wait...
+                     This could take several seconds depending on the Connection timeout""")
+
             elif msg.event == const.EVENT_PAUSE:
                 pause = msg.data["pause"]
                 if pause:
+                    self.dld_panel.set_progress_indeterminate()
                     self.SetStatusText("Paused Tasks")
                 else:
+                    self.dld_panel.set_progress_determinate()
                     self.SetStatusText("Resuming...")
 
             # ALL TASKS COMPLETED

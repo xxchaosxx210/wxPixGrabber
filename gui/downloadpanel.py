@@ -110,6 +110,13 @@ class DownloadPanel(wx.Panel):
     def set_address_bar(self, text: str):
         self.addressbar.txt_address.SetValue(text)
 
+    def set_progress_indeterminate(self):
+        self.progressbar.save_state()
+        self.progressbar.gauge.Pulse()
+
+    def set_progress_determinate(self):
+        self.progressbar.restore_state()
+
 
 class AddressBar(wx.Panel):
 
@@ -202,6 +209,9 @@ class ProgressPanel(wx.Panel):
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
         self.time = wx.StaticText(self, -1, "00:00:00")
 
+        self.stored_value = 0
+        self.stored_range = 100
+
         box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
 
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -224,3 +234,11 @@ class ProgressPanel(wx.Panel):
         value = self.gauge.GetValue()
         if value < self.gauge.GetRange():
             self.gauge.SetValue(value + 1)
+
+    def save_state(self):
+        self.stored_value = self.gauge.GetValue()
+        self.stored_range = self.gauge.GetRange()
+
+    def restore_state(self):
+        self.gauge.SetRange(self.stored_range)
+        self.gauge.SetValue(self.stored_value)

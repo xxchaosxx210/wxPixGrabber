@@ -56,6 +56,12 @@ def tasks_alive(tasks: dict) -> list:
     return list(filter(lambda task: task.is_alive(), tasks.values()))
 
 
+def _wake_tasks(tasks: dict):
+    for task in tasks.values():
+        if task.is_alive():
+            task.msg_box.put("")
+
+
 class Commander(mp.Process):
 
     def __init__(self, main_queue: mp.Queue):
@@ -124,6 +130,9 @@ class Commander(mp.Process):
     def message_pause(self, pause: bool):
         self.main_queue.put_nowait(Message(
             thread=const.THREAD_COMMANDER, event=const.EVENT_PAUSE, data={"pause": pause}))
+
+    def notify_cancel(self):
+        self.main_queue.put_nowait(Message(thread=const.THREAD_COMMANDER, event=const.EVENT_CANCEL))
 
     def _check_blacklist(self, url_data: UrlData, task: Task):
         """
@@ -215,9 +224,7 @@ class Commander(mp.Process):
                         if paused.is_set():
                             # Unpause any running tasks
                             paused.clear()
-                            for task in tasks.values():
-                                if task.is_alive():
-                                    task.msgbox.put_nowait("go!!!")
+                            _wake_tasks(tasks)
                         else:
                             # Pause all tasks
                             paused.set()
@@ -280,7 +287,13 @@ class Commander(mp.Process):
 
                     elif msg.event == const.EVENT_CANCEL:
                         if task_running:
+                            if paused.is_set():
+                                # if paused then wake threads up
+                                _wake_tasks(tasks)
+                                paused.clear()
+                                self.message_pause(paused.is_set())
                             self.cancel_tasks.set()
+                            self.notify_cancel()
 
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
