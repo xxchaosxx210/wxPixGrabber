@@ -12,7 +12,11 @@ from crawler.mime import (
     IMAGE_EXTS
 )
 
-_Log = logging.getLogger(__name__)
+#_Log = logging.getLogger(__name__)
+class _Log:
+    @staticmethod
+    def info(s: str):
+        pass
 
 url_pattern = re.compile(
     r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+['

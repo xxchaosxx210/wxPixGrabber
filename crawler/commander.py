@@ -181,8 +181,9 @@ class Commander(mp.Process):
                                                                    filters=self.filters,
                                                                    img_exts=self.settings["images_to_search"])):
             if url_data:
+                _Log.info(f"index={scanned_index}")
                 self.scanned_urls[scanned_index] = url_data
-                self.fetch_update_message(scanned_index, url_data)
+                self.fetch_update_message(scanned_index - 1, url_data)
             if cancel_flag.is_set():
                 break
         self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
