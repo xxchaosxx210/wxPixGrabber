@@ -112,6 +112,14 @@ class StatusTreeView(wx.TreeCtrl):
             self.AppendItem(child, msg.data["message"])
     
     def child_complete(self, msg: const.Message):
+        """
+        Appends a child item to the associated parent Link
+        Args:
+            msg: Message object sent from Commander Process
+
+        Returns:
+
+        """
         root_child = self.children[msg.id]["id"]
         children = self.children[msg.id]["children"]
         if children:
