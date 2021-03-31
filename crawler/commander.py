@@ -101,11 +101,11 @@ class Commander(mp.Process):
                     status=const.STATUS_OK,
                     data={"length": length, "title": title}))
 
-    def fetch_update_message(self, url_data: UrlData):
+    def fetch_update_message(self, index: int, url_data: UrlData):
         self.main_queue.put_nowait(
             Message(thread=const.THREAD_COMMANDER,
                     event=const.EVENT_FETCH,
-                    data={"url_data": url_data}))
+                    data={"url_data": url_data, "index": index}))
 
     def fetch_start_message(self, title: str, url: str):
         self.main_queue.put_nowait(
@@ -182,7 +182,7 @@ class Commander(mp.Process):
                                                                    img_exts=self.settings["images_to_search"])):
             if url_data:
                 self.scanned_urls[scanned_index] = url_data
-                self.fetch_update_message(url_data)
+                self.fetch_update_message(scanned_index, url_data)
             if cancel_flag.is_set():
                 break
         self.fetch_complete_message(self.scanned_urls.__len__(), html_title)

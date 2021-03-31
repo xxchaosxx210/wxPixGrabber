@@ -40,7 +40,7 @@ class StatusTreeView(wx.TreeCtrl):
             wx.MessageBox(data.get("message", ""), "Info", parent=self._parent)
 
     def __init__(self, parent: wx.Window, _id: int):
-        self.children = []
+        self.children = {}
         super().__init__(parent=parent, id=_id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
         self.app = wx.GetApp()
         self._create_image_list()
@@ -66,7 +66,6 @@ class StatusTreeView(wx.TreeCtrl):
 
     def create_root(self, msg: const.Message):
         self.clear()
-        self.children.clear()
         root = self.AddRoot(msg.data["url"])
         self.SetItemData(root, msg)
         self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Normal)
@@ -75,8 +74,9 @@ class StatusTreeView(wx.TreeCtrl):
     def add_to_root(self, msg: const.Message):
         root = self.GetRootItem()
         url_data = msg.data["url_data"]
+        index = msg.data["index"]
         child = self.AppendItem(root, url_data.url)
-        self.children.append({"id": child, "children": []})
+        self.children[index] = {"id": child, "children": {}}
         self.SetItemData(child, msg)
         if url_data.tag == "a":
             self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
@@ -88,7 +88,8 @@ class StatusTreeView(wx.TreeCtrl):
     def add_url(self, msg: const.Message):
         child = self.children[msg.id]
         new_child = self.AppendItem(child["id"], msg.data["url"])
-        child["children"].append({"id": new_child, "children": []})
+        child_index = child["children"].__len__()
+        child["children"][child_index] = {"id": new_child, "children": {}}
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
         elif msg.status == const.STATUS_ERROR:
@@ -124,10 +125,11 @@ class StatusTreeView(wx.TreeCtrl):
         children = self.children[msg.id]["children"]
         if children:
             img = self._img_complete_ok
-            ok_result = list(filter(lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK, children))
+            ok_result = list(filter(lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK,
+                                    children.values()))
             if not ok_result:
                 error_result = list(filter(
-                    lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR, children))
+                    lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR, children.values()))
                 if error_result:
                     img = self._img_error
                 else:
@@ -142,7 +144,7 @@ class StatusTreeView(wx.TreeCtrl):
     
     def clear(self):
         self.DeleteAllItems()
-        self.children = []
+        self.children.clear()
 
     def get_fetched_list(self, root: wx.TreeItemId):
         data = []
