@@ -172,18 +172,18 @@ class Commander(mp.Process):
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
         # Notify the Main Process were starting the sort
         self.fetch_start_message(html_title, url)
-        for scanned_index, url_data in enumerate(parsing.sort_soup(url=url,
-                                                                   soup=soup,
-                                                                   include_forms=False,
-                                                                   images_only=False,
-                                                                   thumbnails_only=self.settings.get("thumbnails_only",
-                                                                                                     True),
-                                                                   filters=self.filters,
-                                                                   img_exts=self.settings["images_to_search"])):
+        for url_data in parsing.sort_soup(url=url,
+                                          soup=soup,
+                                          include_forms=False,
+                                          images_only=False,
+                                          thumbnails_only=self.settings.get("thumbnails_only",
+                                                                            True),
+                                          filters=self.filters,
+                                          img_exts=self.settings["images_to_search"]):
             if url_data:
-                _Log.info(f"index={scanned_index}")
+                scanned_index = self.scanned_urls.__len__()
                 self.scanned_urls[scanned_index] = url_data
-                self.fetch_update_message(scanned_index - 1, url_data)
+                self.fetch_update_message(scanned_index, url_data)
             if cancel_flag.is_set():
                 break
         self.fetch_complete_message(self.scanned_urls.__len__(), html_title)
@@ -319,6 +319,8 @@ class Commander(mp.Process):
                                 # Complete
                                 total_counter = self.scanned_urls.__len__()
                         # Pass the Task Finished event to the Main Thread
+                        # talive = len(tasks_alive(tasks))
+                        # _Log.info(f"Tasks running {talive}")
                         self.main_queue.put_nowait(msg)
                     elif msg.event == const.EVENT_BLACKLIST:
                         self._check_blacklist(msg.data["urldata"], tasks.get(msg.data["index"]))

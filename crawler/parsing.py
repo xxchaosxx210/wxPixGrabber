@@ -12,11 +12,9 @@ from crawler.mime import (
     IMAGE_EXTS
 )
 
-#_Log = logging.getLogger(__name__)
-class _Log:
-    @staticmethod
-    def info(s: str):
-        pass
+_ENABLE_LOGGING = True
+
+_Log = logging.getLogger(__name__)
 
 url_pattern = re.compile(
     r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+['
@@ -120,7 +118,8 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                             url_data = _append_link(url, a_tag.get("href"), urls, "a", filters, img_exts)
                             yield url_data
                         except LookupError as err:
-                            _Log.info(err.__str__())
+                            if _ENABLE_LOGGING:
+                                _Log.info(err.__str__())
                         finally:
                             ignored_images[img_tag.get("src")] = 1
                 else:
@@ -128,7 +127,8 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                         url_data = _append_link(url, a_tag.get("href", ""), urls, "a", filters, img_exts)
                         yield url_data
                     except LookupError as err:
-                        _Log.info(err.__str__())
+                        if _ENABLE_LOGGING:
+                            _Log.info(err.__str__())
 
     # search image tags
     for img_tag in soup.find_all("img"):
@@ -138,13 +138,15 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                     url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters, img_exts)
                     yield url_data
                 except LookupError as err:
-                    _Log.info(err.__str__())
+                    if _ENABLE_LOGGING:
+                        _Log.info(err.__str__())
         else:
             try:
                 url_data = _append_link(url, img_tag.get("src", ""), urls, "img", filters, img_exts)
                 yield url_data
             except LookupError as err:
-                _Log.info(err.__str__())
+                if _ENABLE_LOGGING:
+                    _Log.info(err.__str__())
 
     # search images in meta data
     for meta_tag in soup.find_all("meta", content=image_ext_pattern):
@@ -152,7 +154,8 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
             url_data = _append_link(url, meta_tag.get("content", ""), urls, "img", filters, img_exts)
             yield url_data
         except LookupError as err:
-            _Log.info(err.__str__())
+            if _ENABLE_LOGGING:
+                _Log.info(err.__str__())
 
 
 def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern, img_ext: dict) -> UrlData:
@@ -179,13 +182,15 @@ def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern
                 raise LookupError(f"Image extension found. Not included in Search {src}")
         if not parsed_src.netloc:
             # if no net location then add it from source url
-            _Log.info(f"No Netloc found for {src}. Joining {src} to full_url")
+            if _ENABLE_LOGGING:
+                _Log.info(f"No Netloc found for {src}. Joining {src} to full_url")
             url = parse.urljoin(full_url, src)
             parsed_src = parse.urlparse(url)
         else:
             url = src
         if not parsed_src.scheme:
-            _Log.info(f"No Scheme found. Appending HTTPS scheme to {url}")
+            if _ENABLE_LOGGING:
+                _Log.info(f"No Scheme found. Appending HTTPS scheme to {url}")
             url = parse.urljoin("https://", url)
         # parse the source URl
         parsed_url = parse.urlparse(full_url)

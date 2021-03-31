@@ -11,7 +11,7 @@ class StatusTreeView(wx.TreeCtrl):
         """PopupMenu for the TreeCtrl
         """
 
-        def __init__(self, parent, item):
+        def __init__(self, parent: wx.TreeCtrl, item: wx.TreeItemId):
             super().__init__()
             self._text = parent.GetItemText(item)
             self._parent = parent
@@ -23,8 +23,9 @@ class StatusTreeView(wx.TreeCtrl):
             self._parent.Bind(wx.EVT_MENU, lambda evt: self._on_copy(), id=100)
             self._parent.Bind(wx.EVT_MENU, lambda evt: self._on_open(), id=101)
             self._parent.Bind(wx.EVT_MENU, lambda evt: self.show_info(), id=102)
-        
+
         def _on_open(self):
+            msg = self._parent.GetItemData(self._item)
             webbrowser.open(self._text)
         
         def _on_copy(self):
