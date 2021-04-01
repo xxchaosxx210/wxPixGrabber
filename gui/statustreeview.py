@@ -40,8 +40,8 @@ class StatusTreeView(wx.TreeCtrl):
         
         def show_info(self):
             msg = self._parent.GetItemData(self._item)
-            data = msg.get("data", {"message": "", "path": ""})
-            message = f'{data.get("message", "")}\n\n{data["path"]}'
+            data = getattr(msg, "data", {"message": "", "path": ""})
+            message = f'{data.get("message", "")}\n\n{data.get("path", "")}'
             wx.MessageBox(message, "Info", parent=self._parent)
 
     def __init__(self, parent: wx.Window, _id: int):
