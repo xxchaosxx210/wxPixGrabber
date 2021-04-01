@@ -26,7 +26,10 @@ class StatusTreeView(wx.TreeCtrl):
 
         def _on_open(self):
             msg = self._parent.GetItemData(self._item)
-            webbrowser.open(self._text)
+            if msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
+                webbrowser.open(msg.data["path"])
+            else:
+                webbrowser.open(self._text)
         
         def _on_copy(self):
             data = wx.TextDataObject()
@@ -37,8 +40,9 @@ class StatusTreeView(wx.TreeCtrl):
         
         def show_info(self):
             msg = self._parent.GetItemData(self._item)
-            data = getattr(msg, "data", {"message": ""})
-            wx.MessageBox(data.get("message", ""), "Info", parent=self._parent)
+            data = msg.get("data", {"message": "", "path": ""})
+            message = f'{data.get("message", "")}\n\n{data["path"]}'
+            wx.MessageBox(message, "Info", parent=self._parent)
 
     def __init__(self, parent: wx.Window, _id: int):
         self.children = {}

@@ -44,11 +44,11 @@ def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
         try:
             fp.write(bytes_stream.getbuffer())
             return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
-                           status=const.STATUS_OK, id=0, data={"message": "image saved", "url": path})
+                           status=const.STATUS_OK, id=0, data={"message": "image saved", "path": path})
         except Exception as err:
             return Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
                            status=const.STATUS_ERROR, id=0,
-                           data={"message": err.__str__(), "url": path})
+                           data={"message": err.__str__(), "path": path})
 
 
 def _response_to_stream(response: Response) -> BytesIO:
