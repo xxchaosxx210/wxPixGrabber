@@ -96,7 +96,7 @@ class PixGrabberMenuBar(wx.MenuBar):
 
         parent.Bind(wx.EVT_MENU, self._on_open_html, id=ID_OPEN_HTML)
         parent.Bind(wx.EVT_MENU, lambda evt: _open_save_path(), id=ID_OPEN_SAVE_PATH)
-        parent.Bind(wx.EVT_MENU, self._on_save_scan, id=ID_SAVE)
+        parent.Bind(wx.EVT_MENU, lambda evt: self._on_save_scan(), id=ID_SAVE)
         parent.Bind(wx.EVT_MENU, self._on_load_save, id=ID_LOAD_SAVE)
         parent.Bind(wx.EVT_MENU, lambda evt: self.parent.Close(), id=ID_EXIT)
 
@@ -161,8 +161,14 @@ class PixGrabberMenuBar(wx.MenuBar):
             self.app.window.dld_panel.set_address_bar(dlg.GetPaths()[0])
         dlg.Destroy()
     
-    def _on_save_scan(self, evt):
-        _Log.info("Save scan pressed")
+    def _on_save_scan(self):
+        tree_view = self.app.window.dld_panel.treeview
+        root = tree_view.GetRootItem()
+        for child in tree_view.get_children(root):
+            for child2 in tree_view.get_children(child):
+                msg = tree_view.GetItemData(child2)
+                _Log.info(f"data={msg.data}")
+            _Log.info(f"{child}")
     
     def _on_load_save(self, evt):
         _Log.info("Load save pressed")

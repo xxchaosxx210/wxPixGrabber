@@ -151,10 +151,8 @@ class StatusTreeView(wx.TreeCtrl):
         self.DeleteAllItems()
         self.children.clear()
 
-    def get_fetched_list(self, root: wx.TreeItemId):
-        data = []
+    def get_children(self, root: wx.TreeItemId) -> wx.TreeItemId:
         child, cookie = self.GetFirstChild(root)
         while child:
-            data.append(self.GetItemData(child))
-            child, cookie = self.GetNextChild(child, cookie)
-        return data
+            child, cookie = self.GetFirstChild(root)
+            yield child
