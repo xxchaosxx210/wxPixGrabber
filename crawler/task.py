@@ -2,6 +2,7 @@ import multiprocessing as mp
 import threading
 import os
 import logging
+import ctypes
 from io import BytesIO
 from http.cookiejar import CookieJar
 from typing import Pattern
@@ -171,6 +172,10 @@ class Task(threading.Thread):
         self.msg_box = mp.Queue()
         self.cancel = cancel_event
         self.pause = pause_event
+        # flag for checking network IO state. If this is set and cancel flag is also set
+        # then an exception is raised outside of the thread. This is so if cancel is set
+        # the thread doesnt wait until network connection timeout also makes it thread safe
+        self._network_io = threading.Event()
 
     def search_response(self, response: Response, include_forms: bool) -> dict:
         """
@@ -246,14 +251,27 @@ class Task(threading.Thread):
         reply = self.msg_box.get()
         return reply.data["added"]
 
-    def follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> dict:
+    def _follow_url(self, url_data: UrlData, cookie_jar: CookieJar) -> dict:
         """
-        follow_url(object, object)
-        request url and parse the response
+
+        Args:
+            url_data: UrlData object
+            cookie_jar: CookieJar object
+
+        Returns:
+
         """
+        # Hang the thread if Pause flag is set
+        if self.pause.is_set():
+            self.wait()
         urls = {}
         try:
+            self._network_io.set()
             response = request_from_url(url_data, cookie_jar, self.settings)
+            self._network_io.clear()
+            if self.cancel.is_set():
+                response.close()
+                raise Exception("Task has been Cancelled")
             urls = self.search_response(response, self.settings["form_search"]["enabled"])
             response.close()
         except Exception as err:
@@ -275,21 +293,15 @@ class Task(threading.Thread):
             # finds new links to images. Saves images to file
             if self.add_url(self.url_data):
                 # Level 1
-                if self.pause.is_set():
-                    self.wait()
-                level_one_urls = self.follow_url(self.url_data, cookie_jar)
+                level_one_urls = self._follow_url(self.url_data, cookie_jar)
                 for level_one_url_data in level_one_urls.values():
-                    if self.pause.is_set():
-                        self.wait()
                     if self.add_url(level_one_url_data):
                         # Level 2
-                        level_two_urls = self.follow_url(level_one_url_data, cookie_jar)
+                        level_two_urls = self._follow_url(level_one_url_data, cookie_jar)
                         for level_two_url_data in level_two_urls.values():
-                            if self.pause.is_set():
-                                self.wait()
                             if self.add_url(level_two_url_data):
                                 # Level 3
-                                self.follow_url(level_two_url_data, cookie_jar)
+                                self._follow_url(level_two_url_data, cookie_jar)
 
         if self.cancel.is_set():
             self.notify_finished(const.STATUS_ERROR, "Task has cancelled")
@@ -306,3 +318,18 @@ class Task(threading.Thread):
     def wait(self):
         _Log.info(f"Task #{self.task_index} has paused")
         self.msg_box.get()
+
+    def terminate(self):
+        """
+        raises exception within thread if network IO operation.
+        Make sure to set the cancel flag and call terminate
+        """
+        _Log.info(f"Pause state {self.pause.is_set()}")
+        _Log.info(f"Cancel State {self.cancel.is_set()}")
+        if self._network_io.is_set():
+            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(self.ident, ctypes.py_object(SystemExit))
+            if res > 1:
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(self.ident, 0)
+                _Log.info("Exception raise failure")
+            else:
+                self.notify_finished(const.STATUS_ERROR, "Task has Cancelled")

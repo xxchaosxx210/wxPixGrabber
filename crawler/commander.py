@@ -294,6 +294,8 @@ class Commander(mp.Process):
                                 paused.clear()
                                 self.message_pause(paused.is_set())
                             self.cancel_tasks.set()
+                            for task in tasks_alive(tasks):
+                                task.terminate()
                             self.notify_cancel()
 
                 elif msg.thread == const.THREAD_SERVER:
