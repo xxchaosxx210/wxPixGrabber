@@ -87,7 +87,7 @@ def create_save_path(settings: dict):
     return path
 
 
-def download_image(filename: str, response: Response, settings: dict):
+def download_image(filename: str, response: Response, settings: dict) -> Message:
     """
 
     Args:
