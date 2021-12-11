@@ -1,7 +1,0 @@
-try
-".\.venv\Scripts\activate.bat"
-and running python main.py first
-if any modules missing run...
-python -m pip install -r requirements.txt
-
-then try again
