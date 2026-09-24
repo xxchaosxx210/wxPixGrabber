@@ -1,7 +1,6 @@
 import multiprocessing as mp
 import threading
 import os
-import logging
 import ctypes
 from io import BytesIO
 from http.cookiejar import CookieJar
@@ -18,6 +17,7 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.cache as cache
 import crawler.mime as mime
+from crawler.diagnostics import get_logger
 from crawler.message import Message
 import crawler.message as const
 
@@ -28,7 +28,7 @@ from crawler.webrequest import (
 )
 
 
-_Log = logging.getLogger(__name__)
+_Log = get_logger("task")
 
 
 def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
@@ -204,6 +204,13 @@ class Task(threading.Thread):
                                                               img_exts=self.settings["images_to_search"])):
                 if url:
                     urls[url_index] = url
+                    _Log.info("DISCOVERED source=%s url=%s", response.url, url.url)
+            _Log.info(
+                "HTML_PARSED url=%s discovered=%s content_type=%s",
+                response.url,
+                len(urls),
+                response.headers.get("Content-Type", "")
+            )
         elif ext in mime.IMAGE_EXTS:
             if self.settings["generate_filenames"]["enabled"]:
                 # if so then append thread index and file_index to make a unique identifier
@@ -221,13 +228,26 @@ class Task(threading.Thread):
                 msg.data["url"] = response.url
                 msg.id = self.task_index
                 self.comm_queue.put_nowait(msg)
+                _Log.info(
+                    "IMAGE_RESULT url=%s status=%s detail=%s path=%s",
+                    response.url,
+                    msg.status,
+                    msg.data.get("message", ""),
+                    msg.data.get("path", "")
+                )
             except UnidentifiedImageError as err:
+                _Log.error("IMAGE_DECODE_FAILED url=%s error=%s", response.url, err)
                 # Couldn't load the Image from Stream
                 self.comm_queue.put_nowait(Message(
                     thread=const.THREAD_TASK, id=self.task_index, data={"url": response.url, "message": err.__str__()},
                     event=const.EVENT_DOWNLOAD_IMAGE, status=const.STATUS_ERROR))
             return {}
         else:
+            _Log.warning(
+                "UNKNOWN_FILE_TYPE url=%s content_type=%s",
+                response.url,
+                response.headers.get("Content-Type", "")
+            )
             if not cache.query_ignore(response.url):
                 cache.add_ignore(response.url, "unknown-file-type", 0, 0)
                 self.comm_queue.put_nowait(Message(
@@ -275,6 +295,7 @@ class Task(threading.Thread):
             urls = self.search_response(response, self.settings["form_search"]["enabled"])
             response.close()
         except Exception as err:
+            _Log.warning("TASK_REQUEST_FAILED url=%s error=%s", url_data.url, err)
             self.comm_queue.put_nowait(
                 Message(thread=const.THREAD_TASK, event=const.EVENT_DOWNLOAD_IMAGE,
                         data={"url": url_data.url, "message": err.__str__()},
@@ -283,6 +304,7 @@ class Task(threading.Thread):
             return urls
 
     def run(self):
+        _Log.info("TASK_START id=%s url=%s", self.task_index, self.url_data.url)
         if not self.cancel.is_set():
             cookie_jar = load_cookies(self.settings)
             self.comm_queue.put_nowait(
@@ -304,8 +326,10 @@ class Task(threading.Thread):
                                 self._follow_url(level_two_url_data, cookie_jar)
 
         if self.cancel.is_set():
+            _Log.info("TASK_FINISH id=%s status=cancelled url=%s", self.task_index, self.url_data.url)
             self.notify_finished(const.STATUS_ERROR, "Task has cancelled")
         else:
+            _Log.info("TASK_FINISH id=%s status=completed url=%s", self.task_index, self.url_data.url)
             self.notify_finished(const.STATUS_OK, "Task has completed")
 
     def notify_finished(self, status: int, message: str):
