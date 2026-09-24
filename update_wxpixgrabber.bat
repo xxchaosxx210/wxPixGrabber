@@ -1,5 +1,5 @@
 @echo off
-title Update wxPixGrabber
+title Update wxPixGrabber - improvements
 cd /d "%~dp0"
 
 where git >nul 2>nul
@@ -13,10 +13,29 @@ if errorlevel 1 (
 )
 
 echo.
-echo Updating wxPixGrabber...
+echo Updating wxPixGrabber improvements branch...
 echo.
 
-git pull --ff-only
+git fetch origin improvements
+if errorlevel 1 (
+    echo.
+    echo Could not fetch the improvements branch.
+    echo.
+    pause
+    exit /b 1
+)
+
+git switch improvements
+if errorlevel 1 (
+    echo.
+    echo Could not switch to the improvements branch.
+    echo Run "git status" and check for local changes.
+    echo.
+    pause
+    exit /b 1
+)
+
+git pull --ff-only origin improvements
 if errorlevel 1 (
     echo.
     echo Update failed. No files were intentionally overwritten.
@@ -27,6 +46,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo wxPixGrabber is up to date.
+echo wxPixGrabber improvements is up to date.
 echo.
 pause
