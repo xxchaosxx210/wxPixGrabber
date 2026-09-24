@@ -410,6 +410,7 @@ class ImageFormatOptionsPanel(wx.Panel):
         self.ext.append(wx.CheckBox(self, -1, "ICO"))
         self.ext.append(wx.CheckBox(self, -1, "TIFF"))
         self.ext.append(wx.CheckBox(self, -1, "TGA"))
+        self.ext.append(wx.CheckBox(self, -1, "WEBP"))
 
         box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search for selected image formats")
         for chk in self.ext:
@@ -420,9 +421,10 @@ class ImageFormatOptionsPanel(wx.Panel):
         self.SetSizer(box)
 
     def set_values(self, file_exts):
-        # iterate through the file extension dict
-        for index, key in enumerate(file_exts.keys()):
-            self.ext[index].SetValue(file_exts[key])
+        # Match settings by extension name so older settings files remain compatible.
+        for checkbox in self.ext:
+            key = checkbox.GetLabelText().lower()
+            checkbox.SetValue(file_exts.get(key, key == "webp"))
 
     def get_values(self):
         d = {}
