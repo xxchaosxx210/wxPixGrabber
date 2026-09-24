@@ -64,7 +64,8 @@ DEFAULT_SETTINGS = {
         "bmp": False,
         "ico": False,
         "tiff": False,
-        "tga": False},
+        "tga": False,
+        "webp": True},
     "detach-progress": True,
     "filter-search": {"enabled": True, "filters": _FILTER_SEARCH},
     "file_exists": "overwrite",
@@ -97,6 +98,10 @@ def load_settings() -> dict:
     if os.path.exists(SETTINGS_PATH):
         with open(SETTINGS_PATH, "r") as fp:
             settings = json.loads(fp.read())
+    # WebP support was added after the original settings format.
+    # Enable it automatically for existing installations.
+    settings.setdefault("images_to_search", {})
+    settings["images_to_search"].setdefault("webp", True)
     return settings
 
 
