@@ -4,8 +4,11 @@ from http.cookiejar import CookieJar
 from requests import Response
 from dataclasses import dataclass
 import crawler.cache as cache
+from crawler.diagnostics import get_logger
 
 FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
+
+_Log = get_logger("webrequest")
 
 
 @dataclass
@@ -66,12 +69,28 @@ def request_from_url(url_data: UrlData, cj: CookieJar, settings: dict) -> Respon
         if cache.check_cache_for_image(url_data.url, settings):
             raise AttributeError("Url already exists in Cache")
 
-    if url_data.method.lower() == "get":
-        response = requests.get(url_data.url, cookies=cj, headers={"User-Agent": FIREFOX_USER_AGENT},
-                                timeout=settings["connection_timeout"], data=url_data.data)
-    elif url_data.method.lower() == "post":
-        response = requests.post(url_data.url, cookies=cj, headers={"User-Agent": FIREFOX_USER_AGENT},
-                                 timeout=settings["connection_timeout"], data=url_data.data)
-    else:
-        raise requests.exceptions.RequestsWarning("No Method Specified. Use either GET or POST")
+    method = url_data.method.lower()
+    _Log.info("REQUEST method=%s url=%s", method.upper(), url_data.url)
+
+    try:
+        if method == "get":
+            response = requests.get(url_data.url, cookies=cj, headers={"User-Agent": FIREFOX_USER_AGENT},
+                                    timeout=settings["connection_timeout"], data=url_data.data)
+        elif method == "post":
+            response = requests.post(url_data.url, cookies=cj, headers={"User-Agent": FIREFOX_USER_AGENT},
+                                     timeout=settings["connection_timeout"], data=url_data.data)
+        else:
+            raise requests.exceptions.RequestsWarning("No Method Specified. Use either GET or POST")
+    except Exception as err:
+        _Log.error("REQUEST_FAILED method=%s url=%s error=%s", method.upper(), url_data.url, err)
+        raise
+
+    _Log.info(
+        "RESPONSE status=%s content_type=%s requested_url=%s final_url=%s redirects=%s",
+        response.status_code,
+        response.headers.get("Content-Type", ""),
+        url_data.url,
+        response.url,
+        len(response.history)
+    )
     return response
