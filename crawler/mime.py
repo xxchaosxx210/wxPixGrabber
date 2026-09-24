@@ -14,10 +14,11 @@ EXT_TIF = ".tif"
 EXT_TIFF = ".tiff"
 EXT_ICON = ".ico"
 EXT_TGA = ".tga"
+EXT_WEBP = ".webp"
 EXT_OCTET_STREAM = ".bin"
 EXT_HTML = ".html"
 
-IMAGE_EXTS = (EXT_JPG, EXT_BMP, EXT_JPEG, EXT_PNG, EXT_GIF, EXT_TIFF, EXT_TIF, EXT_TGA, EXT_ICON)
+IMAGE_EXTS = (EXT_JPG, EXT_BMP, EXT_JPEG, EXT_PNG, EXT_GIF, EXT_TIFF, EXT_TIF, EXT_TGA, EXT_ICON, EXT_WEBP)
 image_ext_pattern = re.compile("|".join(IMAGE_EXTS))
 
 TYPES_BITMAP = ('image/bmp', "image/x-windows-bmp")
@@ -28,6 +29,7 @@ TYPES_JPEG = ("image/jpeg", "image/pjpeg")
 TYPE_OCTET_STREAM = "application/octet-stream"
 TYPE_PNG = "image/png"
 TYPE_TGA = "image/tga"
+TYPE_WEBP = "image/webp"
 TYPES_TIFF = ("image/tiff", "image/x-tiff")
 
 extensions = {
@@ -41,6 +43,7 @@ extensions = {
     ".a": TYPE_OCTET_STREAM,
     EXT_PNG: TYPE_PNG,
     EXT_TGA: TYPE_TGA,
+    EXT_WEBP: TYPE_WEBP,
     EXT_TIFF: TYPES_TIFF[0],
     EXT_TIF: TYPES_TIFF[0]}
 
@@ -91,6 +94,10 @@ def is_tiff(mime_type):
 
 def is_tga(mime_type):
     return mime_type == TYPE_TGA
+
+
+def is_webp(mime_type):
+    return mime_type == TYPE_WEBP
 
 
 def is_valid_content_type(url: str, content_type: str, valid_types: dict) -> str:
@@ -146,4 +153,8 @@ def is_valid_content_type(url: str, content_type: str, valid_types: dict) -> str
     elif is_tga(content_type):
         if valid_types.get("tga", False):
             ext = EXT_TGA
+    # WEBP
+    elif is_webp(content_type):
+        if valid_types.get("webp", False):
+            ext = EXT_WEBP
     return ext
