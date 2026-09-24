@@ -1,5 +1,5 @@
 @echo off
-title Update wxPixGrabber
+title Update wxPixGrabber - pixhost-fix
 cd /d "%~dp0"
 
 where git >nul 2>nul
@@ -13,10 +13,29 @@ if errorlevel 1 (
 )
 
 echo.
-echo Updating wxPixGrabber...
+echo Updating wxPixGrabber pixhost-fix branch...
 echo.
 
-git pull --ff-only
+git fetch origin pixhost-fix
+if errorlevel 1 (
+    echo.
+    echo Could not fetch the pixhost-fix branch.
+    echo.
+    pause
+    exit /b 1
+)
+
+git switch pixhost-fix
+if errorlevel 1 (
+    echo.
+    echo Could not switch to the pixhost-fix branch.
+    echo Run "git status" and check for local changes.
+    echo.
+    pause
+    exit /b 1
+)
+
+git pull --ff-only origin pixhost-fix
 if errorlevel 1 (
     echo.
     echo Update failed. No files were intentionally overwritten.
@@ -27,6 +46,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo wxPixGrabber is up to date.
+echo wxPixGrabber pixhost-fix is up to date.
 echo.
 pause
