@@ -1,5 +1,6 @@
 import wx
 import logging
+from wx.lib.buttons import GenButton
 
 from gui.statustreeview import StatusTreeView
 from crawler.message import Message
@@ -8,6 +9,16 @@ import crawler.message as const
 BORDER = 6
 SECTION_GAP = 10
 OUTER_PADDING = 12
+
+APP_BACKGROUND = wx.Colour(244, 246, 249)
+CARD_BACKGROUND = wx.Colour(255, 255, 255)
+BORDER_COLOUR = wx.Colour(216, 221, 228)
+PRIMARY = wx.Colour(30, 111, 232)
+SUCCESS = wx.Colour(37, 157, 78)
+NEUTRAL_BUTTON = wx.Colour(232, 235, 239)
+NEUTRAL_TEXT = wx.Colour(55, 61, 69)
+IGNORED_TEXT = wx.Colour(166, 105, 0)
+ERROR_TEXT = wx.Colour(190, 45, 45)
 
 _Log = logging.getLogger(__name__)
 
@@ -20,12 +31,24 @@ def _bold_font(window, point_size=None):
     return font
 
 
+def _action_button(parent, label, size, background, foreground, bold=False):
+    button = GenButton(parent, -1, label, size=size)
+    button.SetBackgroundColour(background)
+    button.SetForegroundColour(foreground)
+    button.SetBezelWidth(1)
+    button.SetUseFocusIndicator(False)
+    if bold:
+        button.SetFont(_bold_font(button))
+    return button
+
+
 class DownloadPanel(wx.Panel):
 
     def __init__(self, **kwargs):
         super(DownloadPanel, self).__init__(**kwargs)
 
         self.app = wx.GetApp()
+        self.SetBackgroundColour(APP_BACKGROUND)
 
         self.addressbar = AddressBar(self, -1)
         self.treeview = StatusTreeView(self, -1)
@@ -36,12 +59,20 @@ class DownloadPanel(wx.Panel):
             tree_font.SetPointSize(10)
             self.treeview.SetFont(tree_font)
 
-        btn_detach = wx.Button(self, -1, "Progress Window")
-        btn_detach.SetMinSize((122, 30))
+        btn_detach = _action_button(
+            self, "Progress Window", (122, 30),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
 
-        self.errors = StatsPanel(parent=self, stat_name="Errors", stat_value="0")
-        self.ignored = StatsPanel(parent=self, stat_name="Ignored", stat_value="0")
-        self.imgsaved = StatsPanel(parent=self, stat_name="Saved", stat_value="0")
+        self.errors = StatsPanel(
+            parent=self, stat_name="Errors", stat_value="0", value_colour=ERROR_TEXT
+        )
+        self.ignored = StatsPanel(
+            parent=self, stat_name="Ignored", stat_value="0", value_colour=IGNORED_TEXT
+        )
+        self.imgsaved = StatsPanel(
+            parent=self, stat_name="Saved", stat_value="0", value_colour=SUCCESS
+        )
         self.progressbar = ProgressPanel(self, -1)
 
         btn_detach.Bind(wx.EVT_BUTTON, self._on_detach_button, btn_detach)
@@ -64,6 +95,8 @@ class DownloadPanel(wx.Panel):
         vs.AddSpacer(SECTION_GAP)
 
         results_label = wx.StaticText(self, -1, "Results")
+        results_label.SetBackgroundColour(APP_BACKGROUND)
+        results_label.SetForegroundColour(NEUTRAL_TEXT)
         results_label.SetFont(_bold_font(results_label, 10))
         vs.Add(results_label, 0, wx.LEFT | wx.RIGHT, OUTER_PADDING)
         vs.AddSpacer(4)
@@ -135,33 +168,45 @@ class DownloadPanel(wx.Panel):
 class AddressBar(wx.Panel):
 
     def __init__(self, *args, **kw):
-        kw.setdefault("style", wx.BORDER_THEME)
+        kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
 
         self.app = wx.GetApp()
+        self.SetBackgroundColour(CARD_BACKGROUND)
 
         heading = wx.StaticText(self, -1, "Source")
+        heading.SetBackgroundColour(CARD_BACKGROUND)
+        heading.SetForegroundColour(NEUTRAL_TEXT)
         heading.SetFont(_bold_font(heading, 10))
 
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
         self.txt_address.SetMinSize((-1, 30))
 
-        btn_open = wx.Button(self, -1, "Open HTML")
-        btn_open.SetMinSize((104, 32))
+        btn_open = _action_button(
+            self, "Open HTML", (104, 32),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
 
-        self.btn_fetch = wx.Button(self, -1, "Fetch Links")
-        self.btn_fetch.SetMinSize((110, 32))
-        self.btn_fetch.SetFont(_bold_font(self.btn_fetch))
+        self.btn_fetch = _action_button(
+            self, "Fetch Links", (110, 32),
+            PRIMARY, wx.WHITE, bold=True
+        )
 
-        self.btn_start = wx.Button(self, -1, "Start")
-        self.btn_start.SetMinSize((88, 32))
+        self.btn_start = _action_button(
+            self, "Start", (88, 32),
+            SUCCESS, wx.WHITE, bold=True
+        )
 
-        self.btn_pause = wx.Button(self, -1, "Pause")
-        self.btn_pause.SetMinSize((88, 32))
+        self.btn_pause = _action_button(
+            self, "Pause", (88, 32),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
         self.btn_pause.Enable(False)
 
-        self.btn_stop = wx.Button(self, -1, "Stop")
-        self.btn_stop.SetMinSize((88, 32))
+        self.btn_stop = _action_button(
+            self, "Stop", (88, 32),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -208,12 +253,17 @@ class AddressBar(wx.Panel):
 
 class StatsPanel(wx.Panel):
 
-    def __init__(self, stat_name, stat_value, *args, **kw):
-        kw.setdefault("style", wx.BORDER_THEME)
+    def __init__(self, stat_name, stat_value, value_colour=NEUTRAL_TEXT, *args, **kw):
+        kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
+        self.SetBackgroundColour(CARD_BACKGROUND)
 
         lbl = wx.StaticText(self, -1, stat_name)
+        lbl.SetBackgroundColour(CARD_BACKGROUND)
+        lbl.SetForegroundColour(NEUTRAL_TEXT)
         self.value = wx.StaticText(self, -1, stat_value)
+        self.value.SetBackgroundColour(CARD_BACKGROUND)
+        self.value.SetForegroundColour(value_colour)
 
         lbl_font = lbl.GetFont()
         if lbl_font.GetPointSize() < 9:
@@ -242,10 +292,12 @@ class StatsPanel(wx.Panel):
 class ProgressPanel(wx.Panel):
 
     def __init__(self, *args, **kw):
-        kw.setdefault("style", wx.BORDER_THEME)
+        kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
+        self.SetBackgroundColour(CARD_BACKGROUND)
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
+        self.gauge.SetForegroundColour(SUCCESS)
         self.gauge.SetMinSize((-1, 18))
         self.time = wx.StaticText(self, -1, "00:00:00")
 
@@ -253,9 +305,15 @@ class ProgressPanel(wx.Panel):
         self.stored_range = 100
 
         title = wx.StaticText(self, -1, "Progress")
+        title.SetBackgroundColour(CARD_BACKGROUND)
+        title.SetForegroundColour(NEUTRAL_TEXT)
         title.SetFont(_bold_font(title, 9))
 
         elapsed = wx.StaticText(self, -1, "Elapsed")
+        elapsed.SetBackgroundColour(CARD_BACKGROUND)
+        elapsed.SetForegroundColour(NEUTRAL_TEXT)
+        self.time.SetBackgroundColour(CARD_BACKGROUND)
+        self.time.SetForegroundColour(NEUTRAL_TEXT)
         self.time.SetFont(_bold_font(self.time, 9))
 
         top = wx.BoxSizer(wx.HORIZONTAL)
