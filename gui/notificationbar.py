@@ -13,7 +13,7 @@ from gui.style import (
 
 
 class CompletionToast(wx.Frame):
-    """Small non-blocking completion toast anchored to the PixGrabber window."""
+    """Small non-blocking completion toast shown at the top-right of the screen."""
 
     HOLD_MS = 3500
     FADE_INTERVAL_MS = 35
@@ -113,7 +113,7 @@ class CompletionToast(wx.Frame):
 
         self.SetMinClientSize((dip(self, 310), -1))
         self.Fit()
-        self._position_to_parent()
+        self._position_top_right()
 
         self._hold_timer = wx.Timer(self)
         self._fade_timer = wx.Timer(self)
@@ -137,28 +137,28 @@ class CompletionToast(wx.Frame):
 
         self._hold_timer.StartOnce(self.HOLD_MS)
 
-    def _position_to_parent(self):
-        width, height = self.GetSize()
+    def _position_top_right(self):
+        """Place the toast at the top-right of PixGrabber's current display."""
+        width, _height = self.GetSize()
         margin = dip(self, 14)
 
         try:
-            parent_rect = self._parent_window.GetScreenRect()
-            x = parent_rect.GetRight() - width - margin
-            y = parent_rect.GetBottom() - height - margin
-
             display_index = wx.Display.GetFromWindow(self._parent_window)
             if display_index == wx.NOT_FOUND:
                 display_index = 0
             area = wx.Display(display_index).GetClientArea()
 
-            x = min(max(x, area.x + margin), area.GetRight() - width - margin)
-            y = min(max(y, area.y + margin), area.GetBottom() - height - margin)
-            self.SetPosition((x, y))
+            x = area.GetRight() - width - margin
+            y = area.y + margin
+            self.SetPosition((
+                max(area.x + margin, x),
+                y,
+            ))
         except Exception:
-            screen_width, screen_height = wx.GetDisplaySize()
+            screen_width, _screen_height = wx.GetDisplaySize()
             self.SetPosition((
                 max(margin, screen_width - width - margin),
-                max(margin, screen_height - height - margin),
+                margin,
             ))
 
     def _on_hold_finished(self, _event):
