@@ -5,6 +5,7 @@ from wx.lib.buttons import GenButton
 from gui.statustreeview import StatusTreeView
 from crawler.message import Message
 import crawler.message as const
+import crawler.options as options
 
 H_GAP = 8
 V_GAP = 6
@@ -99,19 +100,26 @@ class DownloadPanel(wx.Panel):
 
         self.SetSizer(vs)
 
-        # Results starts collapsed. MainWindow applies the matching compact
+        # Respect the startup preference. MainWindow applies the matching
         # frame height after its initial size has been set.
-        self.set_results_expanded(False, update_status=False, resize_frame=False)
+        collapse_on_start = options.load_settings().get(
+            "results-collapsed-on-start", True
+        )
+        self.set_results_expanded(
+            not collapse_on_start,
+            update_status=False,
+            resize_frame=False
+        )
 
     def toggle_results_expanded(self):
         self.set_results_expanded(not self.results_expanded)
 
     def apply_initial_results_state(self):
-        """Resize the main window to match the default collapsed Results view."""
+        """Resize the main window to match the configured Results startup state."""
         frame = self.GetTopLevelParent()
         if frame:
             self._expanded_frame_height = frame.GetSize().height
-        self._resize_frame_for_results(False)
+        self._resize_frame_for_results(self.results_expanded)
 
     def set_results_expanded(self, expanded, update_status=True, resize_frame=True):
         expanded = bool(expanded)
@@ -359,9 +367,6 @@ class ResultsPanel(wx.Panel):
 
     def set_expanded(self, expanded):
         self.btn_expand.SetLabel("Collapse" if expanded else "Expand")
-        self.btn_expand.SetToolTip(
-            "Collapse Results" if expanded else "Expand Results"
-        )
         self.divider.Show(expanded)
         self.treeview.Show(expanded)
         self.Layout()
