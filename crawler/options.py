@@ -66,7 +66,6 @@ DEFAULT_SETTINGS = {
         "tiff": False,
         "tga": False,
         "webp": True},
-    "detach-progress": True,
     "filter-search": {"enabled": True, "filters": _FILTER_SEARCH},
     "file_exists": "overwrite",
     "form_search": {"enabled": True, "include_original_host": False},
@@ -102,6 +101,9 @@ def load_settings() -> dict:
     # Enable it automatically for existing installations.
     settings.setdefault("images_to_search", {})
     settings["images_to_search"].setdefault("webp", True)
+
+    # Remove settings from retired UI features.
+    settings.pop("detach-progress", None)
     return settings
 
 
