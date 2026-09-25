@@ -41,9 +41,6 @@ class MainWindow(wx.Frame):
 
     def _create_status_bar(self):
         self.sbar = wx.StatusBar(parent=self, id=-1)
-        font = self.sbar.GetFont()
-        font.SetPointSize(10)
-        self.sbar.SetFont(font)
         self.sbar.SetFieldsCount(2, [-2, -1])
         self.SetStatusBar(self.sbar)
         self.set_profile_status(options.load_settings()["profile-name"])
