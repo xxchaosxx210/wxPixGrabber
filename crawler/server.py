@@ -3,6 +3,7 @@ import json
 import base64
 
 import crawler.message as const
+import crawler.testoptions as testoptions
 from crawler.message import Message
 
 import os
@@ -15,7 +16,7 @@ MIME_TEXT = mimetypes.types_map.get(".html", "text/html")
 MIME_JPG = mimetypes.types_map.get(".jpg", "image/jpg")
 
 TEST_INDEX = "http://localhost:5000/"
-TEST_URL = "/setup_test"
+TEST_URL = testoptions.TEST_URL_PATH
 IMAGE_URL_RELATIVE = "/the_image"
 THUMB_URL_RELATIVE = "/the_thumb"
 IMAGE_URL_FULL = urljoin(TEST_INDEX, IMAGE_URL_RELATIVE)
@@ -24,7 +25,7 @@ THUMB_URL_FULL = urljoin(TEST_INDEX, THUMB_URL_RELATIVE)
 IMAGE_RELATIVE_PATTERN = re.compile("^/the_image/test_[0-9]+\.jpg$")
 THUMB_RELATIVE_PATTERN = re.compile("^/the_thumb/test_[0-9]+\.jpg$")
 
-_TEST_SITE_PATH = os.path.join(os.getcwd(), f"crawler{os.path.sep}dummysite")
+_TEST_SITE_PATH = testoptions.DUMMY_SITE_PATH
 _TEST_SITE_IMAGES = os.path.join(_TEST_SITE_PATH, "images")
 _TEST_SITE_THUMBS = os.path.join(_TEST_SITE_PATH, "thumbs")
 
@@ -65,17 +66,31 @@ def server_process(host: str, port: int, a_queue: Queue):
     running.serve_forever()
 
 
+def _test_image_number(filename: str) -> int:
+    match = re.match(r"^test_([0-9]+)\\.jpg$", filename)
+    return int(match.group(1)) if match else 999999
+
+
 def generate_dummy_html() -> str:
     """
-    Generates the test server HTML
+    Generates the test server HTML using the configured number of images.
     """
+    image_count = testoptions.load_test_settings()["image_count"]
     html = """<html><head><title>PixGrabber Dummy Site</title></head><body>"""
+
+    filenames = []
     with os.scandir(_TEST_SITE_IMAGES) as it:
         for entry in it:
-            if entry.is_file() and entry.path.endswith(".jpg"):
-                href = IMAGE_URL_FULL + "/" + entry.name
-                src = THUMB_URL_FULL + "/" + entry.name
-                html += f'<a href="{href}"><img src="{src}"></img></a>'
+            if entry.is_file() and IMAGE_RELATIVE_PATTERN.match("/the_image/" + entry.name):
+                filenames.append(entry.name)
+
+    filenames.sort(key=_test_image_number)
+
+    for filename in filenames[:image_count]:
+        href = IMAGE_URL_FULL + "/" + filename
+        src = THUMB_URL_FULL + "/" + filename
+        html += f'<a href="{href}"><img src="{src}"></img></a>'
+
     html += "</body></html>"
     return html
 
