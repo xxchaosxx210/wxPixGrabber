@@ -171,7 +171,15 @@ class GeneralPage(SettingsPage):
         behaviour = self.add_card("Application")
         self.auto_download = wx.CheckBox(behaviour, label="Automatically start downloading after links are fetched")
         self.notify_done = wx.CheckBox(behaviour, label="Notify me when a download has finished")
-        for control in (self.auto_download, self.notify_done):
+        self.results_collapsed_on_start = wx.CheckBox(
+            behaviour,
+            label="Start with Results section collapsed"
+        )
+        for control in (
+            self.auto_download,
+            self.notify_done,
+            self.results_collapsed_on_start,
+        ):
             behaviour.body.Add(control, 0, wx.BOTTOM, 7)
 
         self.btn_new_profile.Bind(wx.EVT_BUTTON, dialog._on_new_profile)
@@ -567,6 +575,9 @@ class SettingsDialog(wx.Dialog):
         general.refresh_profiles(profile_name)
         general.auto_download.SetValue(settings.get("auto-download", False))
         general.notify_done.SetValue(settings.get("notify-done", True))
+        general.results_collapsed_on_start.SetValue(
+            settings.get("results-collapsed-on-start", True)
+        )
 
         downloads = self.downloads_page
         downloads.save_path.SetValue(settings.get("save_path", ""))
@@ -619,6 +630,9 @@ class SettingsDialog(wx.Dialog):
         )
         settings["auto-download"] = self.general_page.auto_download.GetValue()
         settings["notify-done"] = self.general_page.notify_done.GetValue()
+        settings["results-collapsed-on-start"] = (
+            self.general_page.results_collapsed_on_start.GetValue()
+        )
 
         settings["save_path"] = self.downloads_page.save_path.GetValue()
 
