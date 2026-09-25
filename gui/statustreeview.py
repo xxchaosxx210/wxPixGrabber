@@ -49,7 +49,7 @@ class StatusTreeView(wx.TreeCtrl):
         super().__init__(
             parent=parent,
             id=_id,
-            style=wx.TR_SINGLE | wx.TR_NO_BUTTONS | wx.BORDER_SIMPLE
+            style=wx.TR_SINGLE | wx.TR_NO_BUTTONS | wx.TR_FULL_ROW_HIGHLIGHT | wx.BORDER_NONE
         )
         self.app = wx.GetApp()
         self.SetBackgroundColour(wx.Colour(255, 255, 255))
