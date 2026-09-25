@@ -79,14 +79,20 @@ class StatusTreeView(HTL.HyperTreeList):
 
         def _on_open(self):
             msg = self._parent.GetItemData(self._item)
-            if msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
+            if msg and msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 webbrowser.open(msg.data["path"])
+            elif msg:
+                webbrowser.open(msg.data.get("url", self._text))
             else:
                 webbrowser.open(self._text)
         
         def _on_copy(self):
+            msg = self._parent.GetItemData(self._item)
+            text = self._text
+            if msg:
+                text = msg.data.get("url", text)
             data = wx.TextDataObject()
-            data.SetText(self._text)
+            data.SetText(text)
             if wx.TheClipboard.Open():
                 wx.TheClipboard.SetData(data)
                 wx.TheClipboard.Close()
@@ -225,48 +231,47 @@ class StatusTreeView(HTL.HyperTreeList):
             self.SetItemText(item, "-", column=3)
     
     def child_complete(self, msg: const.Message):
-        """
-        Appends a child item to the associated parent Link
-        Args:
-            msg: Message object sent from Commander Process
-
-        Returns:
-
-        """
+        """Update a task row once its child image results have finished."""
         root_child = self.children[msg.id]["id"]
         children = self.children[msg.id]["children"]
+        self.SetItemBackgroundColour(root_child, ROW_NORMAL)
+
         if children:
-            img = self._img_complete_ok
-            ok_result = list(filter(lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK,
-                                    children.values()))
-            if not ok_result:
-                error_result = list(filter(
-                    lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR, children.values()))
-                if error_result:
-                    img = self._img_error
-                else:
-                    img = self._img_ignored
+            ok_result = list(filter(
+                lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK,
+                children.values()
+            ))
+            error_result = list(filter(
+                lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR,
+                children.values()
+            ))
+
+            if ok_result:
+                img = self._img_complete_ok
+                self.SetItemText(root_child, f"Completed ({len(ok_result)} saved)", column=1)
+            elif error_result:
+                img = self._img_error
+                self.SetItemText(root_child, "Failed", column=1)
+            else:
+                img = self._img_ignored
+                self.SetItemText(root_child, "Ignored", column=1)
+
             self.SetItemImage(root_child, img, wx.TreeItemIcon_Normal)
             self.SetItemImage(root_child, img, wx.TreeItemIcon_Expanded)
-            if img == self._img_complete_ok:
-                self.SetItemTextColour(root_child, TEXT_SUCCESS)
-            elif img == self._img_error:
-                self.SetItemTextColour(root_child, TEXT_ERROR)
-            else:
-                self.SetItemTextColour(root_child, TEXT_IGNORED)
-
+            self.SetItemTextColour(root_child, TEXT_DEFAULT)
         else:
             self.SetItemData(root_child, msg)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Normal)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Expanded)
+            self.SetItemText(root_child, "No images found", column=1)
             self.SetItemTextColour(root_child, TEXT_MUTED)
     
     def clear(self):
         self.DeleteAllItems()
         self.children.clear()
 
-    def get_children(self, root: wx.TreeItemId) -> wx.TreeItemId:
+    def get_children(self, root):
         child, cookie = self.GetFirstChild(root)
         while child:
-            child, cookie = self.GetFirstChild(root)
             yield child
+            child, cookie = self.GetNextChild(root, cookie)
