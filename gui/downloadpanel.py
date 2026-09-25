@@ -1,62 +1,29 @@
 import wx
 import logging
-from wx.lib.buttons import GenButton
-
 from gui.statustreeview import StatusTreeView
+from gui.style import (
+    APP_BACKGROUND,
+    CARD_BACKGROUND,
+    PRIMARY,
+    SUCCESS,
+    NEUTRAL_BUTTON,
+    NEUTRAL_TEXT,
+    IGNORED_TEXT,
+    ERROR_TEXT,
+    H_GAP,
+    V_GAP,
+    OUTER_X,
+    OUTER_Y,
+    bold_font as _bold_font,
+    dip as _dip,
+    native_button as _native_button,
+    primary_button as _action_button,
+)
 from crawler.message import Message
 import crawler.message as const
 import crawler.options as options
 
-H_GAP = 8
-V_GAP = 6
-OUTER_X = 12
-OUTER_Y = 8
-
-APP_BACKGROUND = wx.Colour(244, 246, 249)
-CARD_BACKGROUND = wx.Colour(255, 255, 255)
-BORDER_COLOUR = wx.Colour(216, 221, 228)
-PRIMARY = wx.Colour(30, 111, 232)
-SUCCESS = wx.Colour(37, 157, 78)
-NEUTRAL_BUTTON = wx.Colour(232, 235, 239)
-NEUTRAL_TEXT = wx.Colour(55, 61, 69)
-IGNORED_TEXT = wx.Colour(166, 105, 0)
-ERROR_TEXT = wx.Colour(190, 45, 45)
-
 _Log = logging.getLogger(__name__)
-
-
-def _bold_font(window, point_size=None):
-    font = window.GetFont()
-    font.SetWeight(wx.FONTWEIGHT_BOLD)
-    if point_size is not None:
-        font.SetPointSize(point_size)
-    return font
-
-
-def _action_button(parent, label, size, background, foreground, bold=False):
-    """Coloured primary action button used for Fetch and Start."""
-    button = GenButton(parent, -1, label, size=size)
-    button.SetBackgroundColour(background)
-    button.SetForegroundColour(foreground)
-    button.SetBezelWidth(1)
-    button.SetUseFocusIndicator(False)
-    if bold:
-        button.SetFont(_bold_font(button))
-    return button
-
-
-def _dip(window, value):
-    """Convert a logical size to device pixels using the current Windows DPI."""
-    try:
-        return window.FromDIP(value)
-    except (AttributeError, TypeError):
-        return value
-
-
-def _native_button(parent, label, width=None):
-    """Standard Windows desktop button using the native wx.Button renderer."""
-    size = (_dip(parent, width), -1) if width else wx.DefaultSize
-    return wx.Button(parent, -1, label, size=size)
 
 
 class DownloadPanel(wx.Panel):
