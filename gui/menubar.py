@@ -6,6 +6,7 @@ import logging
 from gui.bubbledialog import BubbleDialog
 from gui.settingsdialog import SettingsDialog
 from gui.testsettingsdialog import TestServerOptionsDialog
+from gui.helpwindow import HelpWindow
 
 from collections import namedtuple
 
@@ -113,7 +114,7 @@ class PixGrabberMenuBar(wx.MenuBar):
         parent.Bind(wx.EVT_MENU, self._on_scan_start, id=ID_SCAN_START)
         parent.Bind(wx.EVT_MENU, self._on_settings, id=ID_SCAN_SETTINGS)
         
-        parent.Bind(wx.EVT_MENU, lambda evt: webbrowser.open("README.md"), id=ID_HELP_DOC)
+        parent.Bind(wx.EVT_MENU, self._on_help, id=ID_HELP_DOC)
         parent.Bind(wx.EVT_MENU, self._on_about, id=ID_ABOUT)
     
     def create_profiles_submenu(self):
@@ -185,6 +186,10 @@ class PixGrabberMenuBar(wx.MenuBar):
     def _on_load_save(self, evt):
         _Log.info("Load save pressed")
     
+    def _on_help(self, evt):
+        help_window = HelpWindow(self.parent)
+        help_window.Show()
+
     def _on_about(self, evt):
         dlg = BubbleDialog(self.parent, -1, "About",
                             ["PixGrabber(c)", "Developed by Paul Millar", GIT_SOURCE, VERSION],
