@@ -48,7 +48,7 @@ def _detect_firefox_major_version() -> str:
 
         registry_locations = (
             (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Mozilla\Mozilla Firefox"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\Mozilla\\Mozilla Firefox"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Mozilla\Mozilla Firefox"),
             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Mozilla\Mozilla Firefox"),
         )
 
