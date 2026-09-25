@@ -37,7 +37,13 @@ class TestServerOptionsDialog(wx.Dialog):
         count_row.Add(count_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
         count_row.Add(self.image_count, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        buttons = self.CreateStdDialogButtonSizer(wx.OK | wx.CANCEL)
+        btn_cancel = wx.Button(panel, wx.ID_CANCEL, "Cancel")
+        btn_save = wx.Button(panel, wx.ID_OK, "Save")
+        btn_save.SetDefault()
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons.Add(btn_cancel, 0, wx.RIGHT, 8)
+        buttons.Add(btn_save, 0)
 
         layout = wx.BoxSizer(wx.VERTICAL)
         layout.Add(count_row, 0, wx.EXPAND | wx.ALL, 14)
