@@ -49,6 +49,7 @@ DEFAULT_SETTINGS = {
     "profile-name": "default",
     "app_version": VERSION,
     "cookies": {"firefox": True, "chrome": False, "opera": False, "edge": False, "all": False},
+    "user_agent": {"mode": "automatic", "custom": ""},
     "proxy": {"enable": False, "ip": "", "port": 0, "username": "", "password": ""},
     "max_connections": 10,
     "connection_timeout": 5,
@@ -105,6 +106,9 @@ def load_settings() -> dict:
     settings["images_to_search"].setdefault("webp", True)
     settings.setdefault("results-collapsed-on-start", True)
     settings.setdefault("compact-bottom-right", True)
+    settings.setdefault("user_agent", {})
+    settings["user_agent"].setdefault("mode", "automatic")
+    settings["user_agent"].setdefault("custom", "")
 
     # Remove settings from retired UI features.
     settings.pop("detach-progress", None)
