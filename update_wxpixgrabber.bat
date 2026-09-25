@@ -49,13 +49,6 @@ echo.
 echo wxPixGrabber improvements is up to date.
 echo.
 
-if not exist "%~dp0run.bat" (
-    echo Could not find run.bat.
-    echo.
-    pause
-    exit /b 1
-)
-
 echo Launching wxPixGrabber...
-start "" "%~dp0run.bat"
+start "" cmd /k ".\.venv\Scripts\activate & python main.py"
 exit /b 0
