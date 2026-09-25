@@ -334,7 +334,7 @@ class NetworkPage(SettingsPage):
         user_agent = self.add_card("User-Agent")
         ua_intro = wx.StaticText(
             user_agent,
-            label="Automatic is recommended. It matches the installed Firefox version and keeps the current PimpAndHost/Cloudflare fix."
+            label="Automatic is recommended. It matches the installed Firefox version."
         )
         ua_intro.SetForegroundColour(MUTED_TEXT)
         ua_intro.Wrap(560)
