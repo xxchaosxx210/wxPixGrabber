@@ -69,7 +69,7 @@ class NotificationBar(wx.Frame):
         else:
             raise AttributeError("timeout should be either NOTIFY_SHORT or NOTIFY_LONG")
         self.velocity = Vector(self.position.x, vel_y)
-        self.SetPosition(wx.Point(self.position.x, self.position.y))
+        self.SetPosition(wx.Point(int(round(self.position.x)), int(round(self.position.y))))
         self.SetSize((client_width, client_height))
 
         # If the Program closes whilst the Frame is Scrolling make sure to quit the running thread
@@ -102,7 +102,7 @@ class NotificationBar(wx.Frame):
 
     def move_frame(self, dt: float):
         self.position.y = self.position.y - self.velocity.y * dt
-        pt = wx.Point(self.position.x, self.position.y)
+        pt = wx.Point(int(round(self.position.x)), int(round(self.position.y)))
         wx.CallAfter(self.SetPosition, pt)
 
 
