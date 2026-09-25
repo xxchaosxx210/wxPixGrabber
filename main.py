@@ -4,6 +4,7 @@ from gui.mainwindow import MainWindow
 
 import logging
 import os
+import socket
 
 import multiprocessing as mp
 import threading
@@ -18,6 +19,7 @@ from crawler.commander import Commander
 import crawler.message as const
 from crawler.server import server_process
 from crawler.options import setup as setup_options
+import crawler.testoptions as testoptions
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
@@ -48,10 +50,43 @@ class PixGrabberApp(wx.App):
         self.commander = Commander(self.queue)
         self.commander.start()
 
-        # start the server for handling our Web Browser extension requests
-        self.server = mp.Process(target=server_process,
-                                 kwargs={"host": "localhost", "port": 5000, "a_queue": self.queue})
+        # Start the local helper/test server using the configured port.
+        self.server = None
+        self.server_port = None
+        self._start_test_server(testoptions.load_test_settings()["port"])
+
+    def _start_test_server(self, port):
+        self.server = mp.Process(
+            target=server_process,
+            kwargs={"host": testoptions.TEST_HOST, "port": port, "a_queue": self.queue}
+        )
         self.server.start()
+        self.server_port = port
+
+    def _port_available(self, port):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind((testoptions.TEST_HOST, port))
+            return True
+        except OSError:
+            return False
+        finally:
+            sock.close()
+
+    def restart_test_server(self, port):
+        port = int(port)
+        if self.server_port == port and self.server is not None and self.server.is_alive():
+            return True
+
+        if not self._port_available(port):
+            return False
+
+        if self.server is not None and self.server.is_alive():
+            self.server.terminate()
+            self.server.join(timeout=2)
+
+        self._start_test_server(port)
+        return True
 
     def commander_message_handler(self):
         """handles messages sent from the commander thread and task processes
@@ -61,7 +96,8 @@ class PixGrabberApp(wx.App):
             try:
                 msg = self.queue.get()
                 if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT:
-                    self.server.terminate()
+                    if self.server is not None and self.server.is_alive():
+                        self.server.terminate()
                     _quit.set()
                 elif msg.thread == const.THREAD_SERVER and msg.event == const.EVENT_SERVER_READY:
                     self.commander.queue.put_nowait(msg)
