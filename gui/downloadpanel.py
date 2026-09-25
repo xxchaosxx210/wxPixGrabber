@@ -51,6 +51,7 @@ class DownloadPanel(wx.Panel):
         self.app = wx.GetApp()
         self.SetBackgroundColour(APP_BACKGROUND)
         self.results_expanded = False
+        self._expanded_frame_height = None
 
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
@@ -98,32 +99,73 @@ class DownloadPanel(wx.Panel):
 
         self.SetSizer(vs)
 
-        # Results starts collapsed. Expanding it only opens the tree area;
-        # the source controls and progress summary always remain visible.
-        self.set_results_expanded(False, update_status=False)
+        # Results starts collapsed. MainWindow applies the matching compact
+        # frame height after its initial size has been set.
+        self.set_results_expanded(False, update_status=False, resize_frame=False)
 
     def toggle_results_expanded(self):
         self.set_results_expanded(not self.results_expanded)
 
-    def set_results_expanded(self, expanded, update_status=True):
-        self.results_expanded = bool(expanded)
+    def apply_initial_results_state(self):
+        """Resize the main window to match the default collapsed Results view."""
+        frame = self.GetTopLevelParent()
+        if frame:
+            self._expanded_frame_height = frame.GetSize().height
+        self._resize_frame_for_results(False)
+
+    def set_results_expanded(self, expanded, update_status=True, resize_frame=True):
+        expanded = bool(expanded)
+
+        # Remember the user's current expanded height before collapsing so
+        # opening Results again returns to the same useful working height.
+        if self.results_expanded and not expanded:
+            frame = self.GetTopLevelParent()
+            if frame and not frame.IsMaximized() and not frame.IsIconized():
+                self._expanded_frame_height = frame.GetSize().height
+
+        self.results_expanded = expanded
         self.results_panel.set_expanded(self.results_expanded)
 
-        # Collapsed Results should only occupy the header height. Expanded
-        # Results takes the remaining space below the existing controls.
+        # Collapsed Results only occupies the header height. Expanded Results
+        # takes the remaining space below the controls.
         self._results_item.SetProportion(1 if self.results_expanded else 0)
 
         self.Layout()
         self.GetParent().Layout()
 
-        # During MainWindow construction wx.GetApp().window has not been
-        # assigned yet, so only update the status bar after startup.
+        if resize_frame:
+            self._resize_frame_for_results(self.results_expanded)
+
         if update_status:
             frame = self.GetTopLevelParent()
             if frame:
                 frame.SetStatusText(
                     "Results expanded" if self.results_expanded else "Results collapsed"
                 )
+
+    def _resize_frame_for_results(self, expanded):
+        frame = self.GetTopLevelParent()
+        if not frame or frame.IsMaximized() or frame.IsIconized():
+            return
+
+        current_width = frame.GetSize().width
+
+        if expanded:
+            target_height = self._expanded_frame_height
+            if not target_height:
+                target_height = max(frame.GetSize().height, 520)
+        else:
+            # The panel's best size now contains only Source, summary/progress
+            # and the collapsed Results header. Add the existing frame chrome
+            # and status-bar allowance so the outer frame hugs that content.
+            frame.Layout()
+            self.Layout()
+            best_panel_height = self.GetBestSize().height
+            chrome_height = max(0, frame.GetSize().height - self.GetSize().height)
+            target_height = best_panel_height + chrome_height
+
+        frame.SetSize((current_width, int(target_height)))
+        frame.Layout()
 
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
