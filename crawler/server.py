@@ -14,6 +14,7 @@ from multiprocessing import Queue
 
 MIME_TEXT = mimetypes.types_map.get(".html", "text/html")
 MIME_JPG = mimetypes.types_map.get(".jpg", "image/jpg")
+MIME_JSON = "application/json"
 
 TEST_URL = testoptions.TEST_URL_PATH
 IMAGE_URL_RELATIVE = "/the_image"
@@ -123,7 +124,14 @@ class _ServerHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(fp.read())
 
     def do_GET(self):
-        if self.path == TEST_URL:
+        if self.path == "/status":
+            self.send_response(200)
+            self.send_header("Content-Type", MIME_JSON)
+            self.end_headers()
+            self.wfile.write(
+                json.dumps({"status": "ok", "app": "PixGrabber"}).encode("utf-8")
+            )
+        elif self.path == TEST_URL:
             # test document requested
             self.send_response(200)
             self.send_header("Content-Type", MIME_TEXT)
