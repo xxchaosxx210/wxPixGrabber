@@ -150,17 +150,18 @@ class AddressBar(wx.Panel):
         btn_open.SetMinSize((104, 32))
 
         self.btn_fetch = wx.Button(self, -1, "Fetch Links")
-        self.btn_fetch.SetMinSize((110, 34))
+        self.btn_fetch.SetMinSize((110, 32))
+        self.btn_fetch.SetFont(_bold_font(self.btn_fetch))
 
         self.btn_start = wx.Button(self, -1, "Start")
-        self.btn_start.SetMinSize((88, 34))
+        self.btn_start.SetMinSize((88, 32))
 
         self.btn_pause = wx.Button(self, -1, "Pause")
-        self.btn_pause.SetMinSize((88, 34))
+        self.btn_pause.SetMinSize((88, 32))
         self.btn_pause.Enable(False)
 
         self.btn_stop = wx.Button(self, -1, "Stop")
-        self.btn_stop.SetMinSize((88, 34))
+        self.btn_stop.SetMinSize((88, 32))
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -177,14 +178,14 @@ class AddressBar(wx.Panel):
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
+        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 6)
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
         source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
         source_row.Add(btn_open, 0, wx.EXPAND)
-        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
 
-        vs.AddSpacer(5)
+        vs.AddSpacer(2)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
@@ -192,7 +193,7 @@ class AddressBar(wx.Panel):
         actions.Add(self.btn_start, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_pause, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_stop, 0)
-        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
         self.SetSizer(vs)
 
