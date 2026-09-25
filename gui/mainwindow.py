@@ -26,9 +26,12 @@ class MainWindow(wx.Frame):
 
         self.dld_panel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(self.dld_panel, 1, wx.EXPAND|wx.ALL, 0)
+        vs.Add(self.dld_panel, 1, wx.EXPAND | wx.ALL, 0)
+
+        # Let wx/Windows calculate the initial frame size from the native
+        # controls, system font and current DPI instead of forcing pixels.
         self.SetSizer(vs)
-        self.SetSize(kw["size"])
+        vs.Fit(self)
         wx.CallAfter(self.dld_panel.apply_initial_results_state)
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
