@@ -50,6 +50,7 @@ class DownloadPanel(wx.Panel):
 
         self.app = wx.GetApp()
         self.SetBackgroundColour(APP_BACKGROUND)
+        self.results_expanded = False
 
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
@@ -73,23 +74,63 @@ class DownloadPanel(wx.Panel):
 
         vs = wx.BoxSizer(wx.VERTICAL)
 
-        vs.Add(self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
-        vs.AddSpacer(OUTER_Y)
-        vs.AddSpacer(V_GAP)
+        self._address_item = vs.Add(
+            self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+        )
+        self._source_bottom_spacer = vs.AddSpacer(OUTER_Y)
+        self._summary_top_spacer = vs.AddSpacer(V_GAP)
 
         summary = wx.BoxSizer(wx.HORIZONTAL)
         summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.progressbar, 1, wx.EXPAND)
-        vs.Add(summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
+        self._summary_item = vs.Add(
+            summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+        )
 
-        vs.AddSpacer(V_GAP)
+        self._results_top_spacer = vs.AddSpacer(V_GAP)
 
-        vs.Add(self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
-        vs.AddSpacer(OUTER_Y)
+        self._results_item = vs.Add(
+            self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+        )
+        self._bottom_spacer = vs.AddSpacer(OUTER_Y)
 
         self.SetSizer(vs)
+
+        # Escape restores the normal layout while Results is expanded.
+        self.GetTopLevelParent().Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
+
+    def toggle_results_expanded(self):
+        self.set_results_expanded(not self.results_expanded)
+
+    def set_results_expanded(self, expanded):
+        self.results_expanded = bool(expanded)
+
+        show_controls = not self.results_expanded
+        for item in (
+            self._address_item,
+            self._source_bottom_spacer,
+            self._summary_top_spacer,
+            self._summary_item,
+            self._results_top_spacer,
+        ):
+            item.Show(show_controls)
+
+        self.results_panel.set_expanded(self.results_expanded)
+        self.Layout()
+
+        if self.results_expanded:
+            self.treeview.SetFocus()
+            self.app.window.SetStatusText("Results expanded - press Esc to restore")
+        else:
+            self.app.window.SetStatusText("Results restored")
+
+    def _on_char_hook(self, evt):
+        if evt.GetKeyCode() == wx.WXK_ESCAPE and self.results_expanded:
+            self.set_results_expanded(False)
+            return
+        evt.Skip()
 
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
@@ -247,9 +288,25 @@ class ResultsPanel(wx.Panel):
         title.SetForegroundColour(NEUTRAL_TEXT)
         title.SetFont(_bold_font(title, 9))
 
+        self.btn_expand = _action_button(
+            header, "Expand", (68, 24),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
+        self.btn_expand.Bind(
+            wx.EVT_BUTTON,
+            lambda evt: self.GetParent().toggle_results_expanded()
+        )
+        self.btn_expand.Bind(
+            wx.EVT_ENTER_WINDOW,
+            lambda evt: wx.GetApp().window.SetStatusText(
+                "Expand Results to fill the main PixGrabber window"
+            )
+        )
+
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
         hs.AddStretchSpacer(1)
+        hs.Add(self.btn_expand, 0, wx.ALIGN_CENTER_VERTICAL)
 
         header.SetSizer(hs)
 
@@ -260,6 +317,14 @@ class ResultsPanel(wx.Panel):
         vs.Add(divider, 0, wx.EXPAND)
         vs.Add(self.treeview, 1, wx.EXPAND)
         self.SetSizer(vs)
+
+
+    def set_expanded(self, expanded):
+        self.btn_expand.SetLabel("Restore" if expanded else "Expand")
+        self.btn_expand.SetToolTip(
+            "Restore normal layout" if expanded else "Expand Results"
+        )
+
 
 
 class StatsPanel(wx.Panel):
