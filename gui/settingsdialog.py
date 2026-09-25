@@ -16,6 +16,8 @@ BORDER_COLOUR = wx.Colour(216, 221, 228)
 TEXT_COLOUR = wx.Colour(45, 49, 55)
 MUTED_TEXT = wx.Colour(105, 112, 122)
 PRIMARY = wx.Colour(30, 111, 232)
+NAV_SELECTED = wx.Colour(225, 237, 252)
+NAV_HOVER = wx.Colour(238, 243, 249)
 
 PAGE_NAMES = [
     "General",
@@ -44,23 +46,71 @@ def _label(parent, text, width=155):
     return label
 
 
+class NavItem(wx.Panel):
+
+    def __init__(self, parent, label, index, on_select):
+        super().__init__(parent, style=wx.BORDER_NONE)
+        self.index = index
+        self.on_select = on_select
+        self.selected = False
+        self.SetMinSize((-1, 34))
+        self.SetBackgroundColour(SIDEBAR_BACKGROUND)
+
+        self.label = wx.StaticText(self, label=label)
+        self.label.SetForegroundColour(TEXT_COLOUR)
+        self.label.SetBackgroundColour(SIDEBAR_BACKGROUND)
+
+        layout = wx.BoxSizer(wx.HORIZONTAL)
+        layout.Add(self.label, 1, wx.ALIGN_CENTER_VERTICAL | wx.LEFT | wx.RIGHT, 12)
+        self.SetSizer(layout)
+
+        for control in (self, self.label):
+            control.Bind(wx.EVT_LEFT_DOWN, self._on_click)
+            control.Bind(wx.EVT_ENTER_WINDOW, self._on_enter)
+            control.Bind(wx.EVT_LEAVE_WINDOW, self._on_leave)
+
+    def set_selected(self, selected):
+        self.selected = selected
+        background = NAV_SELECTED if selected else SIDEBAR_BACKGROUND
+        self.SetBackgroundColour(background)
+        self.label.SetBackgroundColour(background)
+        self.label.SetForegroundColour(PRIMARY if selected else TEXT_COLOUR)
+        self.label.SetFont(_font(self.label, bold=selected))
+        self.Refresh()
+
+    def _on_click(self, evt):
+        self.on_select(self.index)
+
+    def _on_enter(self, evt):
+        if not self.selected:
+            self.SetBackgroundColour(NAV_HOVER)
+            self.label.SetBackgroundColour(NAV_HOVER)
+            self.Refresh()
+
+    def _on_leave(self, evt):
+        if not self.selected:
+            self.SetBackgroundColour(SIDEBAR_BACKGROUND)
+            self.label.SetBackgroundColour(SIDEBAR_BACKGROUND)
+            self.Refresh()
+
+
 class CardPanel(wx.Panel):
 
     def __init__(self, parent, title):
-        super().__init__(parent, style=wx.BORDER_SIMPLE)
+        super().__init__(parent, style=wx.BORDER_THEME)
         self.SetBackgroundColour(CARD_BACKGROUND)
 
         heading = wx.StaticText(self, label=title)
         heading.SetBackgroundColour(CARD_BACKGROUND)
         heading.SetForegroundColour(TEXT_COLOUR)
-        heading.SetFont(_font(heading, 10, True))
+        heading.SetFont(_font(heading, 9, True))
 
         self.body = wx.BoxSizer(wx.VERTICAL)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
-        layout.AddSpacer(8)
-        layout.Add(self.body, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        layout.AddSpacer(7)
+        layout.Add(self.body, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.SetSizer(layout)
 
 
@@ -72,21 +122,21 @@ class SettingsPage(scrolled.ScrolledPanel):
 
         heading = wx.StaticText(self, label=title)
         heading.SetForegroundColour(TEXT_COLOUR)
-        heading.SetFont(_font(heading, 18, True))
+        heading.SetFont(_font(heading, 16, True))
 
         description = wx.StaticText(self, label=subtitle)
         description.SetForegroundColour(MUTED_TEXT)
 
         self.layout = wx.BoxSizer(wx.VERTICAL)
-        self.layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 18)
-        self.layout.Add(description, 0, wx.LEFT | wx.RIGHT | wx.TOP, 18)
-        self.layout.AddSpacer(16)
+        self.layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 14)
+        self.layout.Add(description, 0, wx.LEFT | wx.RIGHT | wx.TOP, 14)
+        self.layout.AddSpacer(12)
 
         self.SetSizer(self.layout)
 
     def add_card(self, title):
         card = CardPanel(self, title)
-        self.layout.Add(card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 18)
+        self.layout.Add(card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 14)
         return card
 
     def finish(self):
@@ -415,24 +465,26 @@ class SettingsDialog(wx.Dialog):
         root = wx.Panel(self)
         root.SetBackgroundColour(APP_BACKGROUND)
 
-        sidebar = wx.Panel(root, style=wx.BORDER_SIMPLE)
+        sidebar = wx.Panel(root, style=wx.BORDER_THEME)
         sidebar.SetBackgroundColour(SIDEBAR_BACKGROUND)
-        sidebar.SetMinSize((175, -1))
+        sidebar.SetMinSize((165, -1))
 
         sidebar_title = wx.StaticText(sidebar, label="Options")
         sidebar_title.SetForegroundColour(TEXT_COLOUR)
-        sidebar_title.SetFont(_font(sidebar_title, 14, True))
+        sidebar_title.SetBackgroundColour(SIDEBAR_BACKGROUND)
+        sidebar_title.SetFont(_font(sidebar_title, 12, True))
 
-        self.navigation = wx.ListBox(
-            sidebar,
-            choices=PAGE_NAMES,
-            style=wx.LB_SINGLE
-        )
-        self.navigation.SetSelection(0)
+        self.nav_items = []
+        nav_items = wx.BoxSizer(wx.VERTICAL)
+        for index, page_name in enumerate(PAGE_NAMES):
+            item = NavItem(sidebar, page_name, index, self._select_page)
+            self.nav_items.append(item)
+            nav_items.Add(item, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
         nav_layout = wx.BoxSizer(wx.VERTICAL)
-        nav_layout.Add(sidebar_title, 0, wx.ALL, 14)
-        nav_layout.Add(self.navigation, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        nav_layout.Add(sidebar_title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 12)
+        nav_layout.Add(nav_items, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        nav_layout.AddStretchSpacer(1)
         sidebar.SetSizer(nav_layout)
 
         self.book = wx.Simplebook(root)
@@ -457,8 +509,8 @@ class SettingsDialog(wx.Dialog):
             self.book.AddPage(page, "")
 
         body = wx.BoxSizer(wx.HORIZONTAL)
-        body.Add(sidebar, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 10)
-        body.Add(self.book, 1, wx.EXPAND | wx.ALL, 10)
+        body.Add(sidebar, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 8)
+        body.Add(self.book, 1, wx.EXPAND | wx.ALL, 8)
 
         footer = wx.Panel(root)
         footer.SetBackgroundColour(APP_BACKGROUND)
@@ -479,26 +531,26 @@ class SettingsDialog(wx.Dialog):
 
         outer = wx.BoxSizer(wx.VERTICAL)
         outer.Add(body, 1, wx.EXPAND)
-        outer.Add(wx.StaticLine(root), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-        outer.Add(footer, 0, wx.EXPAND | wx.ALL, 10)
+        outer.Add(wx.StaticLine(root), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        outer.Add(footer, 0, wx.EXPAND | wx.ALL, 8)
         root.SetSizer(outer)
 
         frame_layout = wx.BoxSizer(wx.VERTICAL)
         frame_layout.Add(root, 1, wx.EXPAND)
         self.SetSizer(frame_layout)
 
-        self.navigation.Bind(wx.EVT_LISTBOX, self._on_navigation)
         self.btn_defaults.Bind(wx.EVT_BUTTON, self._on_defaults)
         self.btn_apply.Bind(wx.EVT_BUTTON, self._on_apply)
         self.btn_ok.Bind(wx.EVT_BUTTON, self._on_ok)
 
         self.load_settings(settings)
+        self._select_page(0)
         self.CentreOnParent()
 
-    def _on_navigation(self, evt):
-        selection = self.navigation.GetSelection()
-        if selection != wx.NOT_FOUND:
-            self.book.ChangeSelection(selection)
+    def _select_page(self, index):
+        self.book.ChangeSelection(index)
+        for item_index, item in enumerate(self.nav_items):
+            item.set_selected(item_index == index)
 
     def load_settings(self, settings):
         self.settings = copy.deepcopy(settings)
