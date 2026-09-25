@@ -313,7 +313,7 @@ class NetworkPage(SettingsPage):
     BROWSERS = ("Firefox", "Chrome", "Opera", "Edge", "All")
 
     def __init__(self, parent):
-        super().__init__(parent, "Network & Cookies", "Choose which browser cookie store PixGrabber uses for requests.")
+        super().__init__(parent, "Network & Cookies", "Choose browser cookies and the User-Agent PixGrabber sends with requests.")
 
         cookies = self.add_card("Browser cookies")
         intro = wx.StaticText(
@@ -331,16 +331,66 @@ class NetworkPage(SettingsPage):
             self.cookie_radios[browser.lower()] = radio
             cookies.body.Add(radio, 0, wx.BOTTOM, 6)
 
+        user_agent = self.add_card("User-Agent")
+        ua_intro = wx.StaticText(
+            user_agent,
+            label="Automatic is recommended. It matches the installed Firefox version and keeps the current PimpAndHost/Cloudflare fix."
+        )
+        ua_intro.SetForegroundColour(MUTED_TEXT)
+        ua_intro.Wrap(560)
+        user_agent.body.Add(ua_intro, 0, wx.EXPAND | wx.BOTTOM, 10)
+
+        self.user_agent_automatic = wx.RadioButton(
+            user_agent,
+            label="Automatic (recommended)",
+            style=wx.RB_GROUP
+        )
+        self.user_agent_custom = wx.RadioButton(user_agent, label="Custom User-Agent")
+        user_agent.body.Add(self.user_agent_automatic, 0, wx.BOTTOM, 6)
+        user_agent.body.Add(self.user_agent_custom, 0, wx.BOTTOM, 8)
+
+        ua_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.user_agent_text = wx.TextCtrl(user_agent)
+        self.user_agent_text.SetHint("Paste a complete User-Agent string")
+        self.btn_reset_user_agent = wx.Button(user_agent, label="Reset to automatic", size=(125, -1))
+        ua_row.Add(self.user_agent_text, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        ua_row.Add(self.btn_reset_user_agent, 0)
+        user_agent.body.Add(ua_row, 0, wx.EXPAND)
+
         note = wx.StaticText(
-            cookies,
-            label="Proxy configuration remains in the settings file but is not currently used by the downloader."
+            user_agent,
+            label="If Custom is selected but the box is empty, PixGrabber falls back to Automatic."
         )
         note.SetForegroundColour(MUTED_TEXT)
         note.Wrap(560)
+        user_agent.body.Add(note, 0, wx.EXPAND | wx.TOP, 8)
+
+        proxy_note = wx.StaticText(
+            cookies,
+            label="Proxy configuration remains in the settings file but is not currently used by the downloader."
+        )
+        proxy_note.SetForegroundColour(MUTED_TEXT)
+        proxy_note.Wrap(560)
         cookies.body.AddSpacer(8)
-        cookies.body.Add(note, 0, wx.EXPAND)
+        cookies.body.Add(proxy_note, 0, wx.EXPAND)
+
+        self.user_agent_automatic.Bind(wx.EVT_RADIOBUTTON, self._on_user_agent_mode)
+        self.user_agent_custom.Bind(wx.EVT_RADIOBUTTON, self._on_user_agent_mode)
+        self.btn_reset_user_agent.Bind(wx.EVT_BUTTON, self._on_reset_user_agent)
 
         self.finish()
+
+    def _sync_user_agent_controls(self):
+        self.user_agent_text.Enable(self.user_agent_custom.GetValue())
+
+    def _on_user_agent_mode(self, evt):
+        self._sync_user_agent_controls()
+
+    def _on_reset_user_agent(self, evt):
+        self.user_agent_automatic.SetValue(True)
+        self.user_agent_custom.SetValue(False)
+        self.user_agent_text.SetValue("")
+        self._sync_user_agent_controls()
 
 
 class FiltersPage(SettingsPage):
@@ -621,6 +671,13 @@ class SettingsDialog(wx.Dialog):
         for key, radio in self.network_page.cookie_radios.items():
             radio.SetValue(key == selected_cookie)
 
+        user_agent = settings.get("user_agent", {"mode": "automatic", "custom": ""})
+        user_agent_mode = str(user_agent.get("mode", "automatic")).lower()
+        self.network_page.user_agent_automatic.SetValue(user_agent_mode != "custom")
+        self.network_page.user_agent_custom.SetValue(user_agent_mode == "custom")
+        self.network_page.user_agent_text.SetValue(str(user_agent.get("custom", "")))
+        self.network_page._sync_user_agent_controls()
+
         filter_settings = settings.get("filter-search", {"enabled": True, "filters": []})
         filters = self.filters_page
         filters.filters_enabled.SetValue(filter_settings.get("enabled", True))
@@ -673,6 +730,10 @@ class SettingsDialog(wx.Dialog):
         settings["cookies"] = {
             key: radio.GetValue()
             for key, radio in self.network_page.cookie_radios.items()
+        }
+        settings["user_agent"] = {
+            "mode": "custom" if self.network_page.user_agent_custom.GetValue() else "automatic",
+            "custom": self.network_page.user_agent_text.GetValue().strip(),
         }
 
         settings["filter-search"] = {
