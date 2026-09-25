@@ -1,9 +1,10 @@
 import json
 import os
 import shutil
+from urllib.parse import urlparse
 
+TEST_HOST = "localhost"
 TEST_URL_PATH = "/setup_test"
-TEST_URL_FULL = "http://localhost:5000/setup_test"
 TEST_OUTPUT_FOLDER = "PixGrabber_Dummy_Site"
 
 DUMMY_SITE_PATH = os.path.join(os.path.dirname(__file__), "dummysite")
@@ -11,25 +12,34 @@ TEST_SETTINGS_PATH = os.path.join(DUMMY_SITE_PATH, "test_settings.json")
 
 DEFAULT_TEST_SETTINGS = {
     "image_count": 20,
-    "delete_downloads_after_test": True
+    "clean_downloads_before_test": True,
+    "port": 5000
 }
 
 
 def _normalise(settings):
-    normalised = dict(DEFAULT_TEST_SETTINGS)
-    if isinstance(settings, dict):
-        normalised.update(settings)
+    source = settings if isinstance(settings, dict) else {}
 
     try:
-        image_count = int(normalised.get("image_count", 20))
+        image_count = int(source.get("image_count", DEFAULT_TEST_SETTINGS["image_count"]))
     except (TypeError, ValueError):
-        image_count = 20
+        image_count = DEFAULT_TEST_SETTINGS["image_count"]
 
-    normalised["image_count"] = max(1, min(100, image_count))
-    normalised["delete_downloads_after_test"] = bool(
-        normalised.get("delete_downloads_after_test", True)
-    )
-    return normalised
+    try:
+        port = int(source.get("port", DEFAULT_TEST_SETTINGS["port"]))
+    except (TypeError, ValueError):
+        port = DEFAULT_TEST_SETTINGS["port"]
+
+    # Migrate the short-lived old cleanup option to the safer pre-test cleanup.
+    clean_before = source.get("clean_downloads_before_test")
+    if clean_before is None:
+        clean_before = source.get("delete_downloads_after_test", True)
+
+    return {
+        "image_count": max(1, min(100, image_count)),
+        "clean_downloads_before_test": bool(clean_before),
+        "port": max(1, min(65535, port))
+    }
 
 
 def load_test_settings():
@@ -54,10 +64,28 @@ def save_test_settings(settings):
     return settings
 
 
+def get_test_url(settings=None):
+    if settings is None:
+        settings = load_test_settings()
+    return f"http://{TEST_HOST}:{settings['port']}{TEST_URL_PATH}"
+
+
 def is_test_url(url):
     if not isinstance(url, str):
         return False
-    return url.rstrip("/") == TEST_URL_FULL.rstrip("/")
+
+    try:
+        parsed = urlparse(url)
+        port = parsed.port or 80
+    except (TypeError, ValueError):
+        return False
+
+    settings = load_test_settings()
+    return (
+        parsed.hostname in ("localhost", "127.0.0.1")
+        and port == settings["port"]
+        and parsed.path.rstrip("/") == TEST_URL_PATH.rstrip("/")
+    )
 
 
 def get_test_output_path(save_path):
