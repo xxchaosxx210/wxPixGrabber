@@ -37,14 +37,13 @@ def dip(window, value):
         return value
 
 
-def primary_button(parent, label, size, background, foreground, bold=False):
-    """Coloured PixGrabber primary action button."""
-    width, height = size
+def primary_button(parent, label, width, background, foreground, bold=False):
+    """Coloured PixGrabber primary action button with native control height."""
     button = GenButton(
         parent,
         -1,
         label,
-        size=(dip(parent, width), dip(parent, height))
+        size=(dip(parent, width), -1)
     )
     button.SetBackgroundColour(background)
     button.SetForegroundColour(foreground)
