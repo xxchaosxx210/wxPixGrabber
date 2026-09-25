@@ -71,7 +71,8 @@ DEFAULT_SETTINGS = {
     "form_search": {"enabled": True, "include_original_host": False},
     "notify-done": True,
     "auto-download": False,
-    "results-collapsed-on-start": True
+    "results-collapsed-on-start": True,
+    "compact-bottom-right": True
 }
 
 
@@ -103,6 +104,7 @@ def load_settings() -> dict:
     settings.setdefault("images_to_search", {})
     settings["images_to_search"].setdefault("webp", True)
     settings.setdefault("results-collapsed-on-start", True)
+    settings.setdefault("compact-bottom-right", True)
 
     # Remove settings from retired UI features.
     settings.pop("detach-progress", None)
