@@ -210,8 +210,8 @@ class MainWindow(wx.Frame):
         root = self.dld_panel.treeview.AddRoot(msg.data["url"])
         error = self.dld_panel.treeview._img_error
         self.dld_panel.treeview.SetItemData(root, msg)
-        self.dld_panel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Normal)
-        self.dld_panel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Expanded)
+        self.dld_panel.treeview.SetItemImage(root, error, column=0, which=wx.TreeItemIcon_Normal)
+        self.dld_panel.treeview.SetItemImage(root, error, column=0, which=wx.TreeItemIcon_Expanded)
         self.dld_panel.treeview.SetItemText(root, "Error", column=1)
         self.dld_panel.treeview.SetItemText(root, "-", column=2)
         self.dld_panel.treeview.SetItemText(root, "-", column=3)
