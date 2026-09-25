@@ -3,6 +3,13 @@ import webbrowser
 
 import crawler.message as const
 
+TEXT_DEFAULT = wx.Colour(45, 49, 55)
+TEXT_MUTED = wx.Colour(105, 112, 122)
+TEXT_PRIMARY = wx.Colour(30, 111, 232)
+TEXT_SUCCESS = wx.Colour(37, 157, 78)
+TEXT_IGNORED = wx.Colour(166, 105, 0)
+TEXT_ERROR = wx.Colour(190, 45, 45)
+
 
 class StatusTreeView(wx.TreeCtrl):
 
@@ -53,7 +60,7 @@ class StatusTreeView(wx.TreeCtrl):
         )
         self.app = wx.GetApp()
         self.SetBackgroundColour(wx.Colour(255, 255, 255))
-        self.SetForegroundColour(wx.Colour(45, 49, 55))
+        self.SetForegroundColour(TEXT_DEFAULT)
         self._create_image_list()
         self.clear()
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click, self)
@@ -81,6 +88,10 @@ class StatusTreeView(wx.TreeCtrl):
         self.SetItemData(root, msg)
         self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Normal)
         self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Expanded)
+        self.SetItemTextColour(root, TEXT_PRIMARY)
+        root_font = self.GetItemFont(root)
+        root_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.SetItemFont(root, root_font)
 
     def add_to_root(self, msg: const.Message):
         root = self.GetRootItem()
@@ -95,6 +106,7 @@ class StatusTreeView(wx.TreeCtrl):
         else:
             self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Normal)
             self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Expanded)
+        self.SetItemTextColour(child, TEXT_DEFAULT)
     
     def add_url(self, msg: const.Message):
         child = self.children[msg.id]
@@ -103,18 +115,23 @@ class StatusTreeView(wx.TreeCtrl):
         child["children"][child_index] = {"id": new_child, "children": {}}
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
+            text_colour = TEXT_SUCCESS
         elif msg.status == const.STATUS_ERROR:
             bmp = self._img_error
+            text_colour = TEXT_ERROR
         else:
             bmp = self._img_ignored
+            text_colour = TEXT_IGNORED
         self.SetItemData(new_child, msg)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Normal)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
+        self.SetItemTextColour(new_child, text_colour)
     
     def set_searching(self, index: int):
         child = self.children[index]["id"]
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Normal)
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Expanded)
+        self.SetItemTextColour(child, TEXT_PRIMARY)
     
     def set_message(self, msg: const.Message):
         child = self.children[msg.id]["id"]
@@ -147,11 +164,18 @@ class StatusTreeView(wx.TreeCtrl):
                     img = self._img_ignored
             self.SetItemImage(root_child, img, wx.TreeItemIcon_Normal)
             self.SetItemImage(root_child, img, wx.TreeItemIcon_Expanded)
+            if img == self._img_complete_ok:
+                self.SetItemTextColour(root_child, TEXT_SUCCESS)
+            elif img == self._img_error:
+                self.SetItemTextColour(root_child, TEXT_ERROR)
+            else:
+                self.SetItemTextColour(root_child, TEXT_IGNORED)
 
         else:
             self.SetItemData(root_child, msg)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Normal)
             self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Expanded)
+            self.SetItemTextColour(root_child, TEXT_MUTED)
     
     def clear(self):
         self.DeleteAllItems()
