@@ -156,6 +156,12 @@ class Commander(mp.Process):
         self.blacklist.clear()
         self.settings = options.load_settings()
         if self.test_run:
+            test_settings = testoptions.load_test_settings()
+            if test_settings["clean_downloads_before_test"]:
+                try:
+                    testoptions.cleanup_test_downloads(self.settings["save_path"])
+                except OSError as err:
+                    _Log.warning("Unable to clean dummy test downloads: %s", err)
             self.settings["unique_pathname"]["enabled"] = True
             self.settings["unique_pathname"]["name"] = testoptions.TEST_OUTPUT_FOLDER
         self.cookie_jar = load_cookies(self.settings)
