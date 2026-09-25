@@ -1,5 +1,8 @@
+import os
 import wx
 import webbrowser
+from urllib.parse import urlparse
+import wx.lib.agw.hypertreelist as HTL
 
 import crawler.message as const
 
@@ -9,16 +12,59 @@ TEXT_PRIMARY = wx.Colour(30, 111, 232)
 TEXT_SUCCESS = wx.Colour(37, 157, 78)
 TEXT_IGNORED = wx.Colour(166, 105, 0)
 TEXT_ERROR = wx.Colour(190, 45, 45)
+ROW_SEARCHING = wx.Colour(229, 241, 255)
+ROW_NORMAL = wx.Colour(255, 255, 255)
+HEADER_BACKGROUND = wx.Colour(248, 249, 251)
 
 
-class StatusTreeView(wx.TreeCtrl):
+def _format_size(path):
+    if not path:
+        return "-"
+    try:
+        size = os.path.getsize(path)
+    except (OSError, TypeError):
+        return "-"
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.2f} MB"
+    if size >= 1024:
+        return f"{size / 1024:.0f} KB"
+    return f"{size} B"
+
+
+def _file_type(msg):
+    data = getattr(msg, "data", {})
+    value = data.get("path") or data.get("url") or ""
+    try:
+        value = urlparse(value).path
+    except (TypeError, ValueError):
+        pass
+    ext = os.path.splitext(value)[1].lstrip(".")
+    return ext.upper() if ext else "-"
+
+
+def _result_status(msg):
+    if msg.status == const.STATUS_OK:
+        return "Saved"
+    if msg.status == const.STATUS_ERROR:
+        return "Error"
+    detail = getattr(msg, "data", {}).get("message", "").lower()
+    if "duplicate" in detail:
+        return "Ignored (duplicate)"
+    if "too small" in detail:
+        return "Ignored (too small)"
+    if "unknown file type" in detail:
+        return "Ignored (type)"
+    return "Ignored"
+
+
+class StatusTreeView(HTL.HyperTreeList):
 
     class ItemPopup(wx.Menu):
 
         """PopupMenu for the TreeCtrl
         """
 
-        def __init__(self, parent: wx.TreeCtrl, item: wx.TreeItemId):
+        def __init__(self, parent, item):
             super().__init__()
             self._text = parent.GetItemText(item)
             self._parent = parent
@@ -56,14 +102,34 @@ class StatusTreeView(wx.TreeCtrl):
         super().__init__(
             parent=parent,
             id=_id,
-            style=wx.TR_SINGLE | wx.TR_NO_BUTTONS | wx.TR_FULL_ROW_HIGHLIGHT | wx.BORDER_NONE
+            agwStyle=wx.TR_SINGLE | wx.TR_HAS_BUTTONS | wx.TR_LINES_AT_ROOT | wx.TR_FULL_ROW_HIGHLIGHT
         )
         self.app = wx.GetApp()
-        self.SetBackgroundColour(wx.Colour(255, 255, 255))
+        self.SetBackgroundColour(ROW_NORMAL)
         self.SetForegroundColour(TEXT_DEFAULT)
+
+        self.AddColumn("Name / URL", width=520)
+        self.AddColumn("Status", width=155)
+        self.AddColumn("Size", width=95)
+        self.AddColumn("Type", width=70)
+        self.SetMainColumn(0)
+
+        header_font = self.GetFont()
+        header_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        self.SetHeaderFont(header_font)
+        self.GetHeaderWindow().SetBackgroundColour(HEADER_BACKGROUND)
+
         self._create_image_list()
         self.clear()
-        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click, self)
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click)
+        self.Bind(wx.EVT_SIZE, self._on_size)
+
+    def _on_size(self, evt):
+        width = self.GetClientSize().width
+        if width > 0:
+            fixed_columns = 155 + 95 + 70 + 24
+            self.SetColumnWidth(0, max(340, width - fixed_columns))
+        evt.Skip()
     
     def _create_image_list(self):
         self.img_list = wx.ImageList(16, 16)
