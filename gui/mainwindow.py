@@ -2,7 +2,6 @@ import wx
 
 import crawler.message as const
 import crawler.options as options
-import crawler.testoptions as testoptions
 import gui.notificationbar as notify
 
 from gui.downloadpanel import DownloadPanel
@@ -25,9 +24,6 @@ class MainWindow(wx.Frame):
         self._load_icon()
         self.SetMenuBar(PixGrabberMenuBar(parent=self))
         self._fetch_dlg = None
-        self._dummy_test_active = False
-        self._dummy_test_started = False
-        self._dummy_test_save_path = None
 
         self.dld_panel = DownloadPanel(parent=self)
         vs = wx.BoxSizer(wx.VERTICAL)
@@ -69,14 +65,6 @@ class MainWindow(wx.Frame):
         self.app.commander.queue.put(Message(
             thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data={}, status=const.STATUS_OK))
         self.app.commander.join()
-
-        if self._dummy_test_active and self._dummy_test_started:
-            test_settings = testoptions.load_test_settings()
-            if test_settings["delete_downloads_after_test"] and self._dummy_test_save_path:
-                try:
-                    testoptions.cleanup_test_downloads(self._dummy_test_save_path)
-                except OSError:
-                    pass
         evt.Skip()
     
     def message_from_thread(self, msg: Message):
@@ -166,10 +154,6 @@ class MainWindow(wx.Frame):
                     self.detached_frame.Hide()
 
     def _on_fetch_start(self, msg: const.Message):
-        self._dummy_test_active = testoptions.is_test_url(msg.data["url"])
-        self._dummy_test_started = False
-        self._dummy_test_save_path = None
-
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()
         self.dld_panel.progressbar.reset_progress(10)
@@ -180,10 +164,6 @@ class MainWindow(wx.Frame):
         self.dld_panel.treeview.create_root(msg)
     
     def _on_start_scraping(self):
-        if self._dummy_test_active:
-            self._dummy_test_started = True
-            self._dummy_test_save_path = options.load_settings().get("save_path", "")
-
         # Start a new timer
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()
@@ -197,29 +177,13 @@ class MainWindow(wx.Frame):
     
     def _on_scraping_complete(self):
         self.detached_frame.Hide()
-
-        test_downloads_deleted = False
-        if self._dummy_test_active and self._dummy_test_started:
-            test_settings = testoptions.load_test_settings()
-            if test_settings["delete_downloads_after_test"] and self._dummy_test_save_path:
-                try:
-                    test_downloads_deleted = testoptions.cleanup_test_downloads(
-                        self._dummy_test_save_path
-                    )
-                except OSError:
-                    test_downloads_deleted = False
-            self._dummy_test_started = False
-
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
             notify.NotificationBar(None, -1, "", "PixGrabber has completed", timeout=notify.NOTIFY_LONG)
         # kill the timer thread
         timer_quit.set()
-        if test_downloads_deleted:
-            self.SetStatusText("All Tasks have completed - test downloads deleted")
-        else:
-            self.SetStatusText("All Tasks have completed")
+        self.SetStatusText("All Tasks have completed")
         self.dld_panel.progressbar.reset_progress(0)
         self.dld_panel.addressbar.txt_address.SetValue("")
         self.dld_panel.enable_controls(True)
