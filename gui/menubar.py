@@ -147,12 +147,23 @@ class PixGrabberMenuBar(wx.MenuBar):
                 Message(thread=const.THREAD_MAIN, 
                         event=const.EVENT_FETCH, id=0,
                         status=const.STATUS_OK, 
-                        data={"url": "http://localhost:5000/setup_test"}))
+                        data={"url": testoptions.get_test_url()}))
 
     def _on_test_server_options(self, evt):
+        current_settings = testoptions.load_test_settings()
         dlg = TestServerOptionsDialog(self.parent)
         if dlg.ShowModal() == wx.ID_OK:
-            testoptions.save_test_settings(dlg.get_settings())
+            new_settings = dlg.get_settings()
+            if new_settings["port"] != current_settings["port"]:
+                if not self.app.restart_test_server(new_settings["port"]):
+                    wx.MessageBox(
+                        f'Port {new_settings["port"]} is already in use. The test server port was not changed.',
+                        "Test Server",
+                        wx.OK | wx.ICON_ERROR,
+                        parent=self.parent
+                    )
+                    new_settings["port"] = current_settings["port"]
+            testoptions.save_test_settings(new_settings)
         dlg.Destroy()
 
     def _on_fetch(self, evt):
