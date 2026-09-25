@@ -6,9 +6,10 @@ from gui.statustreeview import StatusTreeView
 from crawler.message import Message
 import crawler.message as const
 
-BORDER = 4
-SECTION_GAP = 6
-OUTER_PADDING = 8
+H_GAP = 8
+V_GAP = 6
+OUTER_X = 12
+OUTER_Y = 8
 
 APP_BACKGROUND = wx.Colour(244, 246, 249)
 CARD_BACKGROUND = wx.Colour(255, 255, 255)
@@ -81,21 +82,22 @@ class DownloadPanel(wx.Panel):
 
         vs = wx.BoxSizer(wx.VERTICAL)
 
-        vs.Add(self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, OUTER_PADDING)
-        vs.AddSpacer(SECTION_GAP)
+        vs.Add(self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
+        vs.AddSpacer(OUTER_Y)
+        vs.AddSpacer(V_GAP)
 
         summary = wx.BoxSizer(wx.HORIZONTAL)
-        summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, BORDER)
-        summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, BORDER)
-        summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, BORDER)
-        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, BORDER)
+        summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, H_GAP)
+        summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, H_GAP)
+        summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, H_GAP)
+        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(btn_detach, 0, wx.ALIGN_CENTER_VERTICAL)
-        vs.Add(summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
+        vs.Add(summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
 
-        vs.AddSpacer(SECTION_GAP)
+        vs.AddSpacer(V_GAP)
 
-        vs.Add(self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
-        vs.AddSpacer(OUTER_PADDING)
+        vs.Add(self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
+        vs.AddSpacer(OUTER_Y)
 
         self.SetSizer(vs)
 
@@ -219,19 +221,19 @@ class AddressBar(wx.Panel):
         vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 3)
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
-        source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
+        source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, H_GAP)
         source_row.Add(btn_open, 0, wx.EXPAND)
-        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
+        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
         vs.AddSpacer(5)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
-        actions.Add(self.btn_fetch, 0, wx.RIGHT, BORDER)
-        actions.Add(self.btn_start, 0, wx.RIGHT, BORDER)
-        actions.Add(self.btn_pause, 0, wx.RIGHT, BORDER)
+        actions.Add(self.btn_fetch, 0, wx.RIGHT, H_GAP)
+        actions.Add(self.btn_start, 0, wx.RIGHT, H_GAP)
+        actions.Add(self.btn_pause, 0, wx.RIGHT, H_GAP)
         actions.Add(self.btn_stop, 0)
-        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
+        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         self.SetSizer(vs)
 
