@@ -30,6 +30,7 @@ class UrlData:
     action: str = ""
     data: dict = None
     tag: str = ""
+    referer: str = ""
 
 
 def load_cookies(settings: dict) -> CookieJar:
@@ -58,9 +59,13 @@ def load_cookies(settings: dict) -> CookieJar:
 def _send_request(url_data: UrlData, cj: CookieJar, settings: dict) -> Response:
     """Send one HTTP request without retrying."""
     method = url_data.method.lower()
+    headers = {"User-Agent": FIREFOX_USER_AGENT}
+    if url_data.referer:
+        headers["Referer"] = url_data.referer
+
     request_args = {
         "cookies": cj,
-        "headers": {"User-Agent": FIREFOX_USER_AGENT},
+        "headers": headers,
         "timeout": settings["connection_timeout"],
         "data": url_data.data
     }
