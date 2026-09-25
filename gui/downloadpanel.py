@@ -34,6 +34,7 @@ def _bold_font(window, point_size=None):
 
 
 def _action_button(parent, label, size, background, foreground, bold=False):
+    """Coloured primary action button used for Fetch and Start."""
     button = GenButton(parent, -1, label, size=size)
     button.SetBackgroundColour(background)
     button.SetForegroundColour(foreground)
@@ -42,6 +43,12 @@ def _action_button(parent, label, size, background, foreground, bold=False):
     if bold:
         button.SetFont(_bold_font(button))
     return button
+
+
+def _native_button(parent, label, width=None):
+    """Standard Windows desktop button using the native wx.Button renderer."""
+    size = (width, -1) if width else wx.DefaultSize
+    return wx.Button(parent, -1, label, size=size)
 
 
 class DownloadPanel(wx.Panel):
@@ -85,10 +92,7 @@ class DownloadPanel(wx.Panel):
             self, -1, on_change=self._sync_compact_progress
         )
 
-        self.btn_compact = _action_button(
-            self, "Compact", (76, 26),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
+        self.btn_compact = _native_button(self, "Compact", 72)
         self.btn_compact.Bind(
             wx.EVT_BUTTON, lambda evt: self.set_compact_mode(True)
         )
@@ -435,15 +439,9 @@ class CompactPanel(wx.Panel):
         elapsed_row.Add(elapsed_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
         elapsed_row.Add(self.elapsed, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        self.btn_pause = _action_button(
-            self, "Pause", (54, 22), NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
-        self.btn_stop = _action_button(
-            self, "Stop", (54, 22), NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
-        self.btn_full = _action_button(
-            self, "Full View", (66, 22), PRIMARY, wx.WHITE, bold=True
-        )
+        self.btn_pause = _native_button(self, "Pause", 58)
+        self.btn_stop = _native_button(self, "Stop", 58)
+        self.btn_full = _native_button(self, "Full View", 72)
 
         self.btn_pause.Bind(
             wx.EVT_BUTTON, lambda evt: self.GetParent().pause_tasks()
@@ -527,10 +525,7 @@ class AddressBar(wx.Panel):
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
         self.txt_address.SetMinSize((-1, 26))
 
-        btn_open = _action_button(
-            self, "Open HTML", (90, 26),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
+        btn_open = _native_button(self, "Open HTML", 90)
 
         self.btn_fetch = _action_button(
             self, "Fetch Links", (96, 28),
@@ -542,16 +537,10 @@ class AddressBar(wx.Panel):
             SUCCESS, wx.WHITE, bold=True
         )
 
-        self.btn_pause = _action_button(
-            self, "Pause", (72, 28),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
+        self.btn_pause = _native_button(self, "Pause", 72)
         self.btn_pause.Enable(False)
 
-        self.btn_stop = _action_button(
-            self, "Stop", (72, 28),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
+        self.btn_stop = _native_button(self, "Stop", 72)
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -613,10 +602,7 @@ class ResultsPanel(wx.Panel):
         title.SetForegroundColour(NEUTRAL_TEXT)
         title.SetFont(_bold_font(title, 9))
 
-        self.btn_expand = _action_button(
-            header, "Expand", (68, 24),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
+        self.btn_expand = _native_button(header, "Expand", 68)
         self.btn_expand.Bind(
             wx.EVT_BUTTON,
             lambda evt: self.GetParent().toggle_results_expanded()
