@@ -49,7 +49,7 @@ class MainWindow(wx.Frame):
     
     def _on_timer_callback(self, formatted_time):
         try:
-            wx.CallAfter(self.dld_panel.progressbar.time.SetLabel, formatted_time)
+            wx.CallAfter(self.dld_panel.set_elapsed, formatted_time)
         except AssertionError:
             pass
     
@@ -84,6 +84,7 @@ class MainWindow(wx.Frame):
 
             elif msg.event == const.EVENT_PAUSE:
                 pause = msg.data["pause"]
+                self.dld_panel.set_paused(pause)
                 if pause:
                     self.dld_panel.set_progress_indeterminate()
                     self.SetStatusText("Paused Tasks")
@@ -141,8 +142,7 @@ class MainWindow(wx.Frame):
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()
         self.dld_panel.progressbar.reset_progress(10)
-        self.dld_panel.progressbar.gauge.SetValue(10)
-        self.dld_panel.progressbar.gauge.Pulse()
+        self.dld_panel.set_fetching_progress()
         self.SetTitle(f'{msg.data["title"]}')
         self.SetStatusText(f"Scanning {msg.data['url']}")
         self.dld_panel.treeview.create_root(msg)
@@ -169,6 +169,7 @@ class MainWindow(wx.Frame):
         self.SetStatusText("All Tasks have completed")
         self.dld_panel.progressbar.reset_progress(0)
         self.dld_panel.addressbar.txt_address.SetValue("")
+        self.dld_panel.set_paused(False)
         self.dld_panel.enable_controls(True)
     
     def _on_fetch_finished(self, msg: Message):
