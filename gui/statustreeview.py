@@ -170,7 +170,13 @@ class StatusTreeView(HTL.HyperTreeList):
         self.SetImageList(self.img_list)
     
     def _on_right_click(self, evt):
-        menu = StatusTreeView.ItemPopup(self, evt.Item)
+        # HyperTreeList right-click events expose the item through GetItem()
+        # rather than the TreeCtrl-style evt.Item attribute.
+        item = evt.GetItem()
+        if not item:
+            return
+
+        menu = StatusTreeView.ItemPopup(self, item)
         self.PopupMenu(menu)
         menu.Destroy()
 
