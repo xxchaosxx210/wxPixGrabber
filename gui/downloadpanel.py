@@ -45,11 +45,7 @@ class DownloadPanel(wx.Panel):
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
         self.treeview = self.results_panel.treeview
-        self.treeview.SetIndent(16)
-
-        tree_font = self.treeview.GetFont()
-        tree_font.SetPointSize(9)
-        self.treeview.SetFont(tree_font)
+        self.treeview.SetIndent(_dip(self.treeview, 16))
 
         self.errors = StatsPanel(
             parent=self, stat_name="Errors", stat_value="0",
@@ -80,30 +76,35 @@ class DownloadPanel(wx.Panel):
 
         self.compact_panel = CompactPanel(self, -1)
 
+        h_gap = _dip(self, H_GAP)
+        v_gap = _dip(self, V_GAP)
+        outer_x = _dip(self, OUTER_X)
+        outer_y = _dip(self, OUTER_Y)
+
         vs = wx.BoxSizer(wx.VERTICAL)
 
         self._address_item = vs.Add(
-            self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+            self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, outer_x
         )
-        self._source_bottom_spacer = vs.AddSpacer(OUTER_Y)
-        self._summary_top_spacer = vs.AddSpacer(V_GAP)
+        self._source_bottom_spacer = vs.AddSpacer(outer_y)
+        self._summary_top_spacer = vs.AddSpacer(v_gap)
 
         summary = wx.BoxSizer(wx.HORIZONTAL)
-        summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, H_GAP)
+        summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, h_gap)
+        summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, h_gap)
+        summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, h_gap)
+        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, h_gap)
         summary.Add(self.btn_compact, 0, wx.ALIGN_CENTER_VERTICAL)
         self._summary_item = vs.Add(
-            summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+            summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, outer_x
         )
 
-        self._results_top_spacer = vs.AddSpacer(V_GAP)
+        self._results_top_spacer = vs.AddSpacer(v_gap)
 
         self._results_item = vs.Add(
-            self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
+            self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, outer_x
         )
-        self._bottom_spacer = vs.AddSpacer(OUTER_Y)
+        self._bottom_spacer = vs.AddSpacer(outer_y)
 
         self._compact_item = vs.Add(
             self.compact_panel, 0, wx.EXPAND | wx.ALL, _dip(self, 5)
@@ -545,10 +546,9 @@ class AddressBar(wx.Panel):
         heading = wx.StaticText(self, -1, "Source")
         heading.SetBackgroundColour(CARD_BACKGROUND)
         heading.SetForegroundColour(NEUTRAL_TEXT)
-        heading.SetFont(_bold_font(heading, 9))
+        heading.SetFont(_bold_font(heading))
 
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
-        self.txt_address.SetMinSize((-1, 26))
 
         btn_open = _native_button(self, "Open HTML", 90)
 
@@ -581,23 +581,37 @@ class AddressBar(wx.Panel):
         self.set_help_text(self.txt_address, "Enter a Url or File path to go fetch")
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
+        small_gap = _dip(self, 3)
+        medium_gap = _dip(self, 5)
+        h_gap = _dip(self, H_GAP)
+        inner_margin = _dip(self, 8)
+
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 3)
+        vs.Add(
+            heading, 0,
+            wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, small_gap
+        )
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
-        source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, H_GAP)
+        source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, h_gap)
         source_row.Add(btn_open, 0, wx.EXPAND)
-        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        vs.Add(
+            source_row, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT, inner_margin
+        )
 
-        vs.AddSpacer(5)
+        vs.AddSpacer(medium_gap)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
-        actions.Add(self.btn_fetch, 0, wx.RIGHT, H_GAP)
-        actions.Add(self.btn_start, 0, wx.RIGHT, H_GAP)
-        actions.Add(self.btn_pause, 0, wx.RIGHT, H_GAP)
+        actions.Add(self.btn_fetch, 0, wx.RIGHT, h_gap)
+        actions.Add(self.btn_start, 0, wx.RIGHT, h_gap)
+        actions.Add(self.btn_pause, 0, wx.RIGHT, h_gap)
         actions.Add(self.btn_stop, 0)
-        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        vs.Add(
+            actions, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, inner_margin
+        )
 
         self.SetSizer(vs)
 
@@ -625,7 +639,7 @@ class ResultsPanel(wx.Panel):
         title = wx.StaticText(header, -1, "Results")
         title.SetBackgroundColour(header.GetBackgroundColour())
         title.SetForegroundColour(NEUTRAL_TEXT)
-        title.SetFont(_bold_font(title, 9))
+        title.SetFont(_bold_font(title))
 
         self.btn_expand = _native_button(header, "Expand", 68)
         self.btn_expand.Bind(
@@ -648,8 +662,14 @@ class ResultsPanel(wx.Panel):
 
         self.divider = wx.StaticLine(self, -1)
 
+        header_padding = _dip(self, 6)
+
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(header, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 6)
+        vs.Add(
+            header, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM,
+            header_padding
+        )
         vs.Add(self.divider, 0, wx.EXPAND)
         vs.Add(self.treeview, 1, wx.EXPAND)
         self.SetSizer(vs)
@@ -684,17 +704,16 @@ class StatsPanel(wx.Panel):
         self.value.SetBackgroundColour(CARD_BACKGROUND)
         self.value.SetForegroundColour(value_colour)
 
-        lbl_font = lbl.GetFont()
-        lbl_font.SetPointSize(9)
-        lbl.SetFont(lbl_font)
+        self.value.SetFont(_bold_font(self.value))
 
-        self.value.SetFont(_bold_font(self.value, 12))
+        side_top = _dip(self, 5)
+        bottom = _dip(self, 4)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 5)
-        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
+        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, side_top)
+        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, bottom)
         self.SetSizer(vs)
-        self.SetMinSize((72, 44))
+        self.SetMinSize((_dip(self, 72), _dip(self, 44)))
 
         self.stat = 0
 
@@ -721,7 +740,7 @@ class ProgressPanel(wx.Panel):
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
         self.gauge.SetForegroundColour(SUCCESS)
-        self.gauge.SetMinSize((-1, 14))
+        self.gauge.SetMinSize((-1, _dip(self, 14)))
         self.time = wx.StaticText(self, -1, "00:00:00")
 
         self.stored_value = 0
@@ -730,28 +749,35 @@ class ProgressPanel(wx.Panel):
         title = wx.StaticText(self, -1, "Progress")
         title.SetBackgroundColour(CARD_BACKGROUND)
         title.SetForegroundColour(NEUTRAL_TEXT)
-        title.SetFont(_bold_font(title, 9))
+        title.SetFont(_bold_font(title))
 
         elapsed = wx.StaticText(self, -1, "Elapsed")
         elapsed.SetBackgroundColour(CARD_BACKGROUND)
         elapsed.SetForegroundColour(NEUTRAL_TEXT)
         self.time.SetBackgroundColour(CARD_BACKGROUND)
         self.time.SetForegroundColour(NEUTRAL_TEXT)
-        self.time.SetFont(_bold_font(self.time, 9))
+        self.time.SetFont(_bold_font(self.time))
+
+        small_gap = _dip(self, 3)
+        text_gap = _dip(self, 5)
+        padding = _dip(self, 6)
 
         top = wx.BoxSizer(wx.HORIZONTAL)
         top.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
         top.AddStretchSpacer(1)
-        top.Add(elapsed, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        top.Add(elapsed, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, text_gap)
         top.Add(self.time, 0, wx.ALIGN_CENTER_VERTICAL)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
-        vs.AddSpacer(3)
-        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, padding)
+        vs.AddSpacer(small_gap)
+        vs.Add(
+            self.gauge, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, padding
+        )
 
         self.SetSizer(vs)
-        self.SetMinSize((280, 46))
+        self.SetMinSize((_dip(self, 280), _dip(self, 46)))
 
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
