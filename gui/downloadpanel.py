@@ -139,7 +139,7 @@ class DownloadPanel(wx.Panel):
         self._bottom_spacer = vs.AddSpacer(OUTER_Y)
 
         self._compact_item = vs.Add(
-            self.compact_panel, 0, wx.EXPAND | wx.ALL, _dip(self, 6)
+            self.compact_panel, 0, wx.EXPAND | wx.ALL, _dip(self, 5)
         )
         self._compact_item.Show(False)
 
@@ -203,9 +203,11 @@ class DownloadPanel(wx.Panel):
 
             self.Layout()
             frame.Layout()
-            compact_best = self.compact_panel.GetBestSize()
-            target_width = max(compact_best.width + _dip(self, 8), _dip(self, 300))
-            target_height = max(1, compact_best.height + _dip(self, 4))
+            self.Layout()
+            frame.Layout()
+            compact_best = self.GetBestSize()
+            target_width = max(compact_best.width, _dip(self, 300))
+            target_height = max(1, compact_best.height)
             frame.SetClientSize((target_width, target_height))
 
             if options.load_settings().get("compact-bottom-right", True):
@@ -414,8 +416,8 @@ class CompactPanel(wx.Panel):
         self.SetBackgroundColour(CARD_BACKGROUND)
 
         gap_small = _dip(self, 4)
-        gap_medium = _dip(self, 6)
-        gap_large = _dip(self, 8)
+        gap_medium = _dip(self, 5)
+        gap_large = _dip(self, 7)
 
         stats = wx.BoxSizer(wx.HORIZONTAL)
         self.saved = self._stat("Saved", SUCCESS)
@@ -483,12 +485,15 @@ class CompactPanel(wx.Panel):
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
-        actions.Add(self.btn_pause, 0, wx.RIGHT, gap_small)
-        actions.Add(self.btn_stop, 0, wx.RIGHT, gap_small)
+        actions.Add(self.btn_pause, 0)
+        actions.AddSpacer(gap_medium)
+        actions.Add(self.btn_stop, 0)
+        actions.AddSpacer(gap_medium)
         actions.Add(self.btn_full, 0)
+        actions.AddStretchSpacer(1)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium)
+        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_large)
         layout.Add(
             progress_row, 0,
             wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium
@@ -501,7 +506,10 @@ class CompactPanel(wx.Panel):
             wx.StaticLine(self), 0,
             wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium
         )
-        layout.Add(actions, 0, wx.EXPAND | wx.ALL, gap_medium)
+        layout.Add(
+            actions, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, gap_large
+        )
         self.SetSizer(layout)
 
     def _stat(self, title, colour):
