@@ -100,12 +100,12 @@ class DownloadPanel(wx.Panel):
 
         # Results starts collapsed. Expanding it only opens the tree area;
         # the source controls and progress summary always remain visible.
-        self.set_results_expanded(False)
+        self.set_results_expanded(False, update_status=False)
 
     def toggle_results_expanded(self):
         self.set_results_expanded(not self.results_expanded)
 
-    def set_results_expanded(self, expanded):
+    def set_results_expanded(self, expanded, update_status=True):
         self.results_expanded = bool(expanded)
         self.results_panel.set_expanded(self.results_expanded)
 
@@ -116,10 +116,14 @@ class DownloadPanel(wx.Panel):
         self.Layout()
         self.GetParent().Layout()
 
-        if self.results_expanded:
-            self.app.window.SetStatusText("Results expanded")
-        else:
-            self.app.window.SetStatusText("Results collapsed")
+        # During MainWindow construction wx.GetApp().window has not been
+        # assigned yet, so only update the status bar after startup.
+        if update_status:
+            frame = self.GetTopLevelParent()
+            if frame:
+                frame.SetStatusText(
+                    "Results expanded" if self.results_expanded else "Results collapsed"
+                )
 
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
