@@ -126,10 +126,10 @@ class StatusTreeView(HTL.HyperTreeList):
         self.SetBackgroundColour(ROW_NORMAL)
         self.SetForegroundColour(TEXT_DEFAULT)
 
-        self.AddColumn("Name / URL", width=520)
-        self.AddColumn("Status", width=155)
-        self.AddColumn("Size", width=95)
-        self.AddColumn("Type", width=70)
+        self.AddColumn("Name / URL", width=500)
+        self.AddColumn("Status", width=145)
+        self.AddColumn("Size", width=85)
+        self.AddColumn("Type", width=60)
         self.SetMainColumn(0)
 
         header_font = self.GetFont()
@@ -153,8 +153,8 @@ class StatusTreeView(HTL.HyperTreeList):
     def _on_size(self, evt):
         width = self.GetClientSize().width
         if width > 0:
-            fixed_columns = 155 + 95 + 70 + 24
-            self.SetColumnWidth(0, max(340, width - fixed_columns))
+            fixed_columns = 145 + 85 + 60 + 20
+            self.SetColumnWidth(0, max(320, width - fixed_columns))
         evt.Skip()
     
     def _create_image_list(self):
