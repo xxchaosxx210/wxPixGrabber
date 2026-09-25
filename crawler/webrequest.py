@@ -1,4 +1,7 @@
 import time
+import os
+import re
+import subprocess
 import requests
 import browser_cookie3
 from http.cookiejar import CookieJar
@@ -7,7 +10,7 @@ from dataclasses import dataclass
 import crawler.cache as cache
 from crawler.diagnostics import get_logger
 
-FIREFOX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:85.0) Gecko/20100101 Firefox/85.0"
+FIREFOX_FALLBACK_VERSION = "140"
 
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 MAX_RETRIES = 2
@@ -31,6 +34,71 @@ class UrlData:
     data: dict = None
     tag: str = ""
     referer: str = ""
+
+
+def _detect_firefox_major_version() -> str:
+    """Return the installed Firefox major version when it can be detected."""
+    if os.name != "nt":
+        return ""
+
+    # Firefox normally records its current version here on Windows.
+    try:
+        import winreg
+
+        registry_locations = (
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\\Mozilla\\Mozilla Firefox"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\Mozilla\\Mozilla Firefox"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\WOW6432Node\\Mozilla\\Mozilla Firefox"),
+        )
+
+        for hive, key_path in registry_locations:
+            try:
+                with winreg.OpenKey(hive, key_path) as key:
+                    current_version, _ = winreg.QueryValueEx(key, "CurrentVersion")
+                match = re.search(r"(\\d+)", str(current_version))
+                if match:
+                    return match.group(1)
+            except OSError:
+                continue
+    except ImportError:
+        pass
+
+    # Fallback for installations where the Mozilla registry key is absent.
+    candidates = []
+    for env_name in ("PROGRAMFILES", "PROGRAMFILES(X86)"):
+        root = os.environ.get(env_name)
+        if root:
+            candidates.append(os.path.join(root, "Mozilla Firefox", "firefox.exe"))
+
+    for executable in candidates:
+        if not os.path.exists(executable):
+            continue
+        try:
+            result = subprocess.run(
+                [executable, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            version_text = f"{result.stdout} {result.stderr}"
+            match = re.search(r"Firefox\\s+(\\d+)", version_text, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        except (OSError, subprocess.SubprocessError):
+            continue
+
+    return ""
+
+
+def _firefox_user_agent() -> str:
+    """Build a Firefox UA that matches the installed browser as closely as possible."""
+    major_version = _detect_firefox_major_version() or FIREFOX_FALLBACK_VERSION
+    return (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; "
+        f"rv:{major_version}.0) Gecko/20100101 Firefox/{major_version}.0"
+    )
 
 
 def load_cookies(settings: dict) -> CookieJar:
@@ -59,7 +127,7 @@ def load_cookies(settings: dict) -> CookieJar:
 def _send_request(url_data: UrlData, cj: CookieJar, settings: dict) -> Response:
     """Send one HTTP request without retrying."""
     method = url_data.method.lower()
-    headers = {"User-Agent": FIREFOX_USER_AGENT}
+    headers = {"User-Agent": _firefox_user_agent()}
     if url_data.referer:
         headers["Referer"] = url_data.referer
 
