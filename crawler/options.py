@@ -70,7 +70,8 @@ DEFAULT_SETTINGS = {
     "file_exists": "overwrite",
     "form_search": {"enabled": True, "include_original_host": False},
     "notify-done": True,
-    "auto-download": False
+    "auto-download": False,
+    "results-collapsed-on-start": True
 }
 
 
@@ -101,6 +102,7 @@ def load_settings() -> dict:
     # Enable it automatically for existing installations.
     settings.setdefault("images_to_search", {})
     settings["images_to_search"].setdefault("webp", True)
+    settings.setdefault("results-collapsed-on-start", True)
 
     # Remove settings from retired UI features.
     settings.pop("detach-progress", None)
