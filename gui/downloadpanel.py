@@ -53,6 +53,12 @@ class DownloadPanel(wx.Panel):
         self.SetBackgroundColour(APP_BACKGROUND)
         self.results_expanded = False
         self._expanded_frame_height = None
+        self.compact_mode = False
+        self._normal_frame_size = None
+        self._normal_frame_position = None
+        self._normal_was_maximized = False
+        self._normal_title = "PixGrabber"
+        self._normal_menu_bar = None
 
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
@@ -64,15 +70,36 @@ class DownloadPanel(wx.Panel):
         self.treeview.SetFont(tree_font)
 
         self.errors = StatsPanel(
-            parent=self, stat_name="Errors", stat_value="0", value_colour=ERROR_TEXT
+            parent=self, stat_name="Errors", stat_value="0",
+            value_colour=ERROR_TEXT, on_change=self._sync_compact_stats
         )
         self.ignored = StatsPanel(
-            parent=self, stat_name="Ignored", stat_value="0", value_colour=IGNORED_TEXT
+            parent=self, stat_name="Ignored", stat_value="0",
+            value_colour=IGNORED_TEXT, on_change=self._sync_compact_stats
         )
         self.imgsaved = StatsPanel(
-            parent=self, stat_name="Saved", stat_value="0", value_colour=SUCCESS
+            parent=self, stat_name="Saved", stat_value="0",
+            value_colour=SUCCESS, on_change=self._sync_compact_stats
         )
-        self.progressbar = ProgressPanel(self, -1)
+        self.progressbar = ProgressPanel(
+            self, -1, on_change=self._sync_compact_progress
+        )
+
+        self.btn_compact = _action_button(
+            self, "Compact", (76, 26),
+            NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
+        self.btn_compact.Bind(
+            wx.EVT_BUTTON, lambda evt: self.set_compact_mode(True)
+        )
+        self.btn_compact.Bind(
+            wx.EVT_ENTER_WINDOW,
+            lambda evt: self.app.window.SetStatusText(
+                "Switch PixGrabber to compact progress view"
+            )
+        )
+
+        self.compact_panel = CompactPanel(self, -1)
 
         vs = wx.BoxSizer(wx.VERTICAL)
 
@@ -86,7 +113,8 @@ class DownloadPanel(wx.Panel):
         summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(self.progressbar, 1, wx.EXPAND)
+        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, H_GAP)
+        summary.Add(self.btn_compact, 0, wx.ALIGN_CENTER_VERTICAL)
         self._summary_item = vs.Add(
             summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
         )
@@ -97,6 +125,11 @@ class DownloadPanel(wx.Panel):
             self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X
         )
         self._bottom_spacer = vs.AddSpacer(OUTER_Y)
+
+        self._compact_item = vs.Add(
+            self.compact_panel, 0, wx.EXPAND | wx.ALL, 6
+        )
+        self._compact_item.Show(False)
 
         self.SetSizer(vs)
 
@@ -110,6 +143,118 @@ class DownloadPanel(wx.Panel):
             update_status=False,
             resize_frame=False
         )
+
+    def set_compact_mode(self, compact):
+        compact = bool(compact)
+        if compact == self.compact_mode:
+            return
+
+        frame = self.GetTopLevelParent()
+        if not frame:
+            return
+
+        if compact:
+            self._normal_was_maximized = frame.IsMaximized()
+            if self._normal_was_maximized:
+                frame.Restore()
+
+            self._normal_frame_size = frame.GetSize()
+            self._normal_frame_position = frame.GetPosition()
+            self._normal_title = frame.GetTitle()
+            self._normal_menu_bar = frame.GetMenuBar()
+
+            for item in (
+                self._address_item,
+                self._source_bottom_spacer,
+                self._summary_top_spacer,
+                self._summary_item,
+                self._results_top_spacer,
+                self._results_item,
+                self._bottom_spacer,
+            ):
+                item.Show(False)
+            self._compact_item.Show(True)
+
+            if self._normal_menu_bar is not None:
+                frame.SetMenuBar(None)
+            if frame.GetStatusBar() is not None:
+                frame.GetStatusBar().Hide()
+
+            self.compact_mode = True
+            self._sync_compact_stats()
+            self._sync_compact_progress()
+            self.compact_panel.set_elapsed(self.progressbar.time.GetLabel())
+
+            frame.SetTitle("PixGrabber")
+            style = frame.GetWindowStyleFlag() | wx.STAY_ON_TOP
+            frame.SetWindowStyleFlag(style)
+
+            self.Layout()
+            frame.Layout()
+            best_height = max(1, self.compact_panel.GetBestSize().height + 12)
+            frame.SetClientSize((430, best_height))
+            frame.Raise()
+        else:
+            self._compact_item.Show(False)
+            for item in (
+                self._address_item,
+                self._source_bottom_spacer,
+                self._summary_top_spacer,
+                self._summary_item,
+                self._results_top_spacer,
+                self._results_item,
+                self._bottom_spacer,
+            ):
+                item.Show(True)
+
+            if self._normal_menu_bar is not None and frame.GetMenuBar() is None:
+                frame.SetMenuBar(self._normal_menu_bar)
+            if frame.GetStatusBar() is not None:
+                frame.GetStatusBar().Show()
+
+            style = frame.GetWindowStyleFlag() & ~wx.STAY_ON_TOP
+            frame.SetWindowStyleFlag(style)
+            frame.SetTitle(self._normal_title)
+
+            self.compact_mode = False
+            self.Layout()
+            frame.Layout()
+
+            if self._normal_frame_size is not None:
+                frame.SetSize(self._normal_frame_size)
+            if self._normal_frame_position is not None:
+                frame.SetPosition(self._normal_frame_position)
+            if self._normal_was_maximized:
+                frame.Maximize(True)
+
+    def _sync_compact_stats(self, *_args):
+        if not hasattr(self, "compact_panel"):
+            return
+        self.compact_panel.set_stats(
+            self.imgsaved.stat,
+            self.ignored.stat,
+            self.errors.stat,
+        )
+
+    def _sync_compact_progress(self, *_args):
+        if not hasattr(self, "compact_panel"):
+            return
+        self.compact_panel.set_progress(
+            self.progressbar.gauge.GetValue(),
+            self.progressbar.gauge.GetRange(),
+        )
+
+    def set_elapsed(self, elapsed):
+        self.progressbar.time.SetLabel(elapsed)
+        self.compact_panel.set_elapsed(elapsed)
+
+    def set_paused(self, paused):
+        self.compact_panel.set_paused(paused)
+
+    def set_fetching_progress(self):
+        self.progressbar.gauge.SetValue(10)
+        self.progressbar.gauge.Pulse()
+        self.compact_panel.progress.Pulse()
 
     def toggle_results_expanded(self):
         self.set_results_expanded(not self.results_expanded)
@@ -216,6 +361,7 @@ class DownloadPanel(wx.Panel):
         self.addressbar.btn_fetch.Enable(state)
         self.addressbar.btn_start.Enable(state)
         self.addressbar.btn_pause.Enable(not state)
+        self.compact_panel.btn_pause.Enable(not state)
 
     def set_address_bar(self, text: str):
         self.addressbar.txt_address.SetValue(text)
@@ -226,6 +372,120 @@ class DownloadPanel(wx.Panel):
 
     def set_progress_determinate(self):
         self.progressbar.restore_state()
+
+
+class CompactPanel(wx.Panel):
+
+    def __init__(self, parent, id):
+        super().__init__(parent, id, style=wx.BORDER_SIMPLE)
+        self.SetBackgroundColour(CARD_BACKGROUND)
+
+        stats = wx.BoxSizer(wx.HORIZONTAL)
+        self.saved = self._stat("Saved", SUCCESS)
+        self.ignored = self._stat("Ignored", IGNORED_TEXT)
+        self.errors = self._stat("Errors", ERROR_TEXT)
+
+        stats.Add(self.saved[0], 1)
+        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        stats.Add(self.ignored[0], 1)
+        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        stats.Add(self.errors[0], 1)
+
+        progress_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.progress = wx.Gauge(
+            self, -1, 100,
+            style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH
+        )
+        self.progress.SetForegroundColour(SUCCESS)
+        self.progress.SetMinSize((-1, 14))
+
+        self.percent = wx.StaticText(self, label="0%")
+        self.percent.SetForegroundColour(NEUTRAL_TEXT)
+        self.percent.SetFont(_bold_font(self.percent, 9))
+
+        progress_row.Add(self.progress, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        progress_row.Add(self.percent, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        elapsed_row = wx.BoxSizer(wx.HORIZONTAL)
+        elapsed_row.AddStretchSpacer(1)
+        elapsed_label = wx.StaticText(self, label="Elapsed")
+        elapsed_label.SetForegroundColour(NEUTRAL_TEXT)
+        self.elapsed = wx.StaticText(self, label="00:00:00")
+        self.elapsed.SetForegroundColour(NEUTRAL_TEXT)
+        self.elapsed.SetFont(_bold_font(self.elapsed, 9))
+        elapsed_row.Add(elapsed_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        elapsed_row.Add(self.elapsed, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        self.btn_pause = _action_button(
+            self, "Pause", (72, 28), NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
+        self.btn_stop = _action_button(
+            self, "Stop", (72, 28), NEUTRAL_BUTTON, NEUTRAL_TEXT
+        )
+        self.btn_full = _action_button(
+            self, "Full View", (84, 28), PRIMARY, wx.WHITE, bold=True
+        )
+
+        self.btn_pause.Bind(
+            wx.EVT_BUTTON, lambda evt: self.GetParent().pause_tasks()
+        )
+        self.btn_stop.Bind(
+            wx.EVT_BUTTON, lambda evt: self.GetParent().stop_tasks()
+        )
+        self.btn_full.Bind(
+            wx.EVT_BUTTON, lambda evt: self.GetParent().set_compact_mode(False)
+        )
+
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        actions.Add(self.btn_pause, 1, wx.RIGHT, 6)
+        actions.Add(self.btn_stop, 1, wx.RIGHT, 6)
+        actions.Add(self.btn_full, 1)
+
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(stats, 0, wx.EXPAND | wx.ALL, 10)
+        layout.Add(progress_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        layout.Add(elapsed_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 7)
+        layout.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        layout.Add(actions, 0, wx.EXPAND | wx.ALL, 10)
+        self.SetSizer(layout)
+
+    def _stat(self, title, colour):
+        panel = wx.Panel(self)
+        panel.SetBackgroundColour(CARD_BACKGROUND)
+
+        label = wx.StaticText(panel, label=title)
+        label.SetBackgroundColour(CARD_BACKGROUND)
+        label.SetForegroundColour(NEUTRAL_TEXT)
+
+        value = wx.StaticText(panel, label="0")
+        value.SetBackgroundColour(CARD_BACKGROUND)
+        value.SetForegroundColour(colour)
+        value.SetFont(_bold_font(value, 12))
+
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL)
+        layout.Add(value, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 2)
+        panel.SetSizer(layout)
+        return panel, value
+
+    def set_stats(self, saved, ignored, errors):
+        self.saved[1].SetLabel(str(saved))
+        self.ignored[1].SetLabel(str(ignored))
+        self.errors[1].SetLabel(str(errors))
+
+    def set_progress(self, value, maximum):
+        maximum = max(1, int(maximum))
+        value = max(0, min(int(value), maximum))
+        self.progress.SetRange(maximum)
+        self.progress.SetValue(value)
+        self.percent.SetLabel(f"{int((value / maximum) * 100)}%")
+
+    def set_elapsed(self, elapsed):
+        self.elapsed.SetLabel(elapsed)
+
+    def set_paused(self, paused):
+        self.btn_pause.SetLabel("Resume" if paused else "Pause")
+
 
 
 class AddressBar(wx.Panel):
@@ -375,9 +635,13 @@ class ResultsPanel(wx.Panel):
 
 class StatsPanel(wx.Panel):
 
-    def __init__(self, stat_name, stat_value, value_colour=NEUTRAL_TEXT, *args, **kw):
+    def __init__(
+        self, stat_name, stat_value, value_colour=NEUTRAL_TEXT,
+        on_change=None, *args, **kw
+    ):
         kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
+        self.on_change = on_change
         self.SetBackgroundColour(CARD_BACKGROUND)
 
         lbl = wx.StaticText(self, -1, stat_name)
@@ -404,17 +668,22 @@ class StatsPanel(wx.Panel):
     def reset_stat(self):
         self.stat = 0
         self.value.SetLabel("0")
+        if self.on_change:
+            self.on_change(self.stat)
 
     def add_stat(self):
         self.stat += 1
         self.value.SetLabel(self.stat.__str__())
+        if self.on_change:
+            self.on_change(self.stat)
 
 
 class ProgressPanel(wx.Panel):
 
-    def __init__(self, *args, **kw):
+    def __init__(self, *args, on_change=None, **kw):
         kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
+        self.on_change = on_change
         self.SetBackgroundColour(CARD_BACKGROUND)
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
@@ -454,11 +723,15 @@ class ProgressPanel(wx.Panel):
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
         self.gauge.SetValue(0)
+        if self.on_change:
+            self.on_change(0, max_range)
 
     def increment(self):
         value = self.gauge.GetValue()
         if value < self.gauge.GetRange():
             self.gauge.SetValue(value + 1)
+        if self.on_change:
+            self.on_change(self.gauge.GetValue(), self.gauge.GetRange())
 
     def save_state(self):
         self.stored_value = self.gauge.GetValue()
@@ -467,3 +740,5 @@ class ProgressPanel(wx.Panel):
     def restore_state(self):
         self.gauge.SetRange(self.stored_range)
         self.gauge.SetValue(self.stored_value)
+        if self.on_change:
+            self.on_change(self.stored_value, self.stored_range)
