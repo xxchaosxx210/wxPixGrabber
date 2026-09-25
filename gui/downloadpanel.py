@@ -51,7 +51,8 @@ class DownloadPanel(wx.Panel):
         self.SetBackgroundColour(APP_BACKGROUND)
 
         self.addressbar = AddressBar(self, -1)
-        self.treeview = StatusTreeView(self, -1)
+        self.results_panel = ResultsPanel(self, -1)
+        self.treeview = self.results_panel.treeview
         self.treeview.SetIndent(20)
 
         tree_font = self.treeview.GetFont()
@@ -94,14 +95,7 @@ class DownloadPanel(wx.Panel):
 
         vs.AddSpacer(SECTION_GAP)
 
-        results_label = wx.StaticText(self, -1, "Results")
-        results_label.SetBackgroundColour(APP_BACKGROUND)
-        results_label.SetForegroundColour(NEUTRAL_TEXT)
-        results_label.SetFont(_bold_font(results_label, 10))
-        vs.Add(results_label, 0, wx.LEFT | wx.RIGHT, OUTER_PADDING)
-        vs.AddSpacer(4)
-
-        vs.Add(self.treeview, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
+        vs.Add(self.results_panel, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
         vs.AddSpacer(OUTER_PADDING)
 
         self.SetSizer(vs)
@@ -183,7 +177,7 @@ class AddressBar(wx.Panel):
         self.txt_address.SetMinSize((-1, 30))
 
         btn_open = _action_button(
-            self, "Open HTML", (104, 32),
+            self, "Open HTML", (104, 30),
             NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
 
@@ -223,14 +217,14 @@ class AddressBar(wx.Panel):
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 6)
+        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 4)
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
         source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
         source_row.Add(btn_open, 0, wx.EXPAND)
         vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
 
-        vs.AddSpacer(2)
+        vs.AddSpacer(8)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
@@ -238,7 +232,7 @@ class AddressBar(wx.Panel):
         actions.Add(self.btn_start, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_pause, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_stop, 0)
-        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
 
         self.SetSizer(vs)
 
@@ -249,6 +243,53 @@ class AddressBar(wx.Panel):
 
     def on_mouse_over_button(self, text):
         self.app.window.sbar.SetStatusText(text)
+
+
+class ResultsPanel(wx.Panel):
+
+    def __init__(self, *args, **kw):
+        kw.setdefault("style", wx.BORDER_SIMPLE)
+        super().__init__(*args, **kw)
+        self.SetBackgroundColour(CARD_BACKGROUND)
+
+        self.treeview = StatusTreeView(self, -1)
+
+        header = wx.Panel(self, -1)
+        header.SetBackgroundColour(wx.Colour(248, 249, 251))
+
+        title = wx.StaticText(header, -1, "Results")
+        title.SetBackgroundColour(header.GetBackgroundColour())
+        title.SetForegroundColour(NEUTRAL_TEXT)
+        title.SetFont(_bold_font(title, 10))
+
+        saved = wx.StaticText(header, -1, "Saved")
+        saved.SetBackgroundColour(header.GetBackgroundColour())
+        saved.SetForegroundColour(SUCCESS)
+
+        ignored = wx.StaticText(header, -1, "Ignored")
+        ignored.SetBackgroundColour(header.GetBackgroundColour())
+        ignored.SetForegroundColour(IGNORED_TEXT)
+
+        errors = wx.StaticText(header, -1, "Errors")
+        errors.SetBackgroundColour(header.GetBackgroundColour())
+        errors.SetForegroundColour(ERROR_TEXT)
+
+        hs = wx.BoxSizer(wx.HORIZONTAL)
+        hs.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
+        hs.AddStretchSpacer(1)
+        hs.Add(saved, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 14)
+        hs.Add(ignored, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 14)
+        hs.Add(errors, 0, wx.ALIGN_CENTER_VERTICAL)
+
+        header.SetSizer(hs)
+
+        divider = wx.StaticLine(self, -1)
+
+        vs = wx.BoxSizer(wx.VERTICAL)
+        vs.Add(header, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
+        vs.Add(divider, 0, wx.EXPAND)
+        vs.Add(self.treeview, 1, wx.EXPAND)
+        self.SetSizer(vs)
 
 
 class StatsPanel(wx.Panel):
