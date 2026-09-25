@@ -53,6 +53,7 @@ class MainWindow(wx.Frame):
     def _on_timer_callback(self, formatted_time):
         try:
             wx.CallAfter(self.dld_panel.progressbar.time.SetLabel, formatted_time)
+            wx.CallAfter(self.detached_frame.set_elapsed, formatted_time)
         except AssertionError:
             pass
     
@@ -88,6 +89,7 @@ class MainWindow(wx.Frame):
 
             elif msg.event == const.EVENT_PAUSE:
                 pause = msg.data["pause"]
+                self.detached_frame.set_paused(pause)
                 if pause:
                     self.dld_panel.set_progress_indeterminate()
                     self.SetStatusText("Paused Tasks")
@@ -130,17 +132,17 @@ class MainWindow(wx.Frame):
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dld_panel.treeview.add_url(msg)
                 self.dld_panel.errors.add_stat()
-                self.detached_frame.add_error()
+                self.detached_frame.add_error(msg)
             # IMAGE SAVED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 self.dld_panel.imgsaved.add_stat()
-                self.detached_frame.add_saved()
+                self.detached_frame.add_saved(msg)
                 self.dld_panel.treeview.add_url(msg)
             # IMAGE IGNORED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
                 self.dld_panel.ignored.add_stat()
                 self.dld_panel.treeview.add_url(msg)
-                self.detached_frame.add_ignored()
+                self.detached_frame.add_ignored(msg)
             # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dld_panel.treeview.set_searching(msg.id)
@@ -158,6 +160,7 @@ class MainWindow(wx.Frame):
         self.dld_panel.progressbar.gauge.Pulse()
         self.SetTitle(f'{msg.data["title"]}')
         self.SetStatusText(f"Scanning {msg.data['url']}")
+        self.detached_frame.set_source(msg.data["url"], msg.data["title"] or "Downloading images...")
         self.dld_panel.treeview.create_root(msg)
     
     def _on_start_scraping(self):
