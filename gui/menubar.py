@@ -86,7 +86,7 @@ class PixGrabberMenuBar(wx.MenuBar):
         menu.Append(ID_SCAN_CANCEL, "Cancel\tF3", "Cancel running Image scan (F3)")
         menu.Append(ID_SCAN_START, "Start\tF5", "Start scanning downloading the images (F5)")
         menu.AppendSeparator()
-        menu.Append(ID_SCAN_SETTINGS, "Settings\tCtrl+Shift+S", "Open Settings (Ctrl+Shift+S)")
+        menu.Append(ID_SCAN_SETTINGS, "Options...\tCtrl+Shift+S", "Open application options (Ctrl+Shift+S)")
         menu.AppendSeparator()
         self.profiles_submenu = wx.Menu()
         self.create_profiles_submenu()
@@ -200,7 +200,7 @@ class PixGrabberMenuBar(wx.MenuBar):
     def _on_settings(self, evt):
         dlg = SettingsDialog(parent=self.parent,
                              id= -1,
-                             title="Settings",
+                             title="PixGrabber - Options",
                              size=wx.DefaultSize,
                              pos=wx.DefaultPosition,
                              style=wx.DEFAULT_DIALOG_STYLE,
