@@ -98,39 +98,28 @@ class DownloadPanel(wx.Panel):
 
         self.SetSizer(vs)
 
-        # Escape restores the normal layout while Results is expanded.
-        self.GetTopLevelParent().Bind(wx.EVT_CHAR_HOOK, self._on_char_hook)
+        # Results starts collapsed. Expanding it only opens the tree area;
+        # the source controls and progress summary always remain visible.
+        self.set_results_expanded(False)
 
     def toggle_results_expanded(self):
         self.set_results_expanded(not self.results_expanded)
 
     def set_results_expanded(self, expanded):
         self.results_expanded = bool(expanded)
-
-        show_controls = not self.results_expanded
-        for item in (
-            self._address_item,
-            self._source_bottom_spacer,
-            self._summary_top_spacer,
-            self._summary_item,
-            self._results_top_spacer,
-        ):
-            item.Show(show_controls)
-
         self.results_panel.set_expanded(self.results_expanded)
+
+        # Collapsed Results should only occupy the header height. Expanded
+        # Results takes the remaining space below the existing controls.
+        self._results_item.SetProportion(1 if self.results_expanded else 0)
+
         self.Layout()
+        self.GetParent().Layout()
 
         if self.results_expanded:
-            self.treeview.SetFocus()
-            self.app.window.SetStatusText("Results expanded - press Esc to restore")
+            self.app.window.SetStatusText("Results expanded")
         else:
-            self.app.window.SetStatusText("Results restored")
-
-    def _on_char_hook(self, evt):
-        if evt.GetKeyCode() == wx.WXK_ESCAPE and self.results_expanded:
-            self.set_results_expanded(False)
-            return
-        evt.Skip()
+            self.app.window.SetStatusText("Results collapsed")
 
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
@@ -299,7 +288,7 @@ class ResultsPanel(wx.Panel):
         self.btn_expand.Bind(
             wx.EVT_ENTER_WINDOW,
             lambda evt: wx.GetApp().window.SetStatusText(
-                "Expand Results to fill the main PixGrabber window"
+                "Expand or collapse the Results tree"
             )
         )
 
@@ -310,20 +299,26 @@ class ResultsPanel(wx.Panel):
 
         header.SetSizer(hs)
 
-        divider = wx.StaticLine(self, -1)
+        self.divider = wx.StaticLine(self, -1)
 
         vs = wx.BoxSizer(wx.VERTICAL)
         vs.Add(header, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 6)
-        vs.Add(divider, 0, wx.EXPAND)
+        vs.Add(self.divider, 0, wx.EXPAND)
         vs.Add(self.treeview, 1, wx.EXPAND)
         self.SetSizer(vs)
 
+        self.divider.Hide()
+        self.treeview.Hide()
+
 
     def set_expanded(self, expanded):
-        self.btn_expand.SetLabel("Restore" if expanded else "Expand")
+        self.btn_expand.SetLabel("Collapse" if expanded else "Expand")
         self.btn_expand.SetToolTip(
-            "Restore normal layout" if expanded else "Expand Results"
+            "Collapse Results" if expanded else "Expand Results"
         )
+        self.divider.Show(expanded)
+        self.treeview.Show(expanded)
+        self.Layout()
 
 
 
