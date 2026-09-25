@@ -262,11 +262,18 @@ class DownloadPanel(wx.Panel):
         self.set_results_expanded(not self.results_expanded)
 
     def apply_initial_results_state(self):
-        """Resize the main window to match the configured Results startup state."""
+        """Finish sizing after wx has calculated the native startup layout."""
         frame = self.GetTopLevelParent()
-        if frame:
+        if not frame:
+            return
+
+        if self.results_expanded:
             self._expanded_frame_height = frame.GetSize().height
-        self._resize_frame_for_results(self.results_expanded)
+        else:
+            # No hard-coded expanded height: the first Expand will use the
+            # Results tree's native best size for the current DPI.
+            self._expanded_frame_height = None
+            self._resize_frame_for_results(False)
 
     def set_results_expanded(self, expanded, update_status=True, resize_frame=True):
         expanded = bool(expanded)
@@ -308,7 +315,13 @@ class DownloadPanel(wx.Panel):
         if expanded:
             target_height = self._expanded_frame_height
             if not target_height:
-                target_height = max(frame.GetSize().height, 520)
+                frame.Layout()
+                self.Layout()
+                best_panel_height = self.GetBestSize().height
+                chrome_height = max(
+                    0, frame.GetSize().height - self.GetSize().height
+                )
+                target_height = best_panel_height + chrome_height
         else:
             # The panel's best size now contains only Source, summary/progress
             # and the collapsed Results header. Add the existing frame chrome
