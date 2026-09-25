@@ -20,6 +20,13 @@ def _bold_font(window, point_size=None):
     return font
 
 
+def _small_bitmap(bitmap, size=18):
+    """Return a compact copy of an existing toolbar bitmap."""
+    image = bitmap.ConvertToImage()
+    image = image.Scale(size, size, wx.IMAGE_QUALITY_HIGH)
+    return wx.Bitmap(image)
+
+
 class DownloadPanel(wx.Panel):
 
     def __init__(self, **kwargs):
@@ -37,8 +44,8 @@ class DownloadPanel(wx.Panel):
             self.treeview.SetFont(tree_font)
 
         btn_detach = wx.Button(self, -1, "Progress Window")
-        btn_detach.SetBitmap(self.app.bitmaps["detach"])
-        btn_detach.SetMinSize((145, 34))
+        btn_detach.SetBitmap(_small_bitmap(self.app.bitmaps["detach"], 16))
+        btn_detach.SetMinSize((128, 30))
 
         self.errors = StatsPanel(parent=self, stat_name="Errors", stat_value="0")
         self.ignored = StatsPanel(parent=self, stat_name="Ignored", stat_value="0")
@@ -144,30 +151,30 @@ class AddressBar(wx.Panel):
         heading.SetFont(_bold_font(heading, 10))
 
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
-        self.txt_address.SetMinSize((-1, 32))
+        self.txt_address.SetMinSize((-1, 30))
 
         bitmaps = wx.GetApp().bitmaps
 
         btn_open = wx.Button(self, -1, "Open HTML")
-        btn_open.SetBitmap(bitmaps["html-file"])
-        btn_open.SetMinSize((115, 34))
+        btn_open.SetBitmap(_small_bitmap(bitmaps["html-file"], 18))
+        btn_open.SetMinSize((110, 32))
 
         self.btn_fetch = wx.Button(self, -1, "Fetch Links")
-        self.btn_fetch.SetBitmap(bitmaps["fetch"])
-        self.btn_fetch.SetMinSize((120, 38))
+        self.btn_fetch.SetBitmap(_small_bitmap(bitmaps["fetch"], 18))
+        self.btn_fetch.SetMinSize((112, 34))
 
         self.btn_start = wx.Button(self, -1, "Start")
-        self.btn_start.SetBitmap(bitmaps["start"])
-        self.btn_start.SetMinSize((105, 38))
+        self.btn_start.SetBitmap(_small_bitmap(bitmaps["start"], 18))
+        self.btn_start.SetMinSize((92, 34))
 
         self.btn_pause = wx.Button(self, -1, "Pause")
-        self.btn_pause.SetBitmap(bitmaps["pause"])
-        self.btn_pause.SetMinSize((105, 38))
+        self.btn_pause.SetBitmap(_small_bitmap(bitmaps["pause"], 18))
+        self.btn_pause.SetMinSize((92, 34))
         self.btn_pause.Enable(False)
 
         self.btn_stop = wx.Button(self, -1, "Stop")
-        self.btn_stop.SetBitmap(bitmaps["cancel"])
-        self.btn_stop.SetMinSize((105, 38))
+        self.btn_stop.SetBitmap(_small_bitmap(bitmaps["cancel"], 18))
+        self.btn_stop.SetMinSize((92, 34))
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -191,7 +198,7 @@ class AddressBar(wx.Panel):
         source_row.Add(btn_open, 0, wx.EXPAND)
         vs.Add(source_row, 0, wx.EXPAND)
 
-        vs.AddSpacer(BORDER)
+        vs.AddSpacer(4)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
@@ -229,10 +236,10 @@ class StatsPanel(wx.Panel):
         self.value.SetFont(_bold_font(self.value, 16))
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
-        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
         self.SetSizer(vs)
-        self.SetMinSize((95, 62))
+        self.SetMinSize((82, 56))
 
         self.stat = 0
 
@@ -252,6 +259,7 @@ class ProgressPanel(wx.Panel):
         super().__init__(*args, **kw)
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
+        self.gauge.SetMinSize((-1, 18))
         self.time = wx.StaticText(self, -1, "00:00:00")
 
         self.stored_value = 0
@@ -270,12 +278,12 @@ class ProgressPanel(wx.Panel):
         top.Add(self.time, 0, wx.ALIGN_CENTER_VERTICAL)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
-        vs.AddSpacer(6)
-        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        vs.AddSpacer(4)
+        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         self.SetSizer(vs)
-        self.SetMinSize((260, 62))
+        self.SetMinSize((320, 56))
 
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
