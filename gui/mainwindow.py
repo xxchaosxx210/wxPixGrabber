@@ -29,6 +29,7 @@ class MainWindow(wx.Frame):
         vs.Add(self.dld_panel, 1, wx.EXPAND|wx.ALL, 0)
         self.SetSizer(vs)
         self.SetSize(kw["size"])
+        wx.CallAfter(self.dld_panel.apply_initial_results_state)
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
 
