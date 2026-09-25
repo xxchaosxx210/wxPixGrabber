@@ -67,7 +67,7 @@ def server_process(host: str, port: int, a_queue: Queue):
 
 
 def _test_image_number(filename: str) -> int:
-    match = re.match(r"^test_([0-9]+)\\.jpg$", filename)
+    match = re.match(r"^test_([0-9]+)\.jpg$", filename)
     return int(match.group(1)) if match else 999999
 
 
