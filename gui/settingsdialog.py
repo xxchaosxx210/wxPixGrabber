@@ -1,756 +1,367 @@
-import wx
+import copy
 import os
-from wx.lib import masked
+import webbrowser
 
+import wx
 import wx.lib.scrolledpanel as scrolled
-from crawler.options import SQL_PATH
+
 import crawler.options as options
+from crawler.options import SQL_PATH
 
-STATIC_BOX_BORDER = 5
 
-DIALOG_BORDER = 30
+APP_BACKGROUND = wx.Colour(244, 246, 249)
+SIDEBAR_BACKGROUND = wx.Colour(248, 249, 251)
+CARD_BACKGROUND = wx.Colour(255, 255, 255)
+BORDER_COLOUR = wx.Colour(216, 221, 228)
+TEXT_COLOUR = wx.Colour(45, 49, 55)
+MUTED_TEXT = wx.Colour(105, 112, 122)
+PRIMARY = wx.Colour(30, 111, 232)
+
+PAGE_NAMES = [
+    "General",
+    "Downloads",
+    "Images",
+    "Network & Cookies",
+    "Filters",
+    "Advanced",
+    "About",
+]
 
+
+def _font(window, size=None, bold=False):
+    font = window.GetFont()
+    if size is not None:
+        font.SetPointSize(size)
+    if bold:
+        font.SetWeight(wx.FONTWEIGHT_BOLD)
+    return font
+
+
+def _label(parent, text, width=155):
+    label = wx.StaticText(parent, label=text)
+    label.SetForegroundColour(TEXT_COLOUR)
+    label.SetMinSize((width, -1))
+    return label
 
-class SettingsDialog(wx.Dialog):
-
-    def __init__(self, parent, id, title, size, pos, style, name, settings):
-        super().__init__()
-        self.app = wx.GetApp()
-        self.bitmaps = self.app.bitmaps
-        self.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
-        self.Create(parent, id, title, pos, size, style, name)
-
-        self.panel = SettingsPanel(self, -1)
-        self.ok_cancel_panel = OkCancelPanel(self, -1)
-
-        vs = wx.BoxSizer(wx.VERTICAL)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.panel, 1, wx.ALL | wx.EXPAND, 0)
-        vs.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
-        vs.AddSpacer(10)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.ok_cancel_panel, 1, wx.ALL | wx.EXPAND, 0)
-        vs.Add(hs, 0, wx.ALL | wx.EXPAND, 0)
-        vs.AddSpacer(10)
-        self.SetSizer(vs)
-
-        w, h = self.app.window.GetSize()
-        self.SetSize(w - 40, h - 40)
-
-        self.panel.SetFocus()
-        self.settings = settings
-        self.load_settings(settings)
-
-    def load_settings(self, settings):
-        """Initializes the Settings wxControls from the settings dict
-
-        Args:
-            settings (dict): The settings json loaded from the settings.json file
-        """
-
-        filtered_search = settings.get("filter-search",
-                                       {"enabled": True, "filters": ["imagevenue.com/"]})
-        self.panel.filter_panel.checkbox.SetValue(filtered_search["enabled"])
-        self.panel.filter_panel.listbox.Clear()
-        [self.panel.filter_panel.listbox.Append(item) for item in filtered_search["filters"]]
-
-        self.panel.auto_panel.checkbox.SetValue(
-            settings.get("auto-download", False))
-
-        self.panel.notify_panel.checkbox.SetValue(
-            settings.get("notify-done", True))
-
-        self.panel.detach_panel.checkbox.SetValue(
-            settings.get("detach-progress", True))
-
-        self.panel.imgformat_panel.set_values(
-            settings.get("images_to_search",
-                         (True, False, False, False, False, False, False)))
-
-        self.panel.fileexist_panel.set_selection(
-            settings.get("file_exists", "overwrite"))
-
-        self.panel.cookie_panel.set_group(settings.get("cookies", {}))
-
-        self.panel.savepath.text.SetValue(
-            settings.get("save_path", ""))
-
-        self.panel.folder_panel.set_options(
-            settings["unique_pathname"]["enabled"],
-            settings["generate_filenames"]["enabled"],
-            settings["generate_filenames"]["name"])
-
-        self.panel.max_connections.slider.SetValue(
-            settings.get("max_connections", 10))
-
-        formsearch = settings.get("form_search", {
-            "enabled": True, "include_original_host": False})
-        self.panel.formsearch_panel.chk_enable.SetValue(
-            formsearch["enabled"])
-        self.panel.formsearch_panel.chk_include_host.SetValue(
-            formsearch["include_original_host"])
-
-        self.panel.thumb_panel.checkbox.SetValue(
-            settings.get("thumbnails_only", True))
-
-        minsize = settings.get(
-            "minimum_image_resolution", {"width": 100, "height": 100})
-        self.panel.minsize_panel.set_min_values(
-            minsize["width"], minsize["height"])
-
-        self.panel.timeout.set_timeout(
-            settings.get("connection_timeout", 5))
-
-    def get_settings(self) -> dict:
-        """Like load_settings but in reverse. Should be called
-        if the Dialog returns wx.ID_OK and save the returned settings json
-
-        Returns:
-            str: settings json object
-        """
-        settings = self.settings
-
-        settings["profile-name"] = \
-            self.panel.profile_panel.cmbox.GetStringSelection()
-
-        # filtered search
-        settings["filter-search"]["filters"] \
-            = self.panel.filter_panel.listbox.GetItems()
-        settings["filter-search"]["enabled"] = \
-            self.panel.filter_panel.checkbox.GetValue()
-
-        # notify
-        settings["notify-done"] = \
-            self.panel.notify_panel.checkbox.GetValue()
-
-        # detach progress
-        settings["detach-progress"] = \
-            self.panel.detach_panel.checkbox.GetValue()
-
-        # auto-download
-        settings["auto-download"] = \
-            self.panel.auto_panel.checkbox.GetValue()
-
-        # form search
-        settings["form_search"]["enabled"] = \
-            self.panel.formsearch_panel.chk_enable.GetValue()
-        settings["form_search"]["include_original_host"] = \
-            self.panel.formsearch_panel.chk_include_host.GetValue()
-
-        # If file already exists
-        settings["file_exists"] = \
-            self.panel.fileexist_panel.get_selected()
-
-        # Save options
-        settings["unique_pathname"]["enabled"] = \
-            self.panel.folder_panel.chk_unique_path.GetValue()
-        settings["generate_filenames"]["enabled"] = \
-            self.panel.folder_panel.chk_prefixed_name.GetValue()
-        settings["generate_filenames"]["name"] = \
-            self.panel.folder_panel.txt_prefixed_name.GetValue()
-
-        settings["save_path"] = \
-            self.panel.savepath.text.GetValue()
-
-        # Thumbnails only
-        settings["thumbnails_only"] = \
-            self.panel.thumb_panel.checkbox.GetValue()
-
-        # min size
-        settings["minimum_image_resolution"]["width"] = \
-            self.panel.minsize_panel.text_width.GetValue()
-        settings["minimum_image_resolution"]["height"] = \
-            self.panel.minsize_panel.text_height.GetValue()
-
-        # Max timeout
-        settings["connection_timeout"] = \
-            self.panel.timeout.choice.GetSelection()
-
-        # Max Connections
-        settings["max_connections"] = self.panel.max_connections.slider.GetValue()
-
-        # Cookies
-        settings["cookies"] = self.panel.cookie_panel.get_group()
-
-        # Get the Image format
-        settings["images_to_search"] = \
-            self.panel.imgformat_panel.get_values()
-
-        return settings
-
-
-class SettingsPanel(scrolled.ScrolledPanel):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        pnl = wx.Panel(self, -1)
-
-        self.profile_panel = ProfilePanel(pnl, -1, dialog=self.GetParent())
-        self.max_connections = MaxConnectionsPanel(pnl, -1)
-        self.timeout = TimeoutPanel(pnl, -1)
-        self.auto_panel = AutoDownload(pnl, -1)
-        self.minsize_panel = MinWidthHeightPanel(pnl, -1)
-        self.thumb_panel = ThumbnailOnlyPanel(pnl, -1)
-        self.savepath = SaveFolderPanel(pnl, -1)
-        self.folder_panel = SaveOptionsPanel(pnl, -1)
-        self.cookie_panel = CookieOptionsPanel(pnl, -1)
-        self.imgformat_panel = ImageFormatOptionsPanel(pnl, -1)
-        self.fileexist_panel = FileAlreadyExistPanel(pnl, -1)
-        self.formsearch_panel = FormSearchPanel(pnl, -1)
-        self.notify_panel = NotifyPanel(pnl, -1)
-        self.detach_panel = DetachPanel(pnl, -1)
-        self.filter_panel = FilterPanel(pnl, -1, size=(-1, 200))
-        self.cache_panel = CachePanel(pnl, -1)
-
-        vs = wx.BoxSizer(wx.VERTICAL)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.profile_panel, 1, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.max_connections, 1, wx.EXPAND | wx.ALL, 0)
-        hs.Add(self.timeout, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.auto_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.minsize_panel, 0, wx.EXPAND | wx.ALL, 0)
-        hs.Add(self.thumb_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.savepath, 1, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.folder_panel, 1, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.cookie_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.imgformat_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.formsearch_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.fileexist_panel, 1, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.filter_panel, 1, wx.EXPAND | wx.ALL, 0)
-        hs.AddStretchSpacer(1)
-        vs.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.notify_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.detach_panel, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        vs.AddSpacer(DIALOG_BORDER)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.cache_panel, 1, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-
-        pnl.SetSizer(vs)
-
-        gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
-        gs.Add(pnl, 1, wx.EXPAND | wx.ALL, 20)
-        self.SetSizer(gs)
-        self.Fit()
-        self.SetAutoLayout(1)
-        self.SetupScrolling()
-
-
-class ProfilePanel(wx.Panel):
-
-    def __init__(self, parent, id, dialog):
-        super().__init__(parent=parent, id=id)
-
-        self.dlg = dialog
-        self.app = wx.GetApp()
-
-        settings = options.load_settings()
-
-        self.cmbox = wx.Choice(self, -1, choices=options.load_profiles())
-        self.cmbox.SetStringSelection(settings["profile-name"])
-        btn_new = wx.Button(self, -1, "New")
-        btn_delete = wx.Button(self, -1, "Delete")
-
-        vs = wx.StaticBoxSizer(wx.VERTICAL, self, "Profile")
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.cmbox, 1, wx.EXPAND | wx.ALL, 0)
-        hs.AddSpacer(5)
-        hs.Add(btn_delete, 0, wx.EXPAND | wx.ALL, 0)
-        hs.AddSpacer(5)
-        hs.Add(btn_new, 0, wx.EXPAND | wx.ALL, 0)
-        vs.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(vs)
-
-        btn_new.Bind(wx.EVT_BUTTON, self._on_new_profile, btn_new)
-        btn_delete.Bind(wx.EVT_BUTTON, self._on_btn_delete, btn_delete)
-        self.cmbox.Bind(wx.EVT_CHOICE, self._on_choice, self.cmbox)
-
-    def _on_btn_delete(self, evt):
-        name = self.cmbox.GetStringSelection()
-        try:
-            if options.delete_profile(name):
-                settings = options.load_settings()
-                self.dlg.load_settings(settings)
-                self.cmbox.Delete(self.cmbox.GetSelection())
-                self.cmbox.SetStringSelection(settings["profile-name"])
-        except NameError as err:
-            dlg = wx.MessageDialog(self, err.__str__(), "Error", style=wx.OK | wx.CENTER | wx.ICON_ERROR)
-            dlg.ShowModal()
-            dlg.Destroy()
-
-    def _on_new_profile(self, evt):
-        dlg = wx.TextEntryDialog(self, "Name the Profile", "New Profile Name")
-        if dlg.ShowModal() == wx.ID_OK:
-            name = dlg.GetValue()
-            settings = self.dlg.get_settings()
-            name = options.format_filename(name)
-            settings["profile-name"] = name
-            options.save_profile(settings)
-            options.use_profile(name)
-            self.app.window.set_profile_status(name)
-            self.cmbox.Append(name)
-            self.cmbox.SetStringSelection(name)
-        dlg.Destroy()
-
-    def _on_choice(self, evt):
-        name = evt.GetString()
-        options.use_profile(name)
-        self.app.window.set_profile_status(name)
-        self.dlg.load_settings(options.load_settings())
-
-
-class DetachPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.checkbox = wx.CheckBox(self, -1, "Enable")
-
-        vbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Detachable Progress Window")
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-        hbox.Add(self.checkbox, 0, wx.ALL | wx.EXPAND, 0)
-        vbox.Add(hbox, 0, wx.ALL | wx.EXPAND, 0)
-        self.SetSizer(vbox)
-
-
-class AutoDownload(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.checkbox = wx.CheckBox(self, -1, "Enable")
-
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Automatically Download when Url found")
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
-        box.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
-
-        self.SetSizer(box)
-
-
-class NotifyPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.checkbox = wx.CheckBox(self, -1, "Enable")
-
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Notify when finished")
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
-        box.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
-
-        self.SetSizer(box)
-
-
-class ImageFormatOptionsPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.ext = []
-
-        self.ext.append(wx.CheckBox(self, -1, "JPG"))
-        self.ext.append(wx.CheckBox(self, -1, "PNG"))
-        self.ext.append(wx.CheckBox(self, -1, "GIF"))
-        self.ext.append(wx.CheckBox(self, -1, "BMP"))
-        self.ext.append(wx.CheckBox(self, -1, "ICO"))
-        self.ext.append(wx.CheckBox(self, -1, "TIFF"))
-        self.ext.append(wx.CheckBox(self, -1, "TGA"))
-        self.ext.append(wx.CheckBox(self, -1, "WEBP"))
-
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search for selected image formats")
-        for chk in self.ext:
-            hs = wx.BoxSizer(wx.HORIZONTAL)
-            hs.Add(chk, 1, wx.ALL | wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-            box.AddSpacer(10)
-        self.SetSizer(box)
-
-    def set_values(self, file_exts):
-        # Match settings by extension name so older settings files remain compatible.
-        for checkbox in self.ext:
-            key = checkbox.GetLabelText().lower()
-            checkbox.SetValue(file_exts.get(key, key == "webp"))
-
-    def get_values(self):
-        d = {}
-        for checkbox in self.ext:
-            key = checkbox.GetLabelText().lower()
-            value = bool(checkbox.GetValue())
-            d[key] = value
-        return d
-
-
-class FileAlreadyExistPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.group = []
-
-        self.group.append(wx.RadioButton(self, -1, "Skip", style=wx.RB_GROUP))
-        self.group.append(wx.RadioButton(self, -1, "Overwrite"))
-        self.group.append(wx.RadioButton(self, -1, "Rename"))
-
-        box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "If File already exists")
-        for rb in self.group:
-            hs = wx.BoxSizer(wx.VERTICAL)
-            hs.Add(rb, 1, wx.ALL | wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-            box.AddSpacer(10)
-        self.SetSizer(box)
-
-    def set_selection(self, file_exists):
-        for rb in self.group:
-            rb.SetValue(False)
-            if file_exists == rb.GetLabelText().lower():
-                rb.SetValue(True)
-
-    def get_selected(self):
-        for rb in self.group:
-            if rb.GetValue():
-                return rb.GetLabelText().lower()
-        return "overwrite"
-
-
-class CookieOptionsPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.group = []
-
-        self.group.append(wx.RadioButton(self, -1, "Firefox", style=wx.RB_GROUP))
-        self.group.append(wx.RadioButton(self, -1, "Chrome"))
-        self.group.append(wx.RadioButton(self, -1, "Opera"))
-        self.group.append(wx.RadioButton(self, -1, "Edge"))
-        self.group.append(wx.RadioButton(self, -1, "All"))
-
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Use Browser Cookies")
-        for rb in self.group:
-            hs = wx.BoxSizer(wx.HORIZONTAL)
-            hs.Add(rb, 1, wx.ALL | wx.EXPAND, 0)
-            box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-            box.AddSpacer(10)
-        self.SetSizer(box)
-
-    def set_group(self, cookies):
-        # iterate through the browser cookie dict
-        for index, key in enumerate(cookies.keys()):
-            self.group[index].SetValue(cookies[key])
-
-    def get_group(self):
-        d = {}
-        for radiobutton in self.group:
-            key = radiobutton.GetLabelText().lower()
-            value = bool(radiobutton.GetValue())
-            d[key] = value
-        return d
-
-
-class SaveFolderPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.text = wx.TextCtrl(self, -1, "")
-        btn_dir = wx.Button(self, -1, "Browse", size=(68, -1))
-
-        btn_dir.Bind(wx.EVT_BUTTON, self.on_dir_button, btn_dir)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.text, 1, wx.ALL | wx.EXPAND, 0)
-        hs.AddSpacer(10)
-        hs.Add(btn_dir, 0, wx.ALL | wx.EXPAND, 0)
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Save Path")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(box)
-
-    def on_dir_button(self, evt):
+
+class CardPanel(wx.Panel):
+
+    def __init__(self, parent, title):
+        super().__init__(parent, style=wx.BORDER_SIMPLE)
+        self.SetBackgroundColour(CARD_BACKGROUND)
+
+        heading = wx.StaticText(self, label=title)
+        heading.SetBackgroundColour(CARD_BACKGROUND)
+        heading.SetForegroundColour(TEXT_COLOUR)
+        heading.SetFont(_font(heading, 10, True))
+
+        self.body = wx.BoxSizer(wx.VERTICAL)
+
+        layout = wx.BoxSizer(wx.VERTICAL)
+        layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 12)
+        layout.AddSpacer(8)
+        layout.Add(self.body, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        self.SetSizer(layout)
+
+
+class SettingsPage(scrolled.ScrolledPanel):
+
+    def __init__(self, parent, title, subtitle):
+        super().__init__(parent, style=wx.TAB_TRAVERSAL)
+        self.SetBackgroundColour(APP_BACKGROUND)
+
+        heading = wx.StaticText(self, label=title)
+        heading.SetForegroundColour(TEXT_COLOUR)
+        heading.SetFont(_font(heading, 18, True))
+
+        description = wx.StaticText(self, label=subtitle)
+        description.SetForegroundColour(MUTED_TEXT)
+
+        self.layout = wx.BoxSizer(wx.VERTICAL)
+        self.layout.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 18)
+        self.layout.Add(description, 0, wx.LEFT | wx.RIGHT | wx.TOP, 18)
+        self.layout.AddSpacer(16)
+
+        self.SetSizer(self.layout)
+
+    def add_card(self, title):
+        card = CardPanel(self, title)
+        self.layout.Add(card, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 18)
+        return card
+
+    def finish(self):
+        self.SetupScrolling(scroll_x=False, scroll_y=True, rate_y=10)
+
+
+class GeneralPage(SettingsPage):
+
+    def __init__(self, parent, dialog):
+        super().__init__(parent, "General", "Basic application settings and behaviour.")
+        self.dialog = dialog
+
+        profile = self.add_card("Profile")
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(profile, "Active profile:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.profile_choice = wx.Choice(profile)
+        row.Add(self.profile_choice, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        self.btn_delete_profile = wx.Button(profile, label="Delete", size=(72, -1))
+        self.btn_new_profile = wx.Button(profile, label="New", size=(72, -1))
+        row.Add(self.btn_delete_profile, 0, wx.RIGHT, 6)
+        row.Add(self.btn_new_profile, 0)
+        profile.body.Add(row, 0, wx.EXPAND)
+
+        behaviour = self.add_card("Application")
+        self.auto_download = wx.CheckBox(behaviour, label="Automatically start downloading after links are fetched")
+        self.notify_done = wx.CheckBox(behaviour, label="Notify me when a download has finished")
+        self.detach_progress = wx.CheckBox(behaviour, label="Show detachable progress window while downloading")
+        for control in (self.auto_download, self.notify_done, self.detach_progress):
+            behaviour.body.Add(control, 0, wx.BOTTOM, 7)
+
+        self.btn_new_profile.Bind(wx.EVT_BUTTON, dialog._on_new_profile)
+        self.btn_delete_profile.Bind(wx.EVT_BUTTON, dialog._on_delete_profile)
+        self.profile_choice.Bind(wx.EVT_CHOICE, dialog._on_profile_choice)
+
+        self.finish()
+
+    def refresh_profiles(self, selected=None):
+        profiles = options.load_profiles()
+        if "default" not in profiles:
+            profiles.insert(0, "default")
+        profiles = sorted(set(profiles), key=lambda name: (name != "default", name.lower()))
+        self.profile_choice.SetItems(profiles)
+        if selected and selected in profiles:
+            self.profile_choice.SetStringSelection(selected)
+        elif profiles:
+            self.profile_choice.SetSelection(0)
+
+
+class DownloadsPage(SettingsPage):
+
+    def __init__(self, parent):
+        super().__init__(parent, "Downloads", "Destination, filename and download performance options.")
+
+        destination = self.add_card("Destination")
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(destination, "Save directory:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.save_path = wx.TextCtrl(destination)
+        self.btn_browse = wx.Button(destination, label="Browse...", size=(86, -1))
+        row.Add(self.save_path, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        row.Add(self.btn_browse, 0)
+        destination.body.Add(row, 0, wx.EXPAND)
+
+        handling = self.add_card("File handling")
+        self.unique_path = wx.CheckBox(handling, label="Create a unique folder from the page title")
+        self.generate_filenames = wx.CheckBox(handling, label="Generate prefixed filenames")
+        handling.body.Add(self.unique_path, 0, wx.BOTTOM, 7)
+        handling.body.Add(self.generate_filenames, 0, wx.BOTTOM, 7)
+
+        prefix_row = wx.BoxSizer(wx.HORIZONTAL)
+        prefix_row.Add(_label(handling, "Filename prefix:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.filename_prefix = wx.TextCtrl(handling, size=(160, -1))
+        prefix_row.Add(self.filename_prefix, 0)
+        handling.body.Add(prefix_row, 0, wx.EXPAND | wx.BOTTOM, 9)
+
+        exists_row = wx.BoxSizer(wx.HORIZONTAL)
+        exists_row.Add(_label(handling, "If file already exists:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.file_exists = wx.Choice(handling, choices=["Skip", "Overwrite", "Rename"])
+        exists_row.Add(self.file_exists, 0)
+        handling.body.Add(exists_row, 0, wx.EXPAND)
+
+        performance = self.add_card("Performance")
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(performance, "Maximum connections:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.max_connections = wx.SpinCtrl(performance, min=1, max=100, initial=10, size=(90, -1))
+        row.Add(self.max_connections, 0)
+        performance.body.Add(row, 0, wx.EXPAND | wx.BOTTOM, 8)
+
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(performance, "Connection timeout:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.timeout = wx.SpinCtrl(performance, min=1, max=60, initial=5, size=(90, -1))
+        row.Add(self.timeout, 0, wx.RIGHT, 7)
+        row.Add(wx.StaticText(performance, label="seconds"), 0, wx.ALIGN_CENTER_VERTICAL)
+        performance.body.Add(row, 0, wx.EXPAND)
+
+        self.btn_browse.Bind(wx.EVT_BUTTON, self._on_browse)
+        self.generate_filenames.Bind(wx.EVT_CHECKBOX, self._on_generate_filenames)
+
+        self.finish()
+
+    def _on_browse(self, evt):
         dlg = wx.DirDialog(
             self,
             "Save Folder",
-            self.text.GetValue(),
+            self.save_path.GetValue(),
             style=wx.DD_DIR_MUST_EXIST,
         )
         dlg.CenterOnParent()
         if dlg.ShowModal() == wx.ID_OK:
-            self.text.SetValue(dlg.GetPath())
+            self.save_path.SetValue(dlg.GetPath())
         dlg.Destroy()
 
-
-class SaveOptionsPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.chk_prefixed_name = wx.CheckBox(self, -1, "Generate prefixed Filenames")
-        self.chk_prefixed_name.SetValue(True)
-        self.chk_unique_path = wx.CheckBox(self, -1, "Unique path name")
-        self.chk_unique_path.SetValue(True)
-        self.txt_prefixed_name = wx.TextCtrl(self, -1, "image", size=(120, -1))
-
-        self.chk_prefixed_name.Bind(wx.EVT_CHECKBOX, self.on_prefix_checkbox, self.chk_prefixed_name)
-
-        box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Folder Options")
-
-        hs = wx.BoxSizer(wx.VERTICAL)
-        hs.Add(self.chk_unique_path, 1, wx.ALL | wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        box.AddSpacer(30)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.chk_prefixed_name, 1, wx.ALL | wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.txt_prefixed_name, 1, wx.ALL | wx.EXPAND, 0)
-        box.Add(hs, 0, wx.EXPAND | wx.ALL, 0)
-
-        self.SetSizer(box)
-
-    def on_prefix_checkbox(self, evt):
-        if evt.Selection:
-            self.txt_prefixed_name.Enable(True)
-        else:
-            self.txt_prefixed_name.Enable(False)
-
-    def set_options(self, unique_path_enabled,
-                    gen_filename_enabled, gen_filename):
-        self.chk_unique_path.SetValue(unique_path_enabled)
-        self.chk_prefixed_name.SetValue(gen_filename_enabled)
-        self.txt_prefixed_name.SetValue(gen_filename)
-        if self.chk_prefixed_name.GetValue():
-            self.txt_prefixed_name.Enable(True)
-        else:
-            self.txt_prefixed_name.Enable(False)
+    def _on_generate_filenames(self, evt):
+        self.filename_prefix.Enable(self.generate_filenames.GetValue())
 
 
-class MaxConnectionsPanel(wx.Panel):
+class ImagesPage(SettingsPage):
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    FORMATS = ("JPG", "PNG", "GIF", "BMP", "ICO", "TIFF", "TGA", "WEBP")
 
-        self.slider = wx.Slider(self,
-                                -1, 10, 1, 100,
-                                style=wx.SL_HORIZONTAL | wx.SL_MIN_MAX_LABELS | wx.SL_LABELS)
+    def __init__(self, parent):
+        super().__init__(parent, "Images", "Image discovery, dimensions and supported file formats.")
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.slider, 1, wx.ALL | wx.EXPAND, 0)
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Maximum Connections")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(box)
+        discovery = self.add_card("Image discovery")
+        self.thumbnails_only = wx.CheckBox(
+            discovery,
+            label="Prefer links surrounding thumbnails instead of the thumbnail image itself"
+        )
+        discovery.body.Add(self.thumbnails_only, 0, wx.BOTTOM, 10)
 
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(discovery, "Minimum resolution:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        self.min_width = wx.SpinCtrl(discovery, min=0, max=99999, initial=200, size=(90, -1))
+        self.min_height = wx.SpinCtrl(discovery, min=0, max=99999, initial=200, size=(90, -1))
+        row.Add(self.min_width, 0, wx.RIGHT, 7)
+        row.Add(wx.StaticText(discovery, label="×"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 7)
+        row.Add(self.min_height, 0, wx.RIGHT, 7)
+        row.Add(wx.StaticText(discovery, label="pixels"), 0, wx.ALIGN_CENTER_VERTICAL)
+        discovery.body.Add(row, 0, wx.EXPAND)
 
-class FormSearchPanel(wx.Panel):
+        formats = self.add_card("Image formats")
+        self.format_checks = {}
+        grid = wx.FlexGridSizer(cols=4, hgap=18, vgap=9)
+        for name in self.FORMATS:
+            checkbox = wx.CheckBox(formats, label=name)
+            self.format_checks[name.lower()] = checkbox
+            grid.Add(checkbox, 0)
+        formats.body.Add(grid, 0, wx.EXPAND)
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.chk_enable = wx.CheckBox(self, -1, "Enable")
-        self.chk_include_host = wx.CheckBox(self, -1, "Include Forms from original Host")
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.chk_enable, 0, wx.EXPAND | wx.ALL, STATIC_BOX_BORDER)
-        hs.AddSpacer(DIALOG_BORDER)
-        hs.Add(self.chk_include_host, 0, wx.EXPAND | wx.ALL, STATIC_BOX_BORDER)
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Forms (can be slow)")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-
-        self.SetSizer(box)
-
-
-class ThumbnailOnlyPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        self.checkbox = wx.CheckBox(self, -1, "")
-        self.checkbox.SetValue(True)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.checkbox, 1, wx.ALL | wx.EXPAND, 0)
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Thumbnail Links only")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(box)
+        self.finish()
 
 
-class MinWidthHeightPanel(wx.Panel):
+class NetworkPage(SettingsPage):
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    BROWSERS = ("Firefox", "Chrome", "Opera", "Edge", "All")
 
-        self.text_width = masked.NumCtrl(self,
-                                         -1,
-                                         200,
-                                         integerWidth=5,
-                                         allowNegative=False)
+    def __init__(self, parent):
+        super().__init__(parent, "Network & Cookies", "Choose which browser cookie store PixGrabber uses for requests.")
 
-        self.text_height = masked.NumCtrl(self,
-                                          -1,
-                                          200,
-                                          integerWidth=5,
-                                          allowNegative=False)
+        cookies = self.add_card("Browser cookies")
+        intro = wx.StaticText(
+            cookies,
+            label="Use cookies from one browser profile when a host requires an authenticated or age-confirmed session."
+        )
+        intro.SetForegroundColour(MUTED_TEXT)
+        intro.Wrap(560)
+        cookies.body.Add(intro, 0, wx.EXPAND | wx.BOTTOM, 12)
 
-        label = wx.StaticText(self, -1, "x")
+        self.cookie_radios = {}
+        for index, browser in enumerate(self.BROWSERS):
+            style = wx.RB_GROUP if index == 0 else 0
+            radio = wx.RadioButton(cookies, label=browser, style=style)
+            self.cookie_radios[browser.lower()] = radio
+            cookies.body.Add(radio, 0, wx.BOTTOM, 6)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.text_width, 1, wx.ALL | wx.EXPAND, 0)
-        hs.AddSpacer(10)
-        hs.Add(label, 0, wx.ALIGN_BOTTOM, 0)
-        hs.AddSpacer(10)
-        hs.Add(self.text_height, 1, wx.ALL | wx.EXPAND, 0)
+        note = wx.StaticText(
+            cookies,
+            label="Proxy configuration remains in the settings file but is not currently used by the downloader."
+        )
+        note.SetForegroundColour(MUTED_TEXT)
+        note.Wrap(560)
+        cookies.body.AddSpacer(8)
+        cookies.body.Add(note, 0, wx.EXPAND)
 
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Minimum Resolution Size (width, height)")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(box)
-
-    def set_min_values(self, width, height):
-        self.text_width.SetValue(width)
-        self.text_height.SetValue(height)
-
-
-class TimeoutPanel(wx.Panel):
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
-        choices = list(map(lambda x: str(x + 1), range(60)))
-
-        self.choice = wx.Choice(self, -1,
-                                choices=choices)
-
-        self.choice.SetSelection(6)
-
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.choice, 1, wx.ALL | wx.EXPAND, 0)
-        box = wx.StaticBoxSizer(wx.VERTICAL, self, "Timeout")
-        box.Add(hs, 1, wx.EXPAND | wx.ALL, 0)
-        self.SetSizer(box)
-
-    def set_timeout(self, timeout):
-        if timeout > 0 and timeout <= 60:
-            self.choice.SetSelection(timeout)
+        self.finish()
 
 
-class FilterPanel(wx.Panel):
+class FiltersPage(SettingsPage):
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, parent):
+        super().__init__(parent, "Filters", "Control which links and forms are considered during discovery.")
 
-        self.listbox = wx.ListBox(self, -1, choices=[], style=wx.LB_SINGLE | wx.LB_SORT)
-        self.textctrl = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
-        self.checkbox = wx.CheckBox(self, -1, "Enable")
-        btn_all = wx.Button(self, -1, "Delete All")
-        btn_remove = wx.Button(self, -1, "Delete")
-        btn_add = wx.Button(self, -1, "Add")
-        btn_add.Bind(wx.EVT_BUTTON, self.on_add, btn_add)
-        btn_remove.Bind(wx.EVT_BUTTON, self.on_remove, btn_remove)
-        btn_all.Bind(wx.EVT_BUTTON, lambda evt: self.listbox.Clear(), btn_all)
-        self.textctrl.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.on_add(None), self.textctrl)
+        filters = self.add_card("Search filters")
+        self.filters_enabled = wx.CheckBox(filters, label="Enable URL filters")
+        filters.body.Add(self.filters_enabled, 0, wx.BOTTOM, 8)
 
-        sbox = wx.StaticBoxSizer(wx.VERTICAL, self, "Search Filters")
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.listbox, 1, wx.ALL | wx.EXPAND, 0)
-        sbox.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
-        sbox.AddSpacer(10)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.textctrl, 1, wx.ALL | wx.EXPAND, 0)
-        sbox.Add(hs, 0, wx.ALL | wx.EXPAND, 0)
-        sbox.AddSpacer(10)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        for w in (btn_all, btn_remove, btn_add, self.checkbox):
-            hs.Add(w, 0, wx.ALIGN_CENTER, 0)
-            hs.AddSpacer(10)
-        sbox.Add(hs, 0, wx.ALIGN_CENTER, 0)
-        sbox.AddSpacer(10)
-        self.SetSizer(sbox)
+        self.filter_list = wx.ListBox(filters, choices=[], style=wx.LB_SINGLE | wx.LB_SORT)
+        self.filter_list.SetMinSize((-1, 150))
+        filters.body.Add(self.filter_list, 1, wx.EXPAND | wx.BOTTOM, 8)
 
-    def on_add(self, evt):
-        text = self.textctrl.GetValue()
-        if text:
-            if text not in self.listbox.GetItems():
-                self.listbox.Append(text)
-                self.textctrl.SetValue("")
-            else:
-                dlg = wx.MessageDialog(self, "Duplicate entry found", "Nope", wx.OK | wx.CENTER | wx.ICON_EXCLAMATION)
-                dlg.ShowModal()
-                dlg.Destroy()
+        add_row = wx.BoxSizer(wx.HORIZONTAL)
+        self.filter_text = wx.TextCtrl(filters, style=wx.TE_PROCESS_ENTER)
+        self.btn_add_filter = wx.Button(filters, label="Add", size=(65, -1))
+        self.btn_delete_filter = wx.Button(filters, label="Delete", size=(70, -1))
+        self.btn_clear_filters = wx.Button(filters, label="Delete All", size=(82, -1))
+        add_row.Add(self.filter_text, 1, wx.RIGHT, 7)
+        add_row.Add(self.btn_add_filter, 0, wx.RIGHT, 6)
+        add_row.Add(self.btn_delete_filter, 0, wx.RIGHT, 6)
+        add_row.Add(self.btn_clear_filters, 0)
+        filters.body.Add(add_row, 0, wx.EXPAND)
 
-    def on_remove(self, evt):
-        index = self.listbox.GetSelection()
-        if index is not wx.NOT_FOUND:
-            self.listbox.Delete(index)
+        forms = self.add_card("Form search")
+        self.form_search = wx.CheckBox(forms, label="Search forms (can be slower)")
+        self.include_original_host = wx.CheckBox(forms, label="Include forms from the original host")
+        forms.body.Add(self.form_search, 0, wx.BOTTOM, 7)
+        forms.body.Add(self.include_original_host, 0)
+
+        self.btn_add_filter.Bind(wx.EVT_BUTTON, self._on_add_filter)
+        self.btn_delete_filter.Bind(wx.EVT_BUTTON, self._on_delete_filter)
+        self.btn_clear_filters.Bind(wx.EVT_BUTTON, lambda evt: self.filter_list.Clear())
+        self.filter_text.Bind(wx.EVT_TEXT_ENTER, self._on_add_filter)
+
+        self.finish()
+
+    def _on_add_filter(self, evt):
+        text = self.filter_text.GetValue().strip()
+        if not text:
+            return
+        if text in self.filter_list.GetItems():
+            wx.MessageBox("That filter already exists.", "Search Filters", wx.OK | wx.ICON_INFORMATION, self)
+            return
+        self.filter_list.Append(text)
+        self.filter_text.SetValue("")
+
+    def _on_delete_filter(self, evt):
+        selection = self.filter_list.GetSelection()
+        if selection != wx.NOT_FOUND:
+            self.filter_list.Delete(selection)
 
 
-class CachePanel(wx.Panel):
+class AdvancedPage(SettingsPage):
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, parent):
+        super().__init__(parent, "Advanced", "Maintenance and local application data.")
 
-        app = wx.GetApp()
+        maintenance = self.add_card("Cache")
+        cache_row = wx.BoxSizer(wx.HORIZONTAL)
+        cache_row.Add(_label(maintenance, "Cache database:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        cache_path = wx.TextCtrl(maintenance, value=SQL_PATH, style=wx.TE_READONLY)
+        self.btn_clear_cache = wx.Button(maintenance, label="Clear Cache", size=(88, -1))
+        cache_row.Add(cache_path, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        cache_row.Add(self.btn_clear_cache, 0)
+        maintenance.body.Add(cache_row, 0, wx.EXPAND)
 
-        btn_delete = wx.Button(self, -1, "Clear Cache")
-        self.Bind(wx.EVT_BUTTON, self.on_clear_cache, btn_delete)
-        btn_delete.SetBitmap(app.bitmaps["delete"], wx.LEFT)
-        btn_delete.SetBitmapMargins((2, 2))
-        btn_delete.SetInitialSize()
+        files = self.add_card("Application data")
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(files, "Settings file:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        row.Add(wx.TextCtrl(files, value=options.SETTINGS_PATH, style=wx.TE_READONLY), 1)
+        files.body.Add(row, 0, wx.EXPAND | wx.BOTTOM, 8)
 
-    def on_clear_cache(self, evt):
-        dlg = wx.MessageDialog(self, "Are you sure you want to delete the Cache?", "Delete Cache?",
-                               style=wx.CANCEL | wx.OK | wx.CENTER)
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        row.Add(_label(files, "Profiles folder:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+        row.Add(wx.TextCtrl(files, value=options.PROFILES_PATH, style=wx.TE_READONLY), 1)
+        files.body.Add(row, 0, wx.EXPAND)
+
+        self.btn_clear_cache.Bind(wx.EVT_BUTTON, self._on_clear_cache)
+
+        self.finish()
+
+    def _on_clear_cache(self, evt):
+        dlg = wx.MessageDialog(
+            self,
+            "Are you sure you want to delete the cache?",
+            "Clear Cache",
+            style=wx.CANCEL | wx.OK | wx.CENTER | wx.ICON_QUESTION
+        )
         if dlg.ShowModal() == wx.ID_OK:
             if os.path.exists(SQL_PATH):
                 os.remove(SQL_PATH)
@@ -758,21 +369,284 @@ class CachePanel(wx.Panel):
         dlg.Destroy()
 
 
-class OkCancelPanel(wx.Panel):
+class AboutPage(SettingsPage):
 
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self, parent):
+        super().__init__(parent, "About", "Application information and project links.")
 
-        btn_cancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
-        btn_ok = wx.Button(self, wx.ID_OK, "Save")
+        about = self.add_card("wxPixGrabber")
+        name = wx.StaticText(about, label="PixGrabber")
+        name.SetFont(_font(name, 14, True))
+        about.body.Add(name, 0, wx.BOTTOM, 5)
+        about.body.Add(wx.StaticText(about, label=f"Version {options.VERSION}"), 0, wx.BOTTOM, 10)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
+        description = wx.StaticText(
+            about,
+            label="A wxPython image-link crawler and downloader."
+        )
+        description.SetForegroundColour(MUTED_TEXT)
+        about.body.Add(description, 0, wx.BOTTOM, 14)
 
-        hs.Add(btn_cancel, 0, wx.ALIGN_CENTER, 0)
-        hs.AddSpacer(10)
-        hs.Add(btn_ok, 0, wx.ALIGN_CENTER, 0)
+        self.btn_project = wx.Button(about, label="Open GitHub project")
+        about.body.Add(self.btn_project, 0)
+        self.btn_project.Bind(wx.EVT_BUTTON, lambda evt: webbrowser.open(options.GIT_SOURCE))
 
-        vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(hs, 1, wx.ALIGN_CENTER, 0)
+        self.finish()
 
-        self.SetSizer(vs)
+
+class SettingsDialog(wx.Dialog):
+
+    def __init__(self, parent, id, title, size, pos, style, name, settings):
+        super().__init__(
+            parent,
+            id=id,
+            title=title,
+            pos=pos,
+            size=(820, 560),
+            style=style | wx.RESIZE_BORDER,
+            name=name
+        )
+
+        self.app = wx.GetApp()
+        self.settings = copy.deepcopy(settings)
+        self.SetBackgroundColour(APP_BACKGROUND)
+        self.SetMinSize((720, 500))
+
+        root = wx.Panel(self)
+        root.SetBackgroundColour(APP_BACKGROUND)
+
+        sidebar = wx.Panel(root, style=wx.BORDER_SIMPLE)
+        sidebar.SetBackgroundColour(SIDEBAR_BACKGROUND)
+        sidebar.SetMinSize((175, -1))
+
+        sidebar_title = wx.StaticText(sidebar, label="Options")
+        sidebar_title.SetForegroundColour(TEXT_COLOUR)
+        sidebar_title.SetFont(_font(sidebar_title, 14, True))
+
+        self.navigation = wx.ListBox(
+            sidebar,
+            choices=PAGE_NAMES,
+            style=wx.LB_SINGLE
+        )
+        self.navigation.SetSelection(0)
+
+        nav_layout = wx.BoxSizer(wx.VERTICAL)
+        nav_layout.Add(sidebar_title, 0, wx.ALL, 14)
+        nav_layout.Add(self.navigation, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        sidebar.SetSizer(nav_layout)
+
+        self.book = wx.Simplebook(root)
+        self.general_page = GeneralPage(self.book, self)
+        self.downloads_page = DownloadsPage(self.book)
+        self.images_page = ImagesPage(self.book)
+        self.network_page = NetworkPage(self.book)
+        self.filters_page = FiltersPage(self.book)
+        self.advanced_page = AdvancedPage(self.book)
+        self.about_page = AboutPage(self.book)
+
+        self.pages = [
+            self.general_page,
+            self.downloads_page,
+            self.images_page,
+            self.network_page,
+            self.filters_page,
+            self.advanced_page,
+            self.about_page,
+        ]
+        for page in self.pages:
+            self.book.AddPage(page, "")
+
+        body = wx.BoxSizer(wx.HORIZONTAL)
+        body.Add(sidebar, 0, wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, 10)
+        body.Add(self.book, 1, wx.EXPAND | wx.ALL, 10)
+
+        footer = wx.Panel(root)
+        footer.SetBackgroundColour(APP_BACKGROUND)
+
+        self.btn_defaults = wx.Button(footer, label="Reset to Defaults")
+        self.btn_apply = wx.Button(footer, label="Apply")
+        btn_cancel = wx.Button(footer, wx.ID_CANCEL, "Cancel")
+        self.btn_ok = wx.Button(footer, wx.ID_OK, "OK")
+        self.btn_ok.SetDefault()
+
+        footer_layout = wx.BoxSizer(wx.HORIZONTAL)
+        footer_layout.Add(self.btn_defaults, 0)
+        footer_layout.AddStretchSpacer(1)
+        footer_layout.Add(self.btn_apply, 0, wx.RIGHT, 7)
+        footer_layout.Add(btn_cancel, 0, wx.RIGHT, 7)
+        footer_layout.Add(self.btn_ok, 0)
+        footer.SetSizer(footer_layout)
+
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(body, 1, wx.EXPAND)
+        outer.Add(wx.StaticLine(root), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        outer.Add(footer, 0, wx.EXPAND | wx.ALL, 10)
+        root.SetSizer(outer)
+
+        frame_layout = wx.BoxSizer(wx.VERTICAL)
+        frame_layout.Add(root, 1, wx.EXPAND)
+        self.SetSizer(frame_layout)
+
+        self.navigation.Bind(wx.EVT_LISTBOX, self._on_navigation)
+        self.btn_defaults.Bind(wx.EVT_BUTTON, self._on_defaults)
+        self.btn_apply.Bind(wx.EVT_BUTTON, self._on_apply)
+        self.btn_ok.Bind(wx.EVT_BUTTON, self._on_ok)
+
+        self.load_settings(settings)
+        self.CentreOnParent()
+
+    def _on_navigation(self, evt):
+        selection = self.navigation.GetSelection()
+        if selection != wx.NOT_FOUND:
+            self.book.ChangeSelection(selection)
+
+    def load_settings(self, settings):
+        self.settings = copy.deepcopy(settings)
+
+        general = self.general_page
+        profile_name = settings.get("profile-name", "default")
+        general.refresh_profiles(profile_name)
+        general.auto_download.SetValue(settings.get("auto-download", False))
+        general.notify_done.SetValue(settings.get("notify-done", True))
+        general.detach_progress.SetValue(settings.get("detach-progress", True))
+
+        downloads = self.downloads_page
+        downloads.save_path.SetValue(settings.get("save_path", ""))
+        downloads.unique_path.SetValue(settings.get("unique_pathname", {}).get("enabled", True))
+        downloads.generate_filenames.SetValue(settings.get("generate_filenames", {}).get("enabled", True))
+        downloads.filename_prefix.SetValue(settings.get("generate_filenames", {}).get("name", "image"))
+        downloads.filename_prefix.Enable(downloads.generate_filenames.GetValue())
+
+        file_exists = settings.get("file_exists", "overwrite").capitalize()
+        if not downloads.file_exists.SetStringSelection(file_exists):
+            downloads.file_exists.SetStringSelection("Overwrite")
+
+        downloads.max_connections.SetValue(int(settings.get("max_connections", 10)))
+        timeout = int(settings.get("connection_timeout", 5))
+        downloads.timeout.SetValue(max(1, min(60, timeout)))
+
+        images = self.images_page
+        images.thumbnails_only.SetValue(settings.get("thumbnails_only", True))
+        minimum = settings.get("minimum_image_resolution", {"width": 200, "height": 200})
+        images.min_width.SetValue(int(minimum.get("width", 200)))
+        images.min_height.SetValue(int(minimum.get("height", 200)))
+
+        enabled_formats = settings.get("images_to_search", {})
+        for key, checkbox in images.format_checks.items():
+            checkbox.SetValue(bool(enabled_formats.get(key, key in ("jpg", "webp"))))
+
+        cookies = settings.get("cookies", {})
+        selected_cookie = "firefox"
+        for key in self.network_page.cookie_radios:
+            if cookies.get(key, False):
+                selected_cookie = key
+                break
+        for key, radio in self.network_page.cookie_radios.items():
+            radio.SetValue(key == selected_cookie)
+
+        filter_settings = settings.get("filter-search", {"enabled": True, "filters": []})
+        filters = self.filters_page
+        filters.filters_enabled.SetValue(filter_settings.get("enabled", True))
+        filters.filter_list.SetItems(list(filter_settings.get("filters", [])))
+
+        forms = settings.get("form_search", {"enabled": True, "include_original_host": False})
+        filters.form_search.SetValue(forms.get("enabled", True))
+        filters.include_original_host.SetValue(forms.get("include_original_host", False))
+
+    def get_settings(self):
+        settings = copy.deepcopy(self.settings)
+
+        settings["profile-name"] = (
+            self.general_page.profile_choice.GetStringSelection() or "default"
+        )
+        settings["auto-download"] = self.general_page.auto_download.GetValue()
+        settings["notify-done"] = self.general_page.notify_done.GetValue()
+        settings["detach-progress"] = self.general_page.detach_progress.GetValue()
+
+        settings["save_path"] = self.downloads_page.save_path.GetValue()
+
+        settings.setdefault("unique_pathname", {})
+        settings["unique_pathname"]["enabled"] = self.downloads_page.unique_path.GetValue()
+
+        settings.setdefault("generate_filenames", {})
+        settings["generate_filenames"]["enabled"] = self.downloads_page.generate_filenames.GetValue()
+        settings["generate_filenames"]["name"] = self.downloads_page.filename_prefix.GetValue()
+
+        settings["file_exists"] = (
+            self.downloads_page.file_exists.GetStringSelection() or "Overwrite"
+        ).lower()
+        settings["max_connections"] = self.downloads_page.max_connections.GetValue()
+        settings["connection_timeout"] = self.downloads_page.timeout.GetValue()
+
+        settings["thumbnails_only"] = self.images_page.thumbnails_only.GetValue()
+        settings["minimum_image_resolution"] = {
+            "width": self.images_page.min_width.GetValue(),
+            "height": self.images_page.min_height.GetValue(),
+        }
+        settings["images_to_search"] = {
+            key: checkbox.GetValue()
+            for key, checkbox in self.images_page.format_checks.items()
+        }
+
+        settings["cookies"] = {
+            key: radio.GetValue()
+            for key, radio in self.network_page.cookie_radios.items()
+        }
+
+        settings["filter-search"] = {
+            "enabled": self.filters_page.filters_enabled.GetValue(),
+            "filters": list(self.filters_page.filter_list.GetItems()),
+        }
+
+        settings["form_search"] = {
+            "enabled": self.filters_page.form_search.GetValue(),
+            "include_original_host": self.filters_page.include_original_host.GetValue(),
+        }
+
+        return settings
+
+    def _on_apply(self, evt):
+        settings = self.get_settings()
+        options.save_settings(settings)
+        self.settings = copy.deepcopy(settings)
+        self.app.window.set_profile_status(settings["profile-name"])
+        self.app.window.SetStatusText("Settings applied")
+
+    def _on_ok(self, evt):
+        self.EndModal(wx.ID_OK)
+
+    def _on_defaults(self, evt):
+        defaults = copy.deepcopy(options.DEFAULT_SETTINGS)
+        current_profile = self.general_page.profile_choice.GetStringSelection()
+        if current_profile:
+            defaults["profile-name"] = current_profile
+        self.load_settings(defaults)
+
+    def _on_profile_choice(self, evt):
+        name = evt.GetString()
+        if options.use_profile(name):
+            self.app.window.set_profile_status(name)
+            self.load_settings(options.load_settings())
+
+    def _on_new_profile(self, evt):
+        dlg = wx.TextEntryDialog(self, "Name the profile", "New Profile")
+        if dlg.ShowModal() == wx.ID_OK:
+            name = options.format_filename(dlg.GetValue().strip())
+            if name:
+                settings = self.get_settings()
+                settings["profile-name"] = name
+                options.save_profile(settings)
+                options.use_profile(name)
+                self.app.window.set_profile_status(name)
+                self.load_settings(options.load_settings())
+        dlg.Destroy()
+
+    def _on_delete_profile(self, evt):
+        name = self.general_page.profile_choice.GetStringSelection()
+        try:
+            if options.delete_profile(name):
+                settings = options.load_settings()
+                self.app.window.set_profile_status(settings.get("profile-name", "default"))
+                self.load_settings(settings)
+        except NameError as err:
+            wx.MessageBox(str(err), "Profile", wx.OK | wx.ICON_ERROR, self)
