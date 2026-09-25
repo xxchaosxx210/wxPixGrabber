@@ -57,8 +57,15 @@ class DetachableFrame(wx.Frame):
         )
 
         self.SetBackgroundColour(APP_BACKGROUND)
-        self.SetMinSize((560, 240))
-        self.SetSize((720, 430))
+        self.SetMinSize((500, 260))
+        self.SetSize((620, 360))
+
+        try:
+            icon = wx.Icon()
+            icon.CopyFromBitmap(wx.GetApp().bitmaps["icon"])
+            self.SetIcon(icon)
+        except Exception:
+            pass
 
         self.panel = ProgressPanel(self, -1, range)
         layout = wx.BoxSizer(wx.VERTICAL)
@@ -159,7 +166,7 @@ class ProgressPanel(wx.Panel):
         self.heading = wx.StaticText(self.header_card, label="Downloading images...")
         self.heading.SetBackgroundColour(CARD_BACKGROUND)
         self.heading.SetForegroundColour(TEXT_COLOUR)
-        self.heading.SetFont(_font(self.heading, 13, True))
+        self.heading.SetFont(_font(self.heading, 11, True))
 
         self.source = wx.StaticText(
             self.header_card,
@@ -175,15 +182,15 @@ class ProgressPanel(wx.Panel):
         self.error_label = self._stat_block(self.header_card, "Errors", "0", ERROR)
         self.elapsed_label = self._stat_block(self.header_card, "Elapsed", "00:00:00", TEXT_COLOUR)
 
-        stats.Add(self.saved_label[0], 1, wx.RIGHT, 8)
-        stats.Add(self.ignored_label[0], 1, wx.RIGHT, 8)
-        stats.Add(self.error_label[0], 1, wx.RIGHT, 8)
+        stats.Add(self.saved_label[0], 1, wx.RIGHT, 6)
+        stats.Add(self.ignored_label[0], 1, wx.RIGHT, 6)
+        stats.Add(self.error_label[0], 1, wx.RIGHT, 6)
         stats.Add(self.elapsed_label[0], 1)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(self.heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 14)
-        layout.Add(self.source, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 14)
-        layout.Add(stats, 0, wx.EXPAND | wx.ALL, 14)
+        layout.Add(self.heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        layout.Add(self.source, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        layout.Add(stats, 0, wx.EXPAND | wx.ALL, 10)
         self.header_card.SetSizer(layout)
 
     def _stat_block(self, parent, title, value, colour):
@@ -197,13 +204,13 @@ class ProgressPanel(wx.Panel):
         value_label = wx.StaticText(panel, label=value)
         value_label.SetBackgroundColour(panel.GetBackgroundColour())
         value_label.SetForegroundColour(colour)
-        value_label.SetFont(_font(value_label, 11, True))
+        value_label.SetFont(_font(value_label, 10, True))
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(title_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        layout.Add(value_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        layout.Add(title_label, 0, wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        layout.Add(value_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
         panel.SetSizer(layout)
-        panel.SetMinSize((105, 52))
+        panel.SetMinSize((78, 44))
         return panel, value_label
 
     def _build_progress(self):
@@ -240,9 +247,9 @@ class ProgressPanel(wx.Panel):
         self.progress.SetMinSize((-1, 16))
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 12)
-        layout.AddSpacer(7)
-        layout.Add(self.progress, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
+        layout.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 9)
+        layout.AddSpacer(5)
+        layout.Add(self.progress, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 9)
         self.progress_card.SetSizer(layout)
 
     def _build_details(self):
@@ -258,13 +265,14 @@ class ProgressPanel(wx.Panel):
             self.details_card,
             style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.BORDER_NONE
         )
-        self.results.InsertColumn(0, "Filename", width=210)
-        self.results.InsertColumn(1, "Status", width=150)
-        self.results.InsertColumn(2, "Size", width=90)
-        self.results.InsertColumn(3, "URL", width=330)
+        self.results.InsertColumn(0, "Filename", width=170)
+        self.results.InsertColumn(1, "Status", width=120)
+        self.results.InsertColumn(2, "Size", width=70)
+        self.results.InsertColumn(3, "URL", width=220)
+        self.results.Bind(wx.EVT_SIZE, self._on_results_size)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 10)
+        layout.Add(title, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
         layout.Add(wx.StaticLine(self.details_card), 0, wx.EXPAND)
         layout.Add(self.results, 1, wx.EXPAND)
         self.details_card.SetSizer(layout)
@@ -273,10 +281,10 @@ class ProgressPanel(wx.Panel):
         self.actions_panel = wx.Panel(self)
         self.actions_panel.SetBackgroundColour(APP_BACKGROUND)
 
-        self.btn_details = wx.Button(self.actions_panel, label="Hide details", size=(92, -1))
-        self.btn_pause = wx.Button(self.actions_panel, label="Pause", size=(78, -1))
-        self.btn_stop = wx.Button(self.actions_panel, label="Stop", size=(78, -1))
-        self.btn_hide = wx.Button(self.actions_panel, label="Hide", size=(78, -1))
+        self.btn_details = wx.Button(self.actions_panel, label="Hide details", size=(88, -1))
+        self.btn_pause = wx.Button(self.actions_panel, label="Pause", size=(72, -1))
+        self.btn_stop = wx.Button(self.actions_panel, label="Stop", size=(72, -1))
+        self.btn_hide = wx.Button(self.actions_panel, label="Hide", size=(72, -1))
 
         self.btn_details.Bind(wx.EVT_BUTTON, self._toggle_details)
         self.btn_pause.Bind(
@@ -302,9 +310,23 @@ class ProgressPanel(wx.Panel):
 
         frame = self.GetParent()
         width = frame.GetSize().width
-        frame.SetSize((width, 430 if self.details_shown else 275))
+        frame.SetSize((width, 360 if self.details_shown else 225))
         frame.Layout()
         frame._position_bottom_right()
+
+    def _on_results_size(self, evt):
+        width = self.results.GetClientSize().width
+        if width > 0:
+            filename = max(135, int(width * 0.28))
+            status = max(105, int(width * 0.20))
+            size = max(65, int(width * 0.12))
+            url = max(160, width - filename - status - size - 8)
+
+            self.results.SetColumnWidth(0, filename)
+            self.results.SetColumnWidth(1, status)
+            self.results.SetColumnWidth(2, size)
+            self.results.SetColumnWidth(3, url)
+        evt.Skip()
 
     def _on_stop(self, evt):
         wx.GetApp().window.dld_panel.stop_tasks()
