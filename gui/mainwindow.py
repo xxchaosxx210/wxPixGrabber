@@ -197,6 +197,7 @@ class MainWindow(wx.Frame):
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
         self.SetTitle(f'{msg.data["title"]} - Links found: {urls_length}')
+        self.dld_panel.treeview.set_root_status(f"{urls_length} links found")
         if urls_length > 0:
             self.dld_panel.treeview.Expand(self.dld_panel.treeview.GetRootItem())
             if options.load_settings()["auto-download"]:
@@ -211,7 +212,14 @@ class MainWindow(wx.Frame):
         self.dld_panel.treeview.SetItemData(root, msg)
         self.dld_panel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Normal)
         self.dld_panel.treeview.SetItemImage(root, error, wx.TreeItemIcon_Expanded)
-        self.dld_panel.treeview.AppendItem(root, msg.data["message"])
+        self.dld_panel.treeview.SetItemText(root, "Error", column=1)
+        self.dld_panel.treeview.SetItemText(root, "-", column=2)
+        self.dld_panel.treeview.SetItemText(root, "-", column=3)
+        detail = self.dld_panel.treeview.AppendItem(root, msg.data["message"])
+        self.dld_panel.treeview.SetItemText(detail, "-", column=1)
+        self.dld_panel.treeview.SetItemText(detail, "-", column=2)
+        self.dld_panel.treeview.SetItemText(detail, "-", column=3)
+        self.dld_panel.treeview.Expand(root)
     
     def _on_fetch_ignored(self, msg: Message):
         self.app.sounds["error"].Play()
