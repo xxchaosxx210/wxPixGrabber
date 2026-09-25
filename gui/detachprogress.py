@@ -17,8 +17,8 @@ IGNORED = wx.Colour(166, 105, 0)
 ERROR = wx.Colour(190, 45, 45)
 
 STATE_PATH = os.path.join(options.PATH, "progress_window.json")
-COMPACT_SIZE = (440, 205)
-DETAILS_SIZE = (650, 430)
+COMPACT_CLIENT_SIZE = (360, 142)
+DETAILS_CLIENT_SIZE = (620, 360)
 
 
 def _font(window, size=None, bold=False):
@@ -219,9 +219,9 @@ class ProgressPanel(wx.Panel):
         self._build_actions()
 
         self.layout = wx.BoxSizer(wx.VERTICAL)
-        self.layout.Add(self.compact_card, 0, wx.EXPAND | wx.ALL, 8)
-        self.layout.Add(self.details_card, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
-        self.layout.Add(self.actions_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self.layout.Add(self.compact_card, 0, wx.EXPAND | wx.ALL, 6)
+        self.layout.Add(self.details_card, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+        self.layout.Add(self.actions_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
         self.SetSizer(self.layout)
 
         self.progress.SetRange(max(1, range))
@@ -231,32 +231,20 @@ class ProgressPanel(wx.Panel):
         self.compact_card = wx.Panel(self, style=wx.BORDER_THEME)
         self.compact_card.SetBackgroundColour(CARD_BACKGROUND)
 
-        self.heading = wx.StaticText(self.compact_card, label="Downloading images...")
+        top = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.heading = wx.StaticText(self.compact_card, label="Downloading...")
         self.heading.SetBackgroundColour(CARD_BACKGROUND)
         self.heading.SetForegroundColour(TEXT_COLOUR)
-        self.heading.SetFont(_font(self.heading, 10, True))
-
-        self.source = wx.StaticText(
-            self.compact_card,
-            label="Waiting for a download...",
-            style=wx.ST_ELLIPSIZE_END
-        )
-        self.source.SetBackgroundColour(CARD_BACKGROUND)
-        self.source.SetForegroundColour(MUTED_TEXT)
-
-        progress_top = wx.BoxSizer(wx.HORIZONTAL)
-        self.progress_summary = wx.StaticText(self.compact_card, label="0 / 0 tasks")
-        self.progress_summary.SetBackgroundColour(CARD_BACKGROUND)
-        self.progress_summary.SetForegroundColour(MUTED_TEXT)
+        self.heading.SetFont(_font(self.heading, 9, True))
 
         self.percent = wx.StaticText(self.compact_card, label="0%")
         self.percent.SetBackgroundColour(CARD_BACKGROUND)
         self.percent.SetForegroundColour(TEXT_COLOUR)
         self.percent.SetFont(_font(self.percent, 9, True))
 
-        progress_top.Add(self.progress_summary, 0, wx.ALIGN_CENTER_VERTICAL)
-        progress_top.AddStretchSpacer(1)
-        progress_top.Add(self.percent, 0, wx.ALIGN_CENTER_VERTICAL)
+        top.Add(self.heading, 1, wx.ALIGN_CENTER_VERTICAL)
+        top.Add(self.percent, 0, wx.ALIGN_CENTER_VERTICAL)
 
         self.progress = wx.Gauge(
             self.compact_card,
@@ -265,7 +253,23 @@ class ProgressPanel(wx.Panel):
             style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH
         )
         self.progress.SetForegroundColour(PRIMARY)
-        self.progress.SetMinSize((-1, 14))
+        self.progress.SetMinSize((-1, 11))
+
+        info = wx.BoxSizer(wx.HORIZONTAL)
+        self.progress_summary = wx.StaticText(self.compact_card, label="0 / 0")
+        self.progress_summary.SetBackgroundColour(CARD_BACKGROUND)
+        self.progress_summary.SetForegroundColour(MUTED_TEXT)
+
+        self.source = wx.StaticText(
+            self.compact_card,
+            label="Waiting...",
+            style=wx.ST_ELLIPSIZE_END
+        )
+        self.source.SetBackgroundColour(CARD_BACKGROUND)
+        self.source.SetForegroundColour(MUTED_TEXT)
+
+        info.Add(self.progress_summary, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        info.Add(self.source, 1, wx.ALIGN_CENTER_VERTICAL)
 
         stats = wx.BoxSizer(wx.HORIZONTAL)
         self.compact_saved = self._inline_stat(self.compact_card, "Saved", SUCCESS)
@@ -273,27 +277,27 @@ class ProgressPanel(wx.Panel):
         self.compact_error = self._inline_stat(self.compact_card, "Errors", ERROR)
         self.compact_elapsed = self._inline_stat(self.compact_card, "Elapsed", TEXT_COLOUR, "00:00:00")
 
-        stats.Add(self.compact_saved, 0, wx.RIGHT, 13)
-        stats.Add(self.compact_ignored, 0, wx.RIGHT, 13)
-        stats.Add(self.compact_error, 0, wx.RIGHT, 13)
+        stats.Add(self.compact_saved, 0, wx.RIGHT, 10)
+        stats.Add(self.compact_ignored, 0, wx.RIGHT, 10)
+        stats.Add(self.compact_error, 0)
         stats.AddStretchSpacer(1)
         stats.Add(self.compact_elapsed, 0)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(self.heading, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
-        layout.Add(self.source, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
-        layout.Add(progress_top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        layout.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 7)
         layout.AddSpacer(4)
-        layout.Add(self.progress, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-        layout.AddSpacer(7)
-        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
+        layout.Add(self.progress, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 7)
+        layout.AddSpacer(4)
+        layout.Add(info, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 7)
+        layout.AddSpacer(5)
+        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 7)
         self.compact_card.SetSizer(layout)
 
     def _inline_stat(self, parent, title, colour, initial="0"):
         label = wx.StaticText(parent, label=f"{title} {initial}")
         label.SetBackgroundColour(CARD_BACKGROUND)
         label.SetForegroundColour(colour)
-        label.SetFont(_font(label, 8, True))
+        label.SetFont(_font(label, 7, True))
         label.stat_title = title
         return label
 
@@ -358,11 +362,11 @@ class ProgressPanel(wx.Panel):
         self.actions_panel = wx.Panel(self)
         self.actions_panel.SetBackgroundColour(APP_BACKGROUND)
 
-        self.btn_details = wx.Button(self.actions_panel, label="Details", size=(72, -1))
-        self.btn_pin = wx.Button(self.actions_panel, label="Unpin", size=(66, -1))
-        self.btn_pause = wx.Button(self.actions_panel, label="Pause", size=(68, -1))
-        self.btn_stop = wx.Button(self.actions_panel, label="Stop", size=(64, -1))
-        self.btn_hide = wx.Button(self.actions_panel, label="Hide", size=(64, -1))
+        self.btn_details = wx.Button(self.actions_panel, label="Details", size=(58, 24))
+        self.btn_pin = wx.Button(self.actions_panel, label="Unpin", size=(56, 24))
+        self.btn_pause = wx.Button(self.actions_panel, label="Pause", size=(56, 24))
+        self.btn_stop = wx.Button(self.actions_panel, label="Stop", size=(52, 24))
+        self.btn_hide = wx.Button(self.actions_panel, label="Hide", size=(52, 24))
 
         self.btn_details.Bind(wx.EVT_BUTTON, self._toggle_details)
         self.btn_pin.Bind(wx.EVT_BUTTON, self._toggle_pin)
@@ -376,9 +380,9 @@ class ProgressPanel(wx.Panel):
         layout = wx.BoxSizer(wx.HORIZONTAL)
         layout.Add(self.btn_details, 0)
         layout.AddStretchSpacer(1)
-        layout.Add(self.btn_pin, 0, wx.RIGHT, 6)
-        layout.Add(self.btn_pause, 0, wx.RIGHT, 6)
-        layout.Add(self.btn_stop, 0, wx.RIGHT, 6)
+        layout.Add(self.btn_pin, 0, wx.RIGHT, 4)
+        layout.Add(self.btn_pause, 0, wx.RIGHT, 4)
+        layout.Add(self.btn_stop, 0, wx.RIGHT, 4)
         layout.Add(self.btn_hide, 0)
         self.actions_panel.SetSizer(layout)
 
@@ -394,8 +398,10 @@ class ProgressPanel(wx.Panel):
         self.btn_details.SetLabel("Compact" if self.details_shown else "Details")
 
         frame = self.GetParent()
-        frame.SetMinSize((420, 190) if not self.details_shown else (560, 330))
-        frame.SetSize(DETAILS_SIZE if self.details_shown else COMPACT_SIZE)
+        frame.SetMinSize(wx.DefaultSize)
+        frame.SetClientSize(
+            DETAILS_CLIENT_SIZE if self.details_shown else COMPACT_CLIENT_SIZE
+        )
         self.Layout()
         frame.Layout()
 
@@ -472,12 +478,12 @@ class ProgressPanel(wx.Panel):
         self.btn_stop.Enable(True)
         self.btn_pause.Enable(True)
         self.btn_pause.SetLabel("Pause")
-        self.heading.SetLabel("Downloading images...")
+        self.heading.SetLabel("Downloading...")
         self._update_summary()
 
     def set_source(self, url, title=""):
-        self.heading.SetLabel("Downloading images...")
-        self.source.SetLabel(url or title or "Waiting for a download...")
+        self.heading.SetLabel("Downloading...")
+        self.source.SetLabel(url or title or "Waiting...")
         self.Layout()
 
     def set_elapsed(self, elapsed):
@@ -486,7 +492,7 @@ class ProgressPanel(wx.Panel):
 
     def set_paused(self, paused):
         self.btn_pause.SetLabel("Resume" if paused else "Pause")
-        self.heading.SetLabel("Paused" if paused else "Downloading images...")
+        self.heading.SetLabel("Paused" if paused else "Downloading...")
 
     def add_result(self, msg):
         data = getattr(msg, "data", {}) or {}
@@ -526,5 +532,5 @@ class ProgressPanel(wx.Panel):
         maximum = max(1, self.progress.GetRange())
         value = self.progress.GetValue()
         percent = int((value / maximum) * 100)
-        self.progress_summary.SetLabel(f"{value} / {maximum} tasks")
+        self.progress_summary.SetLabel(f"{value} / {maximum}")
         self.percent.SetLabel(f"{percent}%")
