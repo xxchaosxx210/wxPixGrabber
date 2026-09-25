@@ -11,6 +11,7 @@ import crawler.cache as cache
 from crawler.diagnostics import get_logger
 
 FIREFOX_FALLBACK_VERSION = "140"
+_FIREFOX_USER_AGENT = None
 
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 MAX_RETRIES = 2
@@ -46,16 +47,16 @@ def _detect_firefox_major_version() -> str:
         import winreg
 
         registry_locations = (
-            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\\Mozilla\\Mozilla Firefox"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Mozilla\Mozilla Firefox"),
             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\Mozilla\\Mozilla Firefox"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\\WOW6432Node\\Mozilla\\Mozilla Firefox"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Mozilla\Mozilla Firefox"),
         )
 
         for hive, key_path in registry_locations:
             try:
                 with winreg.OpenKey(hive, key_path) as key:
                     current_version, _ = winreg.QueryValueEx(key, "CurrentVersion")
-                match = re.search(r"(\\d+)", str(current_version))
+                match = re.search(r"(\d+)", str(current_version))
                 if match:
                     return match.group(1)
             except OSError:
@@ -83,7 +84,7 @@ def _detect_firefox_major_version() -> str:
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             version_text = f"{result.stdout} {result.stderr}"
-            match = re.search(r"Firefox\\s+(\\d+)", version_text, re.IGNORECASE)
+            match = re.search(r"Firefox\s+(\d+)", version_text, re.IGNORECASE)
             if match:
                 return match.group(1)
         except (OSError, subprocess.SubprocessError):
@@ -93,12 +94,17 @@ def _detect_firefox_major_version() -> str:
 
 
 def _firefox_user_agent() -> str:
-    """Build a Firefox UA that matches the installed browser as closely as possible."""
-    major_version = _detect_firefox_major_version() or FIREFOX_FALLBACK_VERSION
-    return (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; "
-        f"rv:{major_version}.0) Gecko/20100101 Firefox/{major_version}.0"
-    )
+    """Build and cache a Firefox UA matching the installed browser."""
+    global _FIREFOX_USER_AGENT
+
+    if _FIREFOX_USER_AGENT is None:
+        major_version = _detect_firefox_major_version() or FIREFOX_FALLBACK_VERSION
+        _FIREFOX_USER_AGENT = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; "
+            f"rv:{major_version}.0) Gecko/20100101 Firefox/{major_version}.0"
+        )
+
+    return _FIREFOX_USER_AGENT
 
 
 def load_cookies(settings: dict) -> CookieJar:
