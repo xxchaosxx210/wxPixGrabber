@@ -17,7 +17,7 @@ IGNORED = wx.Colour(166, 105, 0)
 ERROR = wx.Colour(190, 45, 45)
 
 STATE_PATH = os.path.join(options.PATH, "progress_window.json")
-COMPACT_CLIENT_SIZE = (360, 142)
+COMPACT_CLIENT_WIDTH = 360
 DETAILS_CLIENT_SIZE = (620, 360)
 
 
@@ -221,7 +221,7 @@ class ProgressPanel(wx.Panel):
         self.layout = wx.BoxSizer(wx.VERTICAL)
         self.layout.Add(self.compact_card, 0, wx.EXPAND | wx.ALL, 6)
         self.layout.Add(self.details_card, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
-        self.layout.Add(self.actions_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
+        self.layout.Add(self.actions_panel, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 3)
         self.SetSizer(self.layout)
 
         self.progress.SetRange(max(1, range))
@@ -399,11 +399,16 @@ class ProgressPanel(wx.Panel):
 
         frame = self.GetParent()
         frame.SetMinSize(wx.DefaultSize)
-        frame.SetClientSize(
-            DETAILS_CLIENT_SIZE if self.details_shown else COMPACT_CLIENT_SIZE
-        )
         self.Layout()
         frame.Layout()
+
+        if self.details_shown:
+            frame.SetClientSize(DETAILS_CLIENT_SIZE)
+        else:
+            # Let wx calculate the compact monitor's natural height so DPI
+            # scaling does not leave a large empty strip below the buttons.
+            best_height = max(1, self.GetBestSize().height)
+            frame.SetClientSize((COMPACT_CLIENT_WIDTH, best_height))
 
         if save:
             frame._persist_state()
