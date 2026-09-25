@@ -15,12 +15,9 @@ from multiprocessing import Queue
 MIME_TEXT = mimetypes.types_map.get(".html", "text/html")
 MIME_JPG = mimetypes.types_map.get(".jpg", "image/jpg")
 
-TEST_INDEX = "http://localhost:5000/"
 TEST_URL = testoptions.TEST_URL_PATH
 IMAGE_URL_RELATIVE = "/the_image"
 THUMB_URL_RELATIVE = "/the_thumb"
-IMAGE_URL_FULL = urljoin(TEST_INDEX, IMAGE_URL_RELATIVE)
-THUMB_URL_FULL = urljoin(TEST_INDEX, THUMB_URL_RELATIVE)
 
 IMAGE_RELATIVE_PATTERN = re.compile("^/the_image/test_[0-9]+\.jpg$")
 THUMB_RELATIVE_PATTERN = re.compile("^/the_thumb/test_[0-9]+\.jpg$")
@@ -86,9 +83,13 @@ def generate_dummy_html() -> str:
 
     filenames.sort(key=_test_image_number)
 
+    test_index = f"http://{_ServerHandler.host}:{_ServerHandler.port}/"
+    image_url_full = urljoin(test_index, IMAGE_URL_RELATIVE)
+    thumb_url_full = urljoin(test_index, THUMB_URL_RELATIVE)
+
     for filename in filenames[:image_count]:
-        href = IMAGE_URL_FULL + "/" + filename
-        src = THUMB_URL_FULL + "/" + filename
+        href = image_url_full + "/" + filename
+        src = thumb_url_full + "/" + filename
         html += f'<a href="{href}"><img src="{src}"></img></a>'
 
     html += "</body></html>"
