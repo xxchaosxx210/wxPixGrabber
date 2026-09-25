@@ -20,13 +20,6 @@ def _bold_font(window, point_size=None):
     return font
 
 
-def _small_bitmap(bitmap, size=18):
-    """Return a compact copy of an existing toolbar bitmap."""
-    image = bitmap.ConvertToImage()
-    image = image.Scale(size, size, wx.IMAGE_QUALITY_HIGH)
-    return wx.Bitmap(image)
-
-
 class DownloadPanel(wx.Panel):
 
     def __init__(self, **kwargs):
@@ -44,8 +37,7 @@ class DownloadPanel(wx.Panel):
             self.treeview.SetFont(tree_font)
 
         btn_detach = wx.Button(self, -1, "Progress Window")
-        btn_detach.SetBitmap(_small_bitmap(self.app.bitmaps["detach"], 16))
-        btn_detach.SetMinSize((128, 30))
+        btn_detach.SetMinSize((122, 30))
 
         self.errors = StatsPanel(parent=self, stat_name="Errors", stat_value="0")
         self.ignored = StatsPanel(parent=self, stat_name="Ignored", stat_value="0")
@@ -143,6 +135,7 @@ class DownloadPanel(wx.Panel):
 class AddressBar(wx.Panel):
 
     def __init__(self, *args, **kw):
+        kw.setdefault("style", wx.BORDER_THEME)
         super().__init__(*args, **kw)
 
         self.app = wx.GetApp()
@@ -153,28 +146,21 @@ class AddressBar(wx.Panel):
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
         self.txt_address.SetMinSize((-1, 30))
 
-        bitmaps = wx.GetApp().bitmaps
-
         btn_open = wx.Button(self, -1, "Open HTML")
-        btn_open.SetBitmap(_small_bitmap(bitmaps["html-file"], 18))
-        btn_open.SetMinSize((110, 32))
+        btn_open.SetMinSize((104, 32))
 
         self.btn_fetch = wx.Button(self, -1, "Fetch Links")
-        self.btn_fetch.SetBitmap(_small_bitmap(bitmaps["fetch"], 18))
-        self.btn_fetch.SetMinSize((112, 34))
+        self.btn_fetch.SetMinSize((110, 34))
 
         self.btn_start = wx.Button(self, -1, "Start")
-        self.btn_start.SetBitmap(_small_bitmap(bitmaps["start"], 18))
-        self.btn_start.SetMinSize((92, 34))
+        self.btn_start.SetMinSize((88, 34))
 
         self.btn_pause = wx.Button(self, -1, "Pause")
-        self.btn_pause.SetBitmap(_small_bitmap(bitmaps["pause"], 18))
-        self.btn_pause.SetMinSize((92, 34))
+        self.btn_pause.SetMinSize((88, 34))
         self.btn_pause.Enable(False)
 
         self.btn_stop = wx.Button(self, -1, "Stop")
-        self.btn_stop.SetBitmap(_small_bitmap(bitmaps["cancel"], 18))
-        self.btn_stop.SetMinSize((92, 34))
+        self.btn_stop.SetMinSize((88, 34))
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -191,14 +177,14 @@ class AddressBar(wx.Panel):
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(heading, 0, wx.BOTTOM, 5)
+        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
         source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
         source_row.Add(btn_open, 0, wx.EXPAND)
-        vs.Add(source_row, 0, wx.EXPAND)
+        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
-        vs.AddSpacer(4)
+        vs.AddSpacer(5)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
@@ -206,7 +192,7 @@ class AddressBar(wx.Panel):
         actions.Add(self.btn_start, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_pause, 0, wx.RIGHT, BORDER)
         actions.Add(self.btn_stop, 0)
-        vs.Add(actions, 0, wx.EXPAND)
+        vs.Add(actions, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         self.SetSizer(vs)
 
