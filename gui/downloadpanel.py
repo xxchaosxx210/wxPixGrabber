@@ -60,11 +60,6 @@ class DownloadPanel(wx.Panel):
         tree_font.SetPointSize(9)
         self.treeview.SetFont(tree_font)
 
-        btn_detach = _action_button(
-            self, "Progress Window", (108, 26),
-            NEUTRAL_BUTTON, NEUTRAL_TEXT
-        )
-
         self.errors = StatsPanel(
             parent=self, stat_name="Errors", stat_value="0", value_colour=ERROR_TEXT
         )
@@ -76,10 +71,6 @@ class DownloadPanel(wx.Panel):
         )
         self.progressbar = ProgressPanel(self, -1)
 
-        btn_detach.Bind(wx.EVT_BUTTON, self._on_detach_button, btn_detach)
-        btn_detach.Bind(wx.EVT_ENTER_WINDOW,
-                        lambda evt: self.app.window.SetStatusText("Show/Hide Detachable Progress Window"))
-
         vs = wx.BoxSizer(wx.VERTICAL)
 
         vs.Add(self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
@@ -90,8 +81,7 @@ class DownloadPanel(wx.Panel):
         summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, H_GAP)
         summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, H_GAP)
-        summary.Add(btn_detach, 0, wx.ALIGN_CENTER_VERTICAL)
+        summary.Add(self.progressbar, 1, wx.EXPAND)
         vs.Add(summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_X)
 
         vs.AddSpacer(V_GAP)
@@ -100,12 +90,6 @@ class DownloadPanel(wx.Panel):
         vs.AddSpacer(OUTER_Y)
 
         self.SetSizer(vs)
-
-    def _on_detach_button(self, evt):
-        if self.app.window.detached_frame.IsShown():
-            self.app.window.detached_frame.Hide()
-        else:
-            self.app.window.detached_frame.Show()
 
     def fetch_link(self):
         if self.addressbar.txt_address.GetValue():
