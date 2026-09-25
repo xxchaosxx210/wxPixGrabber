@@ -154,10 +154,18 @@ class StatusTreeView(HTL.HyperTreeList):
         self.SetItemData(root, msg)
         self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Normal)
         self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Expanded)
+        self.SetItemText(root, "Fetching links...", column=1)
+        self.SetItemText(root, "-", column=2)
+        self.SetItemText(root, "-", column=3)
         self.SetItemTextColour(root, TEXT_PRIMARY)
         root_font = self.GetItemFont(root)
         root_font.SetWeight(wx.FONTWEIGHT_BOLD)
         self.SetItemFont(root, root_font)
+
+    def set_root_status(self, message: str):
+        root = self.GetRootItem()
+        if root:
+            self.SetItemText(root, message, column=1)
 
     def add_to_root(self, msg: const.Message):
         root = self.GetRootItem()
@@ -166,6 +174,9 @@ class StatusTreeView(HTL.HyperTreeList):
         child = self.AppendItem(root, url_data.url)
         self.children[index] = {"id": child, "children": {}}
         self.SetItemData(child, msg)
+        self.SetItemText(child, "Pending", column=1)
+        self.SetItemText(child, "-", column=2)
+        self.SetItemText(child, _file_type(msg), column=3)
         if url_data.tag == "a":
             self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
             self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Expanded)
@@ -179,32 +190,39 @@ class StatusTreeView(HTL.HyperTreeList):
         new_child = self.AppendItem(child["id"], msg.data["url"])
         child_index = child["children"].__len__()
         child["children"][child_index] = {"id": new_child, "children": {}}
+
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
-            text_colour = TEXT_SUCCESS
         elif msg.status == const.STATUS_ERROR:
             bmp = self._img_error
-            text_colour = TEXT_ERROR
         else:
             bmp = self._img_ignored
-            text_colour = TEXT_IGNORED
+
         self.SetItemData(new_child, msg)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Normal)
         self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
-        self.SetItemTextColour(new_child, text_colour)
+        self.SetItemText(new_child, _result_status(msg), column=1)
+        self.SetItemText(new_child, _format_size(msg.data.get("path", "")), column=2)
+        self.SetItemText(new_child, _file_type(msg), column=3)
+        self.SetItemTextColour(new_child, TEXT_DEFAULT)
     
     def set_searching(self, index: int):
         child = self.children[index]["id"]
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Normal)
         self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Expanded)
-        self.SetItemTextColour(child, TEXT_PRIMARY)
+        self.SetItemText(child, "Searching...", column=1)
+        self.SetItemTextColour(child, TEXT_DEFAULT)
+        self.SetItemBackgroundColour(child, ROW_SEARCHING)
     
     def set_message(self, msg: const.Message):
         child = self.children[msg.id]["id"]
         if msg.data["message"] == "Task has completed":
             self.Expand(child)
         else:
-            self.AppendItem(child, msg.data["message"])
+            item = self.AppendItem(child, msg.data["message"])
+            self.SetItemText(item, "-", column=1)
+            self.SetItemText(item, "-", column=2)
+            self.SetItemText(item, "-", column=3)
     
     def child_complete(self, msg: const.Message):
         """
