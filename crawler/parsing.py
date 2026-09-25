@@ -71,7 +71,10 @@ def process_form(url: str, form: Tag) -> UrlData:
     req_type = form.attrs.get("method", "POST")
     data = _construct_query_from_form(form)
     submit_url = parse.urljoin(url, action)
-    return UrlData(url=submit_url, action=action, method=req_type, data=data, tag="form")
+    return UrlData(
+        url=submit_url, action=action, method=req_type,
+        data=data, tag="form", referer=url
+    )
 
 
 def parse_html(html: str) -> BeautifulSoup:
@@ -148,6 +151,24 @@ def sort_soup(url: str, soup: BeautifulSoup, include_forms: bool,
                 if _ENABLE_LOGGING:
                     _Log.info(err.__str__())
 
+    # Some image hosts keep the real image URL in data-original-src
+    # while a loading/interstitial UI is shown. Prefer this high-confidence
+    # original-image attribute before falling back to metadata thumbnails.
+    for original_tag in soup.find_all(attrs={"data-original-src": True}):
+        try:
+            url_data = _append_link(
+                url,
+                original_tag.get("data-original-src", ""),
+                urls,
+                "img",
+                filters,
+                img_exts
+            )
+            yield url_data
+        except LookupError as err:
+            if _ENABLE_LOGGING:
+                _Log.info(err.__str__())
+
     # search images in meta data
     for meta_tag in soup.find_all("meta", content=image_ext_pattern):
         try:
@@ -207,7 +228,10 @@ def _append_link(full_url: str, src: str, urls: dict, tag: str, filters: Pattern
             raise LookupError(f"Ignoring Root index from {src}")
         # Filter the URL
         if filters.search(url):
-            url_data = UrlData(url=url, action="", method="GET", data={}, tag=tag)
+            url_data = UrlData(
+                url=url, action="", method="GET", data={},
+                tag=tag, referer=full_url
+            )
             if url not in urls:
                 urls[url] = url_data
                 return url_data
