@@ -171,8 +171,7 @@ class GeneralPage(SettingsPage):
         behaviour = self.add_card("Application")
         self.auto_download = wx.CheckBox(behaviour, label="Automatically start downloading after links are fetched")
         self.notify_done = wx.CheckBox(behaviour, label="Notify me when a download has finished")
-        self.detach_progress = wx.CheckBox(behaviour, label="Show detachable progress window while downloading")
-        for control in (self.auto_download, self.notify_done, self.detach_progress):
+        for control in (self.auto_download, self.notify_done):
             behaviour.body.Add(control, 0, wx.BOTTOM, 7)
 
         self.btn_new_profile.Bind(wx.EVT_BUTTON, dialog._on_new_profile)
@@ -568,7 +567,6 @@ class SettingsDialog(wx.Dialog):
         general.refresh_profiles(profile_name)
         general.auto_download.SetValue(settings.get("auto-download", False))
         general.notify_done.SetValue(settings.get("notify-done", True))
-        general.detach_progress.SetValue(settings.get("detach-progress", True))
 
         downloads = self.downloads_page
         downloads.save_path.SetValue(settings.get("save_path", ""))
@@ -621,7 +619,6 @@ class SettingsDialog(wx.Dialog):
         )
         settings["auto-download"] = self.general_page.auto_download.GetValue()
         settings["notify-done"] = self.general_page.notify_done.GetValue()
-        settings["detach-progress"] = self.general_page.detach_progress.GetValue()
 
         settings["save_path"] = self.downloads_page.save_path.GetValue()
 
