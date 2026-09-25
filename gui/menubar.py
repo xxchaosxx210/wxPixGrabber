@@ -5,8 +5,11 @@ import logging
 
 from gui.bubbledialog import BubbleDialog
 from gui.settingsdialog import SettingsDialog
+from gui.testsettingsdialog import TestServerOptionsDialog
 
 from collections import namedtuple
+
+import crawler.testoptions as testoptions
 
 from crawler.options import (
     VERSION,
@@ -42,6 +45,7 @@ ID_SCAN_START = 110
 ID_SCAN_SETTINGS = 111
 ID_SCAN_DEBUG = 112
 ID_PROFILES = 113
+ID_TEST_SERVER_OPTIONS = 114
 
 
 def _open_save_path():
@@ -74,6 +78,7 @@ class PixGrabberMenuBar(wx.MenuBar):
         menu = wx.Menu()
         if DEBUG:
             menu.Append(ID_SCAN_DEBUG, "Debug\tF8", "Run a test scan (F8)")
+            menu.Append(ID_TEST_SERVER_OPTIONS, "Test Server Options...", "Configure the local dummy test site")
         menu.AppendSeparator()
         menu.Append(ID_SCAN_FETCH, "Fetch\tF1", "Fetch Images from Url or file (F1)")
         menu.AppendSeparator()
@@ -102,6 +107,7 @@ class PixGrabberMenuBar(wx.MenuBar):
 
         if DEBUG:
             parent.Bind(wx.EVT_MENU, self._on_debug, id=ID_SCAN_DEBUG)
+            parent.Bind(wx.EVT_MENU, self._on_test_server_options, id=ID_TEST_SERVER_OPTIONS)
         parent.Bind(wx.EVT_MENU, self._on_fetch, id=ID_SCAN_FETCH)
         parent.Bind(wx.EVT_MENU, self._on_scan_cancel, id=ID_SCAN_CANCEL)
         parent.Bind(wx.EVT_MENU, self._on_scan_start, id=ID_SCAN_START)
@@ -142,6 +148,12 @@ class PixGrabberMenuBar(wx.MenuBar):
                         event=const.EVENT_FETCH, id=0,
                         status=const.STATUS_OK, 
                         data={"url": "http://localhost:5000/setup_test"}))
+
+    def _on_test_server_options(self, evt):
+        dlg = TestServerOptionsDialog(self.parent)
+        if dlg.ShowModal() == wx.ID_OK:
+            testoptions.save_test_settings(dlg.get_settings())
+        dlg.Destroy()
 
     def _on_fetch(self, evt):
         self.app.window.dld_panel.fetch_link()
