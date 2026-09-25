@@ -107,6 +107,18 @@ def _firefox_user_agent() -> str:
     return _FIREFOX_USER_AGENT
 
 
+def _request_user_agent(settings: dict) -> str:
+    """Return the configured User-Agent, falling back to automatic Firefox detection."""
+    user_agent = settings.get("user_agent", {})
+    mode = str(user_agent.get("mode", "automatic")).lower()
+    custom = str(user_agent.get("custom", "")).strip()
+
+    if mode == "custom" and custom:
+        return custom
+
+    return _firefox_user_agent()
+
+
 def load_cookies(settings: dict) -> CookieJar:
     """Load Cookies from Installed Web Browser
 
@@ -133,7 +145,7 @@ def load_cookies(settings: dict) -> CookieJar:
 def _send_request(url_data: UrlData, cj: CookieJar, settings: dict) -> Response:
     """Send one HTTP request without retrying."""
     method = url_data.method.lower()
-    headers = {"User-Agent": _firefox_user_agent()}
+    headers = {"User-Agent": _request_user_agent(settings)}
     if url_data.referer:
         headers["Referer"] = url_data.referer
 
