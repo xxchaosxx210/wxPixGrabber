@@ -175,10 +175,15 @@ class GeneralPage(SettingsPage):
             behaviour,
             label="Start with Results section collapsed"
         )
+        self.compact_bottom_right = wx.CheckBox(
+            behaviour,
+            label="Move compact view to bottom-right corner"
+        )
         for control in (
             self.auto_download,
             self.notify_done,
             self.results_collapsed_on_start,
+            self.compact_bottom_right,
         ):
             behaviour.body.Add(control, 0, wx.BOTTOM, 7)
 
@@ -578,6 +583,9 @@ class SettingsDialog(wx.Dialog):
         general.results_collapsed_on_start.SetValue(
             settings.get("results-collapsed-on-start", True)
         )
+        general.compact_bottom_right.SetValue(
+            settings.get("compact-bottom-right", True)
+        )
 
         downloads = self.downloads_page
         downloads.save_path.SetValue(settings.get("save_path", ""))
@@ -632,6 +640,9 @@ class SettingsDialog(wx.Dialog):
         settings["notify-done"] = self.general_page.notify_done.GetValue()
         settings["results-collapsed-on-start"] = (
             self.general_page.results_collapsed_on_start.GetValue()
+        )
+        settings["compact-bottom-right"] = (
+            self.general_page.compact_bottom_right.GetValue()
         )
 
         settings["save_path"] = self.downloads_page.save_path.GetValue()
