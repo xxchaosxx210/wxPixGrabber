@@ -142,6 +142,14 @@ class StatusTreeView(HTL.HyperTreeList):
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click)
         self.Bind(wx.EVT_SIZE, self._on_size)
 
+    # HyperTreeList uses PyData rather than TreeCtrl's ItemData API.
+    # Keep these wrappers so the rest of PixGrabber can use the existing calls.
+    def SetItemData(self, item, data):
+        self.SetItemPyData(item, data)
+
+    def GetItemData(self, item):
+        return self.GetItemPyData(item)
+
     def _on_size(self, evt):
         width = self.GetClientSize().width
         if width > 0:
