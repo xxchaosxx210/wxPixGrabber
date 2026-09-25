@@ -45,9 +45,17 @@ def _action_button(parent, label, size, background, foreground, bold=False):
     return button
 
 
+def _dip(window, value):
+    """Convert a logical size to device pixels using the current Windows DPI."""
+    try:
+        return window.FromDIP(value)
+    except (AttributeError, TypeError):
+        return value
+
+
 def _native_button(parent, label, width=None):
     """Standard Windows desktop button using the native wx.Button renderer."""
-    size = (width, -1) if width else wx.DefaultSize
+    size = (_dip(parent, width), -1) if width else wx.DefaultSize
     return wx.Button(parent, -1, label, size=size)
 
 
@@ -131,7 +139,7 @@ class DownloadPanel(wx.Panel):
         self._bottom_spacer = vs.AddSpacer(OUTER_Y)
 
         self._compact_item = vs.Add(
-            self.compact_panel, 0, wx.EXPAND | wx.ALL, 6
+            self.compact_panel, 0, wx.EXPAND | wx.ALL, _dip(self, 6)
         )
         self._compact_item.Show(False)
 
@@ -195,8 +203,10 @@ class DownloadPanel(wx.Panel):
 
             self.Layout()
             frame.Layout()
-            best_height = max(1, self.compact_panel.GetBestSize().height + 4)
-            frame.SetClientSize((300, best_height))
+            compact_best = self.compact_panel.GetBestSize()
+            target_width = max(compact_best.width + _dip(self, 8), _dip(self, 300))
+            target_height = max(1, compact_best.height + _dip(self, 4))
+            frame.SetClientSize((target_width, target_height))
 
             if options.load_settings().get("compact-bottom-right", True):
                 self._position_compact_bottom_right(frame)
@@ -243,7 +253,7 @@ class DownloadPanel(wx.Panel):
                 display_index = 0
             area = wx.Display(display_index).GetClientArea()
             width, height = frame.GetSize()
-            margin = 10
+            margin = _dip(frame, 10)
             x = area.x + area.width - width - margin
             y = area.y + area.height - height - margin
             frame.SetPosition((max(area.x, x), max(area.y, y)))
@@ -403,15 +413,25 @@ class CompactPanel(wx.Panel):
         super().__init__(parent, id, style=wx.BORDER_SIMPLE)
         self.SetBackgroundColour(CARD_BACKGROUND)
 
+        gap_small = _dip(self, 4)
+        gap_medium = _dip(self, 6)
+        gap_large = _dip(self, 8)
+
         stats = wx.BoxSizer(wx.HORIZONTAL)
         self.saved = self._stat("Saved", SUCCESS)
         self.ignored = self._stat("Ignored", IGNORED_TEXT)
         self.errors = self._stat("Errors", ERROR_TEXT)
 
         stats.Add(self.saved[0], 1)
-        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
+        stats.Add(
+            wx.StaticLine(self, style=wx.LI_VERTICAL),
+            0, wx.EXPAND | wx.LEFT | wx.RIGHT, gap_medium
+        )
         stats.Add(self.ignored[0], 1)
-        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
+        stats.Add(
+            wx.StaticLine(self, style=wx.LI_VERTICAL),
+            0, wx.EXPAND | wx.LEFT | wx.RIGHT, gap_medium
+        )
         stats.Add(self.errors[0], 1)
 
         progress_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -420,28 +440,36 @@ class CompactPanel(wx.Panel):
             style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH
         )
         self.progress.SetForegroundColour(SUCCESS)
-        self.progress.SetMinSize((-1, 11))
+        self.progress.SetMinSize((-1, _dip(self, 10)))
 
         self.percent = wx.StaticText(self, label="0%")
         self.percent.SetForegroundColour(NEUTRAL_TEXT)
-        self.percent.SetFont(_bold_font(self.percent, 8))
+        self.percent.SetFont(_bold_font(self.percent))
 
-        progress_row.Add(self.progress, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        progress_row.Add(
+            self.progress, 1, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, gap_large
+        )
         progress_row.Add(self.percent, 0, wx.ALIGN_CENTER_VERTICAL)
 
         elapsed_row = wx.BoxSizer(wx.HORIZONTAL)
         elapsed_row.AddStretchSpacer(1)
+
         elapsed_label = wx.StaticText(self, label="Elapsed")
         elapsed_label.SetForegroundColour(NEUTRAL_TEXT)
+
         self.elapsed = wx.StaticText(self, label="00:00:00")
         self.elapsed.SetForegroundColour(NEUTRAL_TEXT)
-        self.elapsed.SetFont(_bold_font(self.elapsed, 8))
-        elapsed_row.Add(elapsed_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        self.elapsed.SetFont(_bold_font(self.elapsed))
+
+        elapsed_row.Add(
+            elapsed_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, gap_small
+        )
         elapsed_row.Add(self.elapsed, 0, wx.ALIGN_CENTER_VERTICAL)
 
-        self.btn_pause = _native_button(self, "Pause", 58)
-        self.btn_stop = _native_button(self, "Stop", 58)
-        self.btn_full = _native_button(self, "Full View", 72)
+        # Let Windows choose the native button font and natural button height.
+        self.btn_pause = _native_button(self, "Pause")
+        self.btn_stop = _native_button(self, "Stop")
+        self.btn_full = _native_button(self, "Full View")
 
         self.btn_pause.Bind(
             wx.EVT_BUTTON, lambda evt: self.GetParent().pause_tasks()
@@ -454,16 +482,26 @@ class CompactPanel(wx.Panel):
         )
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
-        actions.Add(self.btn_pause, 1, wx.RIGHT, 3)
-        actions.Add(self.btn_stop, 1, wx.RIGHT, 3)
-        actions.Add(self.btn_full, 1)
+        actions.AddStretchSpacer(1)
+        actions.Add(self.btn_pause, 0, wx.RIGHT, gap_small)
+        actions.Add(self.btn_stop, 0, wx.RIGHT, gap_small)
+        actions.Add(self.btn_full, 0)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 4)
-        layout.Add(progress_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 4)
-        layout.Add(elapsed_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 3)
-        layout.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 4)
-        layout.Add(actions, 0, wx.EXPAND | wx.ALL, 4)
+        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium)
+        layout.Add(
+            progress_row, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium
+        )
+        layout.Add(
+            elapsed_row, 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_small
+        )
+        layout.Add(
+            wx.StaticLine(self), 0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, gap_medium
+        )
+        layout.Add(actions, 0, wx.EXPAND | wx.ALL, gap_medium)
         self.SetSizer(layout)
 
     def _stat(self, title, colour):
@@ -473,18 +511,18 @@ class CompactPanel(wx.Panel):
         label = wx.StaticText(panel, label=title)
         label.SetBackgroundColour(CARD_BACKGROUND)
         label.SetForegroundColour(NEUTRAL_TEXT)
-        label_font = label.GetFont()
-        label_font.SetPointSize(7)
-        label.SetFont(label_font)
 
         value = wx.StaticText(panel, label="0")
         value.SetBackgroundColour(CARD_BACKGROUND)
         value.SetForegroundColour(colour)
-        value.SetFont(_bold_font(value, 9))
+        value.SetFont(_bold_font(value))
 
         layout = wx.BoxSizer(wx.VERTICAL)
         layout.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL)
-        layout.Add(value, 0, wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, 1)
+        layout.Add(
+            value, 0,
+            wx.ALIGN_CENTER_HORIZONTAL | wx.TOP, _dip(panel, 1)
+        )
         panel.SetSizer(layout)
         return panel, value
 
@@ -505,7 +543,6 @@ class CompactPanel(wx.Panel):
 
     def set_paused(self, paused):
         self.btn_pause.SetLabel("Resume" if paused else "Pause")
-
 
 
 class AddressBar(wx.Panel):
