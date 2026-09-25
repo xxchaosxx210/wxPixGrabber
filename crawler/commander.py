@@ -8,6 +8,7 @@ import crawler.parsing as parsing
 import crawler.options as options
 import crawler.mime as mime
 import crawler.message as const
+import crawler.testoptions as testoptions
 from crawler.task import Task
 from crawler.message import Message
 
@@ -75,6 +76,7 @@ class Commander(mp.Process):
         self.quit_thread = mp.Event()
         self.filters = None
         self.cookie_jar = None
+        self.test_run = False
 
     def _reset(self, tasks: dict):
         self.cancel_tasks.clear()
@@ -153,6 +155,9 @@ class Commander(mp.Process):
         tasks.clear()
         self.blacklist.clear()
         self.settings = options.load_settings()
+        if self.test_run:
+            self.settings["unique_pathname"]["enabled"] = True
+            self.settings["unique_pathname"]["name"] = testoptions.TEST_OUTPUT_FOLDER
         self.cookie_jar = load_cookies(self.settings)
         self.filters = parsing.compile_filter_list(self.settings["filter-search"])
 
@@ -261,6 +266,7 @@ class Commander(mp.Process):
 
                     elif msg.event == const.EVENT_FETCH:
                         if not task_running and not fetch_running:
+                            self.test_run = testoptions.is_test_url(msg.data["url"])
                             self._init_fetch(tasks, cancel_fetch)
                             url_data = UrlData(msg.data["url"], method="GET")
                             self.message_main(f"Connecting to {msg.data['url']}...")
@@ -301,6 +307,7 @@ class Commander(mp.Process):
                 elif msg.thread == const.THREAD_SERVER:
                     if msg.event == const.EVENT_SERVER_READY:
                         if not task_running and not fetch_running:
+                            self.test_run = False
                             fetch_running = True
                             self._init_fetch(tasks, cancel_fetch)
                             threading.Thread(target=self._search_html,
