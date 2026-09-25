@@ -6,9 +6,9 @@ from gui.statustreeview import StatusTreeView
 from crawler.message import Message
 import crawler.message as const
 
-BORDER = 6
-SECTION_GAP = 10
-OUTER_PADDING = 12
+BORDER = 4
+SECTION_GAP = 6
+OUTER_PADDING = 8
 
 APP_BACKGROUND = wx.Colour(244, 246, 249)
 CARD_BACKGROUND = wx.Colour(255, 255, 255)
@@ -53,15 +53,14 @@ class DownloadPanel(wx.Panel):
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
         self.treeview = self.results_panel.treeview
-        self.treeview.SetIndent(20)
+        self.treeview.SetIndent(16)
 
         tree_font = self.treeview.GetFont()
-        if tree_font.GetPointSize() < 10:
-            tree_font.SetPointSize(10)
-            self.treeview.SetFont(tree_font)
+        tree_font.SetPointSize(9)
+        self.treeview.SetFont(tree_font)
 
         btn_detach = _action_button(
-            self, "Progress Window", (122, 30),
+            self, "Progress Window", (108, 26),
             NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
 
@@ -171,34 +170,34 @@ class AddressBar(wx.Panel):
         heading = wx.StaticText(self, -1, "Source")
         heading.SetBackgroundColour(CARD_BACKGROUND)
         heading.SetForegroundColour(NEUTRAL_TEXT)
-        heading.SetFont(_bold_font(heading, 10))
+        heading.SetFont(_bold_font(heading, 9))
 
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
-        self.txt_address.SetMinSize((-1, 30))
+        self.txt_address.SetMinSize((-1, 26))
 
         btn_open = _action_button(
-            self, "Open HTML", (104, 30),
+            self, "Open HTML", (90, 26),
             NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
 
         self.btn_fetch = _action_button(
-            self, "Fetch Links", (110, 32),
+            self, "Fetch Links", (96, 28),
             PRIMARY, wx.WHITE, bold=True
         )
 
         self.btn_start = _action_button(
-            self, "Start", (88, 32),
+            self, "Start", (72, 28),
             SUCCESS, wx.WHITE, bold=True
         )
 
         self.btn_pause = _action_button(
-            self, "Pause", (88, 32),
+            self, "Pause", (72, 28),
             NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
         self.btn_pause.Enable(False)
 
         self.btn_stop = _action_button(
-            self, "Stop", (88, 32),
+            self, "Stop", (72, 28),
             NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
 
@@ -217,14 +216,14 @@ class AddressBar(wx.Panel):
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 4)
+        vs.Add(heading, 0, wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 3)
 
         source_row = wx.BoxSizer(wx.HORIZONTAL)
         source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
         source_row.Add(btn_open, 0, wx.EXPAND)
-        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
+        vs.Add(source_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
 
-        vs.AddSpacer(8)
+        vs.AddSpacer(5)
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
         actions.AddStretchSpacer(1)
@@ -260,7 +259,7 @@ class ResultsPanel(wx.Panel):
         title = wx.StaticText(header, -1, "Results")
         title.SetBackgroundColour(header.GetBackgroundColour())
         title.SetForegroundColour(NEUTRAL_TEXT)
-        title.SetFont(_bold_font(title, 10))
+        title.SetFont(_bold_font(title, 9))
 
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -271,7 +270,7 @@ class ResultsPanel(wx.Panel):
         divider = wx.StaticLine(self, -1)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(header, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 8)
+        vs.Add(header, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP | wx.BOTTOM, 6)
         vs.Add(divider, 0, wx.EXPAND)
         vs.Add(self.treeview, 1, wx.EXPAND)
         self.SetSizer(vs)
@@ -292,17 +291,16 @@ class StatsPanel(wx.Panel):
         self.value.SetForegroundColour(value_colour)
 
         lbl_font = lbl.GetFont()
-        if lbl_font.GetPointSize() < 9:
-            lbl_font.SetPointSize(9)
-            lbl.SetFont(lbl_font)
+        lbl_font.SetPointSize(9)
+        lbl.SetFont(lbl_font)
 
-        self.value.SetFont(_bold_font(self.value, 14))
+        self.value.SetFont(_bold_font(self.value, 12))
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 6)
-        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 5)
+        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
         self.SetSizer(vs)
-        self.SetMinSize((82, 52))
+        self.SetMinSize((72, 44))
 
         self.stat = 0
 
@@ -324,7 +322,7 @@ class ProgressPanel(wx.Panel):
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
         self.gauge.SetForegroundColour(SUCCESS)
-        self.gauge.SetMinSize((-1, 18))
+        self.gauge.SetMinSize((-1, 14))
         self.time = wx.StaticText(self, -1, "00:00:00")
 
         self.stored_value = 0
@@ -349,12 +347,12 @@ class ProgressPanel(wx.Panel):
         top.Add(self.time, 0, wx.ALIGN_CENTER_VERTICAL)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        vs.AddSpacer(4)
-        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        vs.AddSpacer(3)
+        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 6)
 
         self.SetSizer(vs)
-        self.SetMinSize((320, 56))
+        self.SetMinSize((280, 46))
 
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
