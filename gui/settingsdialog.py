@@ -88,6 +88,14 @@ class NavItem(wx.Panel):
             self.Refresh()
 
     def _on_leave(self, evt):
+        # Moving between this panel and its child label can generate a leave
+        # event even though the pointer is still visually inside the nav item.
+        # Only remove the hover highlight once the pointer has actually left
+        # the whole item.
+        mouse_pos = self.ScreenToClient(wx.GetMousePosition())
+        if self.GetClientRect().Contains(mouse_pos):
+            return
+
         if not self.selected:
             self.SetBackgroundColour(SIDEBAR_BACKGROUND)
             self.label.SetBackgroundColour(SIDEBAR_BACKGROUND)
