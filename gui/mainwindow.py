@@ -166,7 +166,12 @@ class MainWindow(wx.Frame):
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
-            notify.NotificationBar(None, -1, "", "PixGrabber has completed", timeout=notify.NOTIFY_LONG)
+            notify.CompletionToast(
+                self,
+                saved=self.dld_panel.imgsaved.stat,
+                ignored=self.dld_panel.ignored.stat,
+                errors=self.dld_panel.errors.stat,
+            )
         # kill the timer thread
         timer_quit.set()
         self.SetStatusText("All Tasks have completed")
