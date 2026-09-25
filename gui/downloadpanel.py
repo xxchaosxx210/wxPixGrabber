@@ -262,24 +262,9 @@ class ResultsPanel(wx.Panel):
         title.SetForegroundColour(NEUTRAL_TEXT)
         title.SetFont(_bold_font(title, 10))
 
-        saved = wx.StaticText(header, -1, "Saved")
-        saved.SetBackgroundColour(header.GetBackgroundColour())
-        saved.SetForegroundColour(SUCCESS)
-
-        ignored = wx.StaticText(header, -1, "Ignored")
-        ignored.SetBackgroundColour(header.GetBackgroundColour())
-        ignored.SetForegroundColour(IGNORED_TEXT)
-
-        errors = wx.StaticText(header, -1, "Errors")
-        errors.SetBackgroundColour(header.GetBackgroundColour())
-        errors.SetForegroundColour(ERROR_TEXT)
-
         hs = wx.BoxSizer(wx.HORIZONTAL)
         hs.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
         hs.AddStretchSpacer(1)
-        hs.Add(saved, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 14)
-        hs.Add(ignored, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 14)
-        hs.Add(errors, 0, wx.ALIGN_CENTER_VERTICAL)
 
         header.SetSizer(hs)
 
