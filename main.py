@@ -31,7 +31,7 @@ class PixGrabberApp(wx.App):
         self._initialize_resources()
         setup_options()
         self.window = MainWindow(parent=None, id=-1,
-                                 title="PixGrabber", size=(900, 600))
+                                 title="PixGrabber", size=(820, 520))
         self.SetTopWindow(self.window)
         self._initialize_threads()
         return super().OnInit()
