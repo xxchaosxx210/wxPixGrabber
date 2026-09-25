@@ -109,6 +109,7 @@ def load_settings() -> dict:
 
 def save_settings(settings: dict):
     _check_path_exists()
+    settings.pop("detach-progress", None)
     with open(SETTINGS_PATH, "w") as fp:
         fp.write(json.dumps(settings))
 
