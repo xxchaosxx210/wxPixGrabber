@@ -6,7 +6,6 @@ import gui.notificationbar as notify
 
 from gui.downloadpanel import DownloadPanel
 from gui.menubar import PixGrabberMenuBar
-from gui.detachprogress import DetachableFrame
 from crawler.message import Message
 from timer import (
     create_timer_thread,
@@ -33,9 +32,6 @@ class MainWindow(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.on_close_window)
 
-        # detach status frame
-        self.detached_frame = DetachableFrame(self, -1, "")
-
     def set_profile_status(self, profile_name: str):
         self.SetStatusText(f"Profile: {profile_name}", 1)
 
@@ -53,13 +49,11 @@ class MainWindow(wx.Frame):
     def _on_timer_callback(self, formatted_time):
         try:
             wx.CallAfter(self.dld_panel.progressbar.time.SetLabel, formatted_time)
-            wx.CallAfter(self.detached_frame.set_elapsed, formatted_time)
         except AssertionError:
             pass
     
     def on_close_window(self, evt):
         timer_quit.set()
-        self.detached_frame.Destroy()
         self.app.commander.queue.put(Message(
             thread=const.THREAD_MAIN, event=const.EVENT_QUIT, id=0, data={}, status=const.STATUS_OK))
         self.app.commander.join()
@@ -89,7 +83,6 @@ class MainWindow(wx.Frame):
 
             elif msg.event == const.EVENT_PAUSE:
                 pause = msg.data["pause"]
-                self.detached_frame.set_paused(pause)
                 if pause:
                     self.dld_panel.set_progress_indeterminate()
                     self.SetStatusText("Paused Tasks")
@@ -127,30 +120,21 @@ class MainWindow(wx.Frame):
             if msg.event == const.EVENT_FINISHED:
                 self.dld_panel.progressbar.increment()
                 self.dld_panel.treeview.child_complete(msg)
-                self.detached_frame.add_progress()
             # IMAGE ERROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
                 self.dld_panel.treeview.add_url(msg)
                 self.dld_panel.errors.add_stat()
-                self.detached_frame.add_error(msg)
             # IMAGE SAVED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
                 self.dld_panel.imgsaved.add_stat()
-                self.detached_frame.add_saved(msg)
                 self.dld_panel.treeview.add_url(msg)
             # IMAGE IGNORED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
                 self.dld_panel.ignored.add_stat()
                 self.dld_panel.treeview.add_url(msg)
-                self.detached_frame.add_ignored(msg)
             # TASK HAS STARTED
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dld_panel.treeview.set_searching(msg.id)
-                # Detach Progress frame if option set
-                if options.load_settings().get("detach-progress", True):
-                    self.detached_frame.Show()
-                else:
-                    self.detached_frame.Hide()
 
     def _on_fetch_start(self, msg: const.Message):
         timer_quit.clear()
@@ -160,7 +144,6 @@ class MainWindow(wx.Frame):
         self.dld_panel.progressbar.gauge.Pulse()
         self.SetTitle(f'{msg.data["title"]}')
         self.SetStatusText(f"Scanning {msg.data['url']}")
-        self.detached_frame.set_source(msg.data["url"], msg.data["title"] or "Downloading images...")
         self.dld_panel.treeview.create_root(msg)
     
     def _on_start_scraping(self):
@@ -176,7 +159,6 @@ class MainWindow(wx.Frame):
         self.dld_panel.enable_controls(False)
     
     def _on_scraping_complete(self):
-        self.detached_frame.Hide()
         # play the notification sound if required
         if options.load_settings()["notify-done"]:
             self.app.sounds["complete"].Play()
@@ -193,7 +175,6 @@ class MainWindow(wx.Frame):
         self.SetStatusText(f"{urls_length} Links found")
         # Set the progress bar maximum range
         self.dld_panel.progressbar.reset_progress(urls_length)
-        self.detached_frame.reset(urls_length)
         # set Frame title from fetched Url title. similar to how a Browser behaves
         # we will use this to generate a unique folder name
         self.SetTitle(f'{msg.data["title"]} - Links found: {urls_length}')
