@@ -553,12 +553,12 @@ class AddressBar(wx.Panel):
         btn_open = _native_button(self, "Open HTML", 90)
 
         self.btn_fetch = _action_button(
-            self, "Fetch Links", (96, 28),
+            self, "Fetch Links", 96,
             PRIMARY, wx.WHITE, bold=True
         )
 
         self.btn_start = _action_button(
-            self, "Start", (72, 28),
+            self, "Start", 72,
             SUCCESS, wx.WHITE, bold=True
         )
 
