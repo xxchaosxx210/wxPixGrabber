@@ -33,13 +33,25 @@ def _format_size(path):
 
 def _file_type(msg):
     data = getattr(msg, "data", {})
-    value = data.get("path") or data.get("url") or ""
+    url_data = data.get("url_data")
+    value = data.get("path") or data.get("url") or getattr(url_data, "url", "") or ""
     try:
         value = urlparse(value).path
     except (TypeError, ValueError):
         pass
     ext = os.path.splitext(value)[1].lstrip(".")
     return ext.upper() if ext else "-"
+
+
+def _display_name(msg):
+    data = getattr(msg, "data", {})
+    value = data.get("path") or data.get("url") or ""
+    try:
+        pathname = urlparse(value).path
+    except (TypeError, ValueError):
+        pathname = value
+    name = os.path.basename(pathname)
+    return name or value
 
 
 def _result_status(msg):
@@ -158,8 +170,8 @@ class StatusTreeView(HTL.HyperTreeList):
         self.clear()
         root = self.AddRoot(msg.data["url"])
         self.SetItemData(root, msg)
-        self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Normal)
-        self.SetItemImage(root, self._img_link, wx.TreeItemIcon_Expanded)
+        self.SetItemImage(root, self._img_link, column=0, which=wx.TreeItemIcon_Normal)
+        self.SetItemImage(root, self._img_link, column=0, which=wx.TreeItemIcon_Expanded)
         self.SetItemText(root, "Fetching links...", column=1)
         self.SetItemText(root, "-", column=2)
         self.SetItemText(root, "-", column=3)
@@ -184,18 +196,22 @@ class StatusTreeView(HTL.HyperTreeList):
         self.SetItemText(child, "-", column=2)
         self.SetItemText(child, _file_type(msg), column=3)
         if url_data.tag == "a":
-            self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Normal)
-            self.SetItemImage(child, self._img_link, wx.TreeItemIcon_Expanded)
+            self.SetItemImage(child, self._img_link, column=0, which=wx.TreeItemIcon_Normal)
+            self.SetItemImage(child, self._img_link, column=0, which=wx.TreeItemIcon_Expanded)
         else:
-            self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Normal)
-            self.SetItemImage(child, self._img_src, wx.TreeItemIcon_Expanded)
+            self.SetItemImage(child, self._img_src, column=0, which=wx.TreeItemIcon_Normal)
+            self.SetItemImage(child, self._img_src, column=0, which=wx.TreeItemIcon_Expanded)
         self.SetItemTextColour(child, TEXT_DEFAULT)
     
     def add_url(self, msg: const.Message):
         child = self.children[msg.id]
-        new_child = self.AppendItem(child["id"], msg.data["url"])
+        new_child = self.AppendItem(child["id"], _display_name(msg))
         child_index = child["children"].__len__()
-        child["children"][child_index] = {"id": new_child, "children": {}}
+        child["children"][child_index] = {
+            "id": new_child,
+            "children": {},
+            "status": msg.status
+        }
 
         if msg.status == const.STATUS_OK:
             bmp = self._img_saved
@@ -205,8 +221,8 @@ class StatusTreeView(HTL.HyperTreeList):
             bmp = self._img_ignored
 
         self.SetItemData(new_child, msg)
-        self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Normal)
-        self.SetItemImage(new_child, bmp, wx.TreeItemIcon_Expanded)
+        self.SetItemImage(new_child, bmp, column=0, which=wx.TreeItemIcon_Normal)
+        self.SetItemImage(new_child, bmp, column=0, which=wx.TreeItemIcon_Expanded)
         self.SetItemText(new_child, _result_status(msg), column=1)
         self.SetItemText(new_child, _format_size(msg.data.get("path", "")), column=2)
         self.SetItemText(new_child, _file_type(msg), column=3)
@@ -214,8 +230,8 @@ class StatusTreeView(HTL.HyperTreeList):
     
     def set_searching(self, index: int):
         child = self.children[index]["id"]
-        self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Normal)
-        self.SetItemImage(child, self._img_search, wx.TreeItemIcon_Expanded)
+        self.SetItemImage(child, self._img_search, column=0, which=wx.TreeItemIcon_Normal)
+        self.SetItemImage(child, self._img_search, column=0, which=wx.TreeItemIcon_Expanded)
         self.SetItemText(child, "Searching...", column=1)
         self.SetItemTextColour(child, TEXT_DEFAULT)
         self.SetItemBackgroundColour(child, ROW_SEARCHING)
@@ -238,11 +254,11 @@ class StatusTreeView(HTL.HyperTreeList):
 
         if children:
             ok_result = list(filter(
-                lambda child: self.GetItemData(child["id"]).status == const.STATUS_OK,
+                lambda child: child.get("status") == const.STATUS_OK,
                 children.values()
             ))
             error_result = list(filter(
-                lambda child: self.GetItemData(child["id"]).status == const.STATUS_ERROR,
+                lambda child: child.get("status") == const.STATUS_ERROR,
                 children.values()
             ))
 
@@ -256,13 +272,13 @@ class StatusTreeView(HTL.HyperTreeList):
                 img = self._img_ignored
                 self.SetItemText(root_child, "Ignored", column=1)
 
-            self.SetItemImage(root_child, img, wx.TreeItemIcon_Normal)
-            self.SetItemImage(root_child, img, wx.TreeItemIcon_Expanded)
+            self.SetItemImage(root_child, img, column=0, which=wx.TreeItemIcon_Normal)
+            self.SetItemImage(root_child, img, column=0, which=wx.TreeItemIcon_Expanded)
             self.SetItemTextColour(root_child, TEXT_DEFAULT)
         else:
             self.SetItemData(root_child, msg)
-            self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Normal)
-            self.SetItemImage(root_child, self._img_complete_empty, wx.TreeItemIcon_Expanded)
+            self.SetItemImage(root_child, self._img_complete_empty, column=0, which=wx.TreeItemIcon_Normal)
+            self.SetItemImage(root_child, self._img_complete_empty, column=0, which=wx.TreeItemIcon_Expanded)
             self.SetItemText(root_child, "No images found", column=1)
             self.SetItemTextColour(root_child, TEXT_MUTED)
     
