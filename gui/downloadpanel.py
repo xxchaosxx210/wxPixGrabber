@@ -220,13 +220,13 @@ class StatsPanel(wx.Panel):
             lbl_font.SetPointSize(9)
             lbl.SetFont(lbl_font)
 
-        self.value.SetFont(_bold_font(self.value, 16))
+        self.value.SetFont(_bold_font(self.value, 14))
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
-        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
         self.SetSizer(vs)
-        self.SetMinSize((82, 56))
+        self.SetMinSize((82, 52))
 
         self.stat = 0
 
