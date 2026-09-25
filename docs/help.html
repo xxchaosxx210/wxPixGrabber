@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wxPixGrabber Help</title>
+<style>
+:root {
+    color-scheme: light;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #d8dde4;
+    --text: #2d3137;
+    --muted: #69707a;
+    --blue: #1e6fe8;
+    --green: #259d4e;
+    --amber: #a66900;
+    --red: #be2d2d;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0;
+    padding: 28px 34px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+}
+main { max-width: 920px; margin: 0 auto; }
+.hero {
+    background: linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 28px;
+    margin-bottom: 22px;
+}
+.hero h1 { margin: 0 0 6px; font-size: 30px; }
+.hero p { margin: 0; color: var(--muted); }
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 0 0 18px;
+}
+h2 {
+    margin: 0 0 14px;
+    padding-top: 3px;
+    font-size: 22px;
+    color: #1f2630;
+}
+h3 { margin: 20px 0 8px; font-size: 16px; }
+p { margin: 8px 0 12px; }
+ol, ul { margin: 8px 0 14px 22px; padding: 0; }
+li { margin: 5px 0; }
+kbd, code {
+    font-family: Consolas, "Courier New", monospace;
+    background: #eef1f5;
+    border: 1px solid #dde2e8;
+    border-radius: 4px;
+    padding: 2px 5px;
+}
+.callout {
+    border-left: 4px solid var(--blue);
+    background: #f1f6ff;
+    padding: 11px 14px;
+    margin: 14px 0;
+}
+.status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.saved { color: var(--green); background: #eef8f1; }
+.ignored { color: var(--amber); background: #fff7e8; }
+.error { color: var(--red); background: #fff0f0; }
+.muted { color: var(--muted); }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+}
+th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 9px 10px;
+    border-bottom: 1px solid #e7eaee;
+}
+th { background: #f8f9fb; }
+a { color: var(--blue); }
+</style>
+</head>
+<body>
+<main>
+    <section class="hero">
+        <h1>wxPixGrabber Help</h1>
+        <p>Quick reference for fetching links, downloading images, configuring the crawler and diagnosing problems.</p>
+    </section>
+
+    <section class="card" id="getting-started">
+        <h2>Getting Started</h2>
+        <ol>
+            <li>Paste a web page or gallery URL into <strong>Source</strong>.</li>
+            <li>Choose <strong>Fetch Links</strong> or press <kbd>F1</kbd>.</li>
+            <li>Review the links discovered in <strong>Results</strong>.</li>
+            <li>Choose <strong>Start</strong> or press <kbd>F5</kbd> to begin downloading.</li>
+            <li>Use <strong>Pause</strong> or <strong>Stop</strong> while a download is running.</li>
+        </ol>
+        <div class="callout">
+            Fetching and downloading are separate steps. Fetch first discovers candidate links; Start launches the worker tasks that follow those links and save valid images.
+        </div>
+        <h3>Local HTML</h3>
+        <p><strong>Open HTML</strong> lets you scan a saved HTML/XHTML document from disk instead of a live URL.</p>
+    </section>
+
+    <section class="card" id="downloading">
+        <h2>Downloading</h2>
+        <p>wxPixGrabber follows discovered links, checks the returned content type and validates images before saving them.</p>
+        <table>
+            <tr><th>Option</th><th>What it does</th></tr>
+            <tr><td>Thumbnail Links only</td><td>Prefers the link surrounding a thumbnail rather than downloading the thumbnail itself.</td></tr>
+            <tr><td>Minimum Resolution</td><td>Images must be larger than the configured width and height before they are saved.</td></tr>
+            <tr><td>Generated filenames</td><td>Creates names such as <code>image0_0.jpg</code> using the task and image indexes.</td></tr>
+            <tr><td>Unique path name</td><td>Creates a folder based on the page title for the current scan.</td></tr>
+            <tr><td>File already exists</td><td>Choose whether an existing filename is skipped, overwritten or renamed.</td></tr>
+        </table>
+        <p>Binary duplicate checking also compares downloaded image data with files already present in the destination folder.</p>
+    </section>
+
+    <section class="card" id="results">
+        <h2>Results</h2>
+        <p>The results view keeps the discovered parent links in their scan order. Expand a parent row to see the image result underneath it.</p>
+        <p>
+            <span class="status saved">Saved</span>
+            <span class="status ignored">Ignored</span>
+            <span class="status error">Error</span>
+        </p>
+        <ul>
+            <li><strong>Name / URL</strong> shows the fetched link or downloaded filename.</li>
+            <li><strong>Status</strong> shows progress and the final result.</li>
+            <li><strong>Size</strong> shows the downloaded file size where available.</li>
+            <li><strong>Type</strong> shows the detected image format.</li>
+        </ul>
+        <p>Right-click result items for actions such as opening or copying their associated location.</p>
+    </section>
+
+    <section class="card" id="settings">
+        <h2>Settings</h2>
+        <p>Open <strong>Scan → Settings</strong> to change crawler behaviour. Settings are stored in your PixGrabber user folder and can also be saved as profiles.</p>
+        <table>
+            <tr><th>Setting</th><th>Purpose</th></tr>
+            <tr><td>Maximum Connections</td><td>Controls how many download tasks can be active at once.</td></tr>
+            <tr><td>Timeout</td><td>Maximum network wait used by requests and cancellation handling.</td></tr>
+            <tr><td>Save Path</td><td>Base folder used for downloaded images.</td></tr>
+            <tr><td>Browser Cookies</td><td>Selects the browser cookie store used for requests.</td></tr>
+            <tr><td>Image Formats</td><td>Enables or disables supported image extensions during discovery.</td></tr>
+            <tr><td>Search Filters</td><td>Restricts discovery to matching hosts or URL fragments.</td></tr>
+            <tr><td>Notify when finished</td><td>Shows the completion notification and sound.</td></tr>
+        </table>
+        <p class="muted">Profiles let you keep different sets of crawler settings and switch between them from the Scan menu.</p>
+    </section>
+
+    <section class="card" id="test-server">
+        <h2>Test Server</h2>
+        <p>The built-in dummy site lets you test wxPixGrabber without relying on a real image host.</p>
+        <ul>
+            <li>Press <kbd>F8</kbd> to fetch the dummy site.</li>
+            <li>The local test URL is <code>http://localhost:5000/setup_test</code>.</li>
+            <li>Use <strong>Scan → Test Server Options…</strong> to choose between 1 and 100 test images.</li>
+            <li>The permanent source images and thumbnails remain under <code>crawler/dummysite</code>.</li>
+        </ul>
+        <h3>Clean before test</h3>
+        <p>When enabled, wxPixGrabber removes the dedicated <code>PixGrabber_Dummy_Site</code> download folder immediately before test download tasks begin.</p>
+        <p>Leave it disabled when you deliberately want existing files to remain so you can test duplicate, skip, overwrite or rename behaviour.</p>
+    </section>
+
+    <section class="card" id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <h3>A site works in the browser but not in PixGrabber</h3>
+        <p>Check the selected browser cookie source, the page URL and the enabled image formats. Some hosts change their HTML or image delivery behaviour over time.</p>
+        <h3>Nothing is saved</h3>
+        <p>Check the minimum image resolution, destination folder, enabled formats and the result statuses. An image can be discovered successfully but later ignored by validation.</p>
+        <h3>Diagnostic log</h3>
+        <p>The rotating diagnostic log is stored at <code>%USERPROFILE%\pixgrabber\pixgrabber.log</code> on Windows. It records requests, task progress and failures without storing full page HTML or cookie contents.</p>
+        <h3>Local test</h3>
+        <p>If a real site is failing, try the F8 dummy test. If the dummy test succeeds, the basic downloader and local task pipeline are working.</p>
+    </section>
+
+    <section class="card" id="browser-helper">
+        <h2>Browser Helper</h2>
+        <p>The local server on port <code>5000</code> is also used by the original browser-helper integration.</p>
+        <p>The helper sends captured link information to:</p>
+        <p><code>http://localhost:5000/set-html</code></p>
+        <p>wxPixGrabber converts that data into a temporary HTML document and passes it into the normal link-discovery pipeline.</p>
+        <div class="callout">
+            Port 5000 is intentionally kept fixed so the existing <code>/set-html</code> integration remains compatible.
+        </div>
+    </section>
+</main>
+</body>
+</html>
