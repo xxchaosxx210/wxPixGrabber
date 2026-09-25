@@ -1,122 +1,188 @@
 import wx
-from geometry.vector import Vector
-import time
-import threading
-import queue
 
-_BORDER = 10
-
-NOTIFY_SHORT = 0
-NOTIFY_LONG = 1
-
-
-def get_display_rate() -> float:
-    video_mode = wx.Display().GetCurrentMode()
-    return 1 / video_mode.refresh
+from gui.style import (
+    CARD_BACKGROUND,
+    BORDER_COLOUR,
+    SUCCESS,
+    IGNORED_TEXT,
+    ERROR_TEXT,
+    NEUTRAL_TEXT,
+    bold_font,
+    dip,
+)
 
 
-def _fade_frame(frame: wx.Frame):
-    time.sleep(1.5)
-    for alpha in range(255, 0, -10):
-        frame.SetTransparent(alpha)
-        time.sleep(0.001000)
+class CompletionToast(wx.Frame):
+    """Small non-blocking completion toast anchored to the PixGrabber window."""
 
+    HOLD_MS = 3500
+    FADE_INTERVAL_MS = 35
+    FADE_STEP = 24
 
-def _get_time(previous_time: float) -> tuple:
-    """
+    def __init__(self, parent, saved=0, ignored=0, errors=0):
+        style = wx.FRAME_NO_TASKBAR | wx.STAY_ON_TOP | wx.BORDER_NONE
+        super().__init__(parent=parent, id=-1, title="", style=style)
 
-    Args:
-        previous_time: is the previous time
+        self._parent_window = parent
+        self._alpha = 255
+        self._can_fade = False
 
-    Returns:
-        tuple - delta_time of current_time and previous_time, new previous_time
+        self.SetBackgroundColour(BORDER_COLOUR)
 
-    """
-    current_time = time.time()
-    delta_time = current_time - previous_time
-    previous_time = current_time
-    return delta_time, previous_time
+        outer = wx.Panel(self)
+        outer.SetBackgroundColour(BORDER_COLOUR)
 
+        card = wx.Panel(outer)
+        card.SetBackgroundColour(CARD_BACKGROUND)
 
-class NotificationBar(wx.Frame):
+        has_errors = int(errors) > 0
+        accent_colour = ERROR_TEXT if has_errors else SUCCESS
 
-    def __init__(self, parent, _id, title="", message="", timeout=NOTIFY_SHORT):
-        super().__init__(parent=parent, id=_id, title=title,
-                         style=wx.FRAME_NO_WINDOW_MENU | wx.STAY_ON_TOP)
-        self.SetDoubleBuffered(True)
+        accent = wx.Panel(card, size=(dip(card, 5), -1))
+        accent.SetBackgroundColour(accent_colour)
 
-        pnl = _NotificationPanel(self, -1, message)
-        gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
-        gs.Add(pnl, 1, wx.ALL | wx.EXPAND, 0)
-        self.SetSizer(gs)
+        body = wx.Panel(card)
+        body.SetBackgroundColour(CARD_BACKGROUND)
 
-        self._time_out = get_display_rate()
-        self._queue = queue.Queue()
+        icon = wx.StaticText(body, label="!" if has_errors else "✓")
+        icon.SetForegroundColour(accent_colour)
+        icon.SetBackgroundColour(CARD_BACKGROUND)
+        icon_font = bold_font(icon, 18)
+        icon.SetFont(icon_font)
 
-        # Setup the Window and Text Position on the Screen
-        dc = wx.ClientDC(pnl)
-        text_size = dc.GetFullTextExtent(message, pnl.GetFont())
-        client_width = text_size[0] + 10
-        client_height = text_size[1] + 100
-        screen_width, screen_height = wx.DisplaySize()
-        self.end_point = wx.Point(screen_width - (client_width + 20), screen_height - (client_height + 20))
-        self.position = Vector(self.end_point.x, screen_height)
+        title = wx.StaticText(
+            body,
+            label="Download finished" if has_errors else "Download complete"
+        )
+        title.SetForegroundColour(NEUTRAL_TEXT)
+        title.SetBackgroundColour(CARD_BACKGROUND)
+        title.SetFont(bold_font(title, 11))
 
-        if timeout == NOTIFY_SHORT:
-            vel_y = 150
-        elif timeout == NOTIFY_LONG:
-            vel_y = 100
+        saved_text = wx.StaticText(
+            body,
+            label=f"{int(saved)} {'image' if int(saved) == 1 else 'images'} saved"
+        )
+        saved_text.SetForegroundColour(NEUTRAL_TEXT)
+        saved_text.SetBackgroundColour(CARD_BACKGROUND)
+
+        ignored_value = int(ignored)
+        errors_value = int(errors)
+        detail_text = wx.StaticText(
+            body,
+            label=(
+                f"{ignored_value} ignored  ·  "
+                f"{errors_value} {'error' if errors_value == 1 else 'errors'}"
+            )
+        )
+        detail_text.SetForegroundColour(
+            ERROR_TEXT if has_errors else IGNORED_TEXT if ignored_value else NEUTRAL_TEXT
+        )
+        detail_text.SetBackgroundColour(CARD_BACKGROUND)
+
+        text_column = wx.BoxSizer(wx.VERTICAL)
+        text_column.Add(title, 0)
+        text_column.Add(saved_text, 0, wx.TOP, dip(body, 3))
+        text_column.Add(detail_text, 0, wx.TOP, dip(body, 2))
+
+        body_layout = wx.BoxSizer(wx.HORIZONTAL)
+        body_layout.Add(
+            icon, 0,
+            wx.ALIGN_TOP | wx.RIGHT,
+            dip(body, 10)
+        )
+        body_layout.Add(text_column, 1, wx.EXPAND)
+        body.SetSizer(body_layout)
+
+        card_layout = wx.BoxSizer(wx.HORIZONTAL)
+        card_layout.Add(accent, 0, wx.EXPAND)
+        card_layout.Add(
+            body, 1,
+            wx.EXPAND | wx.ALL,
+            dip(card, 13)
+        )
+        card.SetSizer(card_layout)
+
+        border = dip(outer, 1)
+        outer_layout = wx.BoxSizer(wx.VERTICAL)
+        outer_layout.Add(card, 1, wx.EXPAND | wx.ALL, border)
+        outer.SetSizer(outer_layout)
+
+        frame_layout = wx.BoxSizer(wx.VERTICAL)
+        frame_layout.Add(outer, 1, wx.EXPAND)
+        self.SetSizer(frame_layout)
+
+        self.SetMinClientSize((dip(self, 310), -1))
+        self.Fit()
+        self._position_to_parent()
+
+        self._hold_timer = wx.Timer(self)
+        self._fade_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self._on_hold_finished, self._hold_timer)
+        self.Bind(wx.EVT_TIMER, self._on_fade, self._fade_timer)
+        self.Bind(wx.EVT_LEFT_UP, self._on_click)
+        outer.Bind(wx.EVT_LEFT_UP, self._on_click)
+        card.Bind(wx.EVT_LEFT_UP, self._on_click)
+        body.Bind(wx.EVT_LEFT_UP, self._on_click)
+
+        try:
+            self._can_fade = bool(self.CanSetTransparent())
+        except Exception:
+            self._can_fade = False
+
+        show_without_activating = getattr(self, "ShowWithoutActivating", None)
+        if callable(show_without_activating):
+            show_without_activating()
         else:
-            raise AttributeError("timeout should be either NOTIFY_SHORT or NOTIFY_LONG")
-        self.velocity = Vector(self.position.x, vel_y)
-        self.SetPosition(wx.Point(int(round(self.position.x)), int(round(self.position.y))))
-        self.SetSize((client_width, client_height))
+            self.Show()
 
-        # If the Program closes whilst the Frame is Scrolling make sure to quit the running thread
-        self.Bind(wx.EVT_CLOSE, self._on_close)
+        self._hold_timer.StartOnce(self.HOLD_MS)
 
-        threading.Thread(target=self.loop, daemon=True).start()
-        self.Show()
+    def _position_to_parent(self):
+        width, height = self.GetSize()
+        margin = dip(self, 14)
 
-    def _on_close(self, evt: wx.CloseEvent):
-        self._queue.put("quit")
-        evt.Skip()
+        try:
+            parent_rect = self._parent_window.GetScreenRect()
+            x = parent_rect.GetRight() - width - margin
+            y = parent_rect.GetBottom() - height - margin
 
-    def loop(self):
-        _quit = threading.Event()
-        prev_time = time.time()
-        while not _quit.is_set():
-            try:
-                if self._queue.get(timeout=self._time_out) == "quit":
-                    _quit.set()
-            except queue.Empty:
-                dt, prev_time = _get_time(prev_time)
-                # Move our frame up
-                if self.position.y > self.end_point.y:
-                    self.move_frame(dt)
-                else:
-                    # if our frame has reached the end position then gradually fade out
-                    _fade_frame(self)
-                    _quit.set()
-        wx.CallAfter(self.Destroy)
+            display_index = wx.Display.GetFromWindow(self._parent_window)
+            if display_index == wx.NOT_FOUND:
+                display_index = 0
+            area = wx.Display(display_index).GetClientArea()
 
-    def move_frame(self, dt: float):
-        self.position.y = self.position.y - self.velocity.y * dt
-        pt = wx.Point(int(round(self.position.x)), int(round(self.position.y)))
-        wx.CallAfter(self.SetPosition, pt)
+            x = min(max(x, area.x + margin), area.GetRight() - width - margin)
+            y = min(max(y, area.y + margin), area.GetBottom() - height - margin)
+            self.SetPosition((x, y))
+        except Exception:
+            screen_width, screen_height = wx.GetDisplaySize()
+            self.SetPosition((
+                max(margin, screen_width - width - margin),
+                max(margin, screen_height - height - margin),
+            ))
 
+    def _on_hold_finished(self, _event):
+        if self._can_fade:
+            self._fade_timer.Start(self.FADE_INTERVAL_MS)
+        else:
+            self.Close()
 
-class _NotificationPanel(wx.Panel):
+    def _on_fade(self, _event):
+        self._alpha = max(0, self._alpha - self.FADE_STEP)
+        if self._alpha <= 0:
+            self._fade_timer.Stop()
+            self.Close()
+            return
 
-    def __init__(self, parent: wx.Frame, _id: int, message: str):
-        super().__init__(parent, _id)
+        try:
+            self.SetTransparent(self._alpha)
+        except Exception:
+            self._fade_timer.Stop()
+            self.Close()
 
-        font = self.GetFont()
-        font.SetPointSize(12)
-        self.SetFont(font)
-
-        txt = wx.StaticText(self, -1, message)
-        txt.SetFont(font)
-        gs = wx.GridSizer(cols=1, rows=1, vgap=0, hgap=0)
-        gs.Add(txt, 1, wx.ALIGN_CENTER, 20)
-        self.SetSizer(gs)
+    def _on_click(self, _event):
+        if self._hold_timer.IsRunning():
+            self._hold_timer.Stop()
+        if self._fade_timer.IsRunning():
+            self._fade_timer.Stop()
+        self.Close()
