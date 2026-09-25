@@ -5,9 +5,19 @@ from gui.statustreeview import StatusTreeView
 from crawler.message import Message
 import crawler.message as const
 
-BORDER = 5
+BORDER = 6
+SECTION_GAP = 10
+OUTER_PADDING = 12
 
 _Log = logging.getLogger(__name__)
+
+
+def _bold_font(window, point_size=None):
+    font = window.GetFont()
+    font.SetWeight(wx.FONTWEIGHT_BOLD)
+    if point_size is not None:
+        font.SetPointSize(point_size)
+    return font
 
 
 class DownloadPanel(wx.Panel):
@@ -19,13 +29,20 @@ class DownloadPanel(wx.Panel):
 
         self.addressbar = AddressBar(self, -1)
         self.treeview = StatusTreeView(self, -1)
-        btn_detach = wx.Button(self, -1)
-        btn_detach.SetBitmap(self.app.bitmaps["detach"], wx.LEFT)
-        btn_detach.SetBitmapMargins((2, 2))
-        btn_detach.SetInitialSize()
-        self.errors = StatsPanel(parent=self, stat_name="Errors:", stat_value="0")
-        self.ignored = StatsPanel(parent=self, stat_name="Ignored:", stat_value="0")
-        self.imgsaved = StatsPanel(parent=self, stat_name="Saved:", stat_value="0")
+        self.treeview.SetIndent(20)
+
+        tree_font = self.treeview.GetFont()
+        if tree_font.GetPointSize() < 10:
+            tree_font.SetPointSize(10)
+            self.treeview.SetFont(tree_font)
+
+        btn_detach = wx.Button(self, -1, "Progress Window")
+        btn_detach.SetBitmap(self.app.bitmaps["detach"])
+        btn_detach.SetMinSize((145, 34))
+
+        self.errors = StatsPanel(parent=self, stat_name="Errors", stat_value="0")
+        self.ignored = StatsPanel(parent=self, stat_name="Ignored", stat_value="0")
+        self.imgsaved = StatsPanel(parent=self, stat_name="Saved", stat_value="0")
         self.progressbar = ProgressPanel(self, -1)
 
         btn_detach.Bind(wx.EVT_BUTTON, self._on_detach_button, btn_detach)
@@ -34,28 +51,26 @@ class DownloadPanel(wx.Panel):
 
         vs = wx.BoxSizer(wx.VERTICAL)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.addressbar, 1, wx.EXPAND | wx.ALL, BORDER)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, BORDER)
+        vs.Add(self.addressbar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, OUTER_PADDING)
+        vs.AddSpacer(SECTION_GAP)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.treeview, 1, wx.EXPAND | wx.ALL, BORDER)
-        vs.Add(hs, 1, wx.EXPAND | wx.ALL, BORDER)
+        summary = wx.BoxSizer(wx.HORIZONTAL)
+        summary.Add(self.imgsaved, 0, wx.EXPAND | wx.RIGHT, BORDER)
+        summary.Add(self.ignored, 0, wx.EXPAND | wx.RIGHT, BORDER)
+        summary.Add(self.errors, 0, wx.EXPAND | wx.RIGHT, BORDER)
+        summary.Add(self.progressbar, 1, wx.EXPAND | wx.RIGHT, BORDER)
+        summary.Add(btn_detach, 0, wx.ALIGN_CENTER_VERTICAL)
+        vs.Add(summary, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.AddSpacer(BORDER)
-        hs.Add(btn_detach, 0, wx.EXPAND | wx.ALL, 0)
-        hs.AddStretchSpacer(1)
-        hs.Add(self.errors, 0, wx.EXPAND | wx.ALL, 2)
-        hs.AddSpacer(BORDER)
-        hs.Add(self.ignored, 0, wx.EXPAND | wx.ALL, 2)
-        hs.AddSpacer(BORDER)
-        hs.Add(self.imgsaved, 0, wx.EXPAND | wx.ALL, 2)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, 2)
+        vs.AddSpacer(SECTION_GAP)
 
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(self.progressbar, 1, wx.EXPAND | wx.ALL, BORDER)
-        vs.Add(hs, 0, wx.EXPAND | wx.ALL, BORDER)
+        results_label = wx.StaticText(self, -1, "Results")
+        results_label.SetFont(_bold_font(results_label, 10))
+        vs.Add(results_label, 0, wx.LEFT | wx.RIGHT, OUTER_PADDING)
+        vs.AddSpacer(4)
+
+        vs.Add(self.treeview, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, OUTER_PADDING)
+        vs.AddSpacer(OUTER_PADDING)
 
         self.SetSizer(vs)
 
@@ -101,7 +116,7 @@ class DownloadPanel(wx.Panel):
         """enabled or disables the download controls
 
         Args:
-            state (bool): if True then Buttons are enabled 
+            state (bool): if True then Buttons are enabled
         """
         self.addressbar.btn_fetch.Enable(state)
         self.addressbar.btn_start.Enable(state)
@@ -125,16 +140,34 @@ class AddressBar(wx.Panel):
 
         self.app = wx.GetApp()
 
+        heading = wx.StaticText(self, -1, "Source")
+        heading.SetFont(_bold_font(heading, 10))
+
         self.txt_address = wx.TextCtrl(self, -1, "", style=wx.TE_PROCESS_ENTER)
+        self.txt_address.SetMinSize((-1, 32))
 
         bitmaps = wx.GetApp().bitmaps
-        btn_open = wx.BitmapButton(self, -1, bitmaps["html-file"])
 
-        self.btn_fetch = wx.BitmapButton(self, -1, bitmaps["fetch"])
-        self.btn_stop = wx.BitmapButton(self, -1, bitmaps["cancel"])
-        self.btn_pause = wx.BitmapButton(self, -1, bitmaps["pause"])
+        btn_open = wx.Button(self, -1, "Open HTML")
+        btn_open.SetBitmap(bitmaps["html-file"])
+        btn_open.SetMinSize((115, 34))
+
+        self.btn_fetch = wx.Button(self, -1, "Fetch Links")
+        self.btn_fetch.SetBitmap(bitmaps["fetch"])
+        self.btn_fetch.SetMinSize((120, 38))
+
+        self.btn_start = wx.Button(self, -1, "Start")
+        self.btn_start.SetBitmap(bitmaps["start"])
+        self.btn_start.SetMinSize((105, 38))
+
+        self.btn_pause = wx.Button(self, -1, "Pause")
+        self.btn_pause.SetBitmap(bitmaps["pause"])
+        self.btn_pause.SetMinSize((105, 38))
         self.btn_pause.Enable(False)
-        self.btn_start = wx.BitmapButton(self, -1, bitmaps["start"])
+
+        self.btn_stop = wx.Button(self, -1, "Stop")
+        self.btn_stop.SetBitmap(bitmaps["cancel"])
+        self.btn_stop.SetMinSize((105, 38))
 
         self.txt_address.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.GetParent().fetch_link(), self.txt_address)
         self.btn_fetch.Bind(wx.EVT_BUTTON, lambda evt: self.GetParent().fetch_link(), self.btn_fetch)
@@ -151,17 +184,22 @@ class AddressBar(wx.Panel):
         self.set_help_text(btn_open, "Open an HTML file from local drive to go fetch")
 
         vs = wx.BoxSizer(wx.VERTICAL)
+        vs.Add(heading, 0, wx.BOTTOM, 5)
 
-        hs = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Url or HTML File")
-        hs.Add(self.txt_address, 1, wx.ALL | wx.EXPAND, 0)
-        hs.Add(btn_open, 0, wx.ALL | wx.EXPAND, 0)
-        hs.AddSpacer(20)
-        hs.Add(self.btn_fetch, 0, wx.ALL | wx.EXPAND, 0)
-        hs.Add(self.btn_stop, 0, wx.ALL | wx.EXPAND, 0)
-        hs.Add(self.btn_pause, 0, wx.ALL | wx.EXPAND, 0)
-        hs.Add(self.btn_start, 0, wx.ALL | wx.EXPAND, 0)
+        source_row = wx.BoxSizer(wx.HORIZONTAL)
+        source_row.Add(self.txt_address, 1, wx.EXPAND | wx.RIGHT, BORDER)
+        source_row.Add(btn_open, 0, wx.EXPAND)
+        vs.Add(source_row, 0, wx.EXPAND)
 
-        vs.Add(hs, 1, wx.ALL | wx.EXPAND, 0)
+        vs.AddSpacer(BORDER)
+
+        actions = wx.BoxSizer(wx.HORIZONTAL)
+        actions.AddStretchSpacer(1)
+        actions.Add(self.btn_fetch, 0, wx.RIGHT, BORDER)
+        actions.Add(self.btn_start, 0, wx.RIGHT, BORDER)
+        actions.Add(self.btn_pause, 0, wx.RIGHT, BORDER)
+        actions.Add(self.btn_stop, 0)
+        vs.Add(actions, 0, wx.EXPAND)
 
         self.SetSizer(vs)
 
@@ -177,18 +215,24 @@ class AddressBar(wx.Panel):
 class StatsPanel(wx.Panel):
 
     def __init__(self, stat_name, stat_value, *args, **kw):
+        kw.setdefault("style", wx.BORDER_THEME)
         super().__init__(*args, **kw)
 
         lbl = wx.StaticText(self, -1, stat_name)
         self.value = wx.StaticText(self, -1, stat_value)
 
+        lbl_font = lbl.GetFont()
+        if lbl_font.GetPointSize() < 9:
+            lbl_font.SetPointSize(9)
+            lbl.SetFont(lbl_font)
+
+        self.value.SetFont(_bold_font(self.value, 16))
+
         vs = wx.BoxSizer(wx.VERTICAL)
-        hs = wx.BoxSizer(wx.HORIZONTAL)
-        hs.Add(lbl, 1, wx.ALL | wx.EXPAND, 0)
-        hs.AddSpacer(BORDER)
-        hs.Add(self.value, 1, wx.ALL | wx.EXPAND, 0)
-        vs.Add(hs, 1, wx.ALL | wx.EXPAND)
+        vs.Add(lbl, 0, wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        vs.Add(self.value, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
         self.SetSizer(vs)
+        self.SetMinSize((95, 62))
 
         self.stat = 0
 
@@ -204,6 +248,7 @@ class StatsPanel(wx.Panel):
 class ProgressPanel(wx.Panel):
 
     def __init__(self, *args, **kw):
+        kw.setdefault("style", wx.BORDER_THEME)
         super().__init__(*args, **kw)
 
         self.gauge = wx.Gauge(self, -1, 100, style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH)
@@ -212,19 +257,25 @@ class ProgressPanel(wx.Panel):
         self.stored_value = 0
         self.stored_range = 100
 
-        box = wx.StaticBoxSizer(wx.HORIZONTAL, self, "Progress")
+        title = wx.StaticText(self, -1, "Progress")
+        title.SetFont(_bold_font(title, 9))
+
+        elapsed = wx.StaticText(self, -1, "Elapsed")
+        self.time.SetFont(_bold_font(self.time, 9))
+
+        top = wx.BoxSizer(wx.HORIZONTAL)
+        top.Add(title, 0, wx.ALIGN_CENTER_VERTICAL)
+        top.AddStretchSpacer(1)
+        top.Add(elapsed, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
+        top.Add(self.time, 0, wx.ALIGN_CENTER_VERTICAL)
 
         vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(self.gauge, 1, wx.EXPAND | wx.ALL, 0)
-        box.Add(vs, 1, wx.ALL | wx.EXPAND, 0)
+        vs.Add(top, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
+        vs.AddSpacer(6)
+        vs.Add(self.gauge, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 10)
 
-        box.AddSpacer(BORDER)
-
-        vs = wx.BoxSizer(wx.VERTICAL)
-        vs.Add(self.time, 1, wx.EXPAND | wx.ALL, 0)
-        box.Add(vs, 0, wx.ALL | wx.EXPAND, 0)
-
-        self.SetSizer(box)
+        self.SetSizer(vs)
+        self.SetMinSize((260, 62))
 
     def reset_progress(self, max_range):
         self.gauge.SetRange(max_range)
