@@ -191,8 +191,8 @@ class DownloadPanel(wx.Panel):
 
             self.Layout()
             frame.Layout()
-            best_height = max(1, self.compact_panel.GetBestSize().height + 12)
-            frame.SetClientSize((430, best_height))
+            best_height = max(1, self.compact_panel.GetBestSize().height + 6)
+            frame.SetClientSize((340, best_height))
             frame.Raise()
         else:
             self._compact_item.Show(False)
@@ -386,9 +386,9 @@ class CompactPanel(wx.Panel):
         self.errors = self._stat("Errors", ERROR_TEXT)
 
         stats.Add(self.saved[0], 1)
-        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
         stats.Add(self.ignored[0], 1)
-        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
+        stats.Add(wx.StaticLine(self, style=wx.LI_VERTICAL), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 6)
         stats.Add(self.errors[0], 1)
 
         progress_row = wx.BoxSizer(wx.HORIZONTAL)
@@ -397,7 +397,7 @@ class CompactPanel(wx.Panel):
             style=wx.GA_HORIZONTAL | wx.GA_PROGRESS | wx.GA_SMOOTH
         )
         self.progress.SetForegroundColour(SUCCESS)
-        self.progress.SetMinSize((-1, 14))
+        self.progress.SetMinSize((-1, 11))
 
         self.percent = wx.StaticText(self, label="0%")
         self.percent.SetForegroundColour(NEUTRAL_TEXT)
@@ -417,13 +417,13 @@ class CompactPanel(wx.Panel):
         elapsed_row.Add(self.elapsed, 0, wx.ALIGN_CENTER_VERTICAL)
 
         self.btn_pause = _action_button(
-            self, "Pause", (72, 28), NEUTRAL_BUTTON, NEUTRAL_TEXT
+            self, "Pause", (60, 24), NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
         self.btn_stop = _action_button(
-            self, "Stop", (72, 28), NEUTRAL_BUTTON, NEUTRAL_TEXT
+            self, "Stop", (60, 24), NEUTRAL_BUTTON, NEUTRAL_TEXT
         )
         self.btn_full = _action_button(
-            self, "Full View", (84, 28), PRIMARY, wx.WHITE, bold=True
+            self, "Full View", (72, 24), PRIMARY, wx.WHITE, bold=True
         )
 
         self.btn_pause.Bind(
@@ -437,16 +437,16 @@ class CompactPanel(wx.Panel):
         )
 
         actions = wx.BoxSizer(wx.HORIZONTAL)
-        actions.Add(self.btn_pause, 1, wx.RIGHT, 6)
-        actions.Add(self.btn_stop, 1, wx.RIGHT, 6)
+        actions.Add(self.btn_pause, 1, wx.RIGHT, 4)
+        actions.Add(self.btn_stop, 1, wx.RIGHT, 4)
         actions.Add(self.btn_full, 1)
 
         layout = wx.BoxSizer(wx.VERTICAL)
-        layout.Add(stats, 0, wx.EXPAND | wx.ALL, 10)
-        layout.Add(progress_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 10)
-        layout.Add(elapsed_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 7)
-        layout.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 10)
-        layout.Add(actions, 0, wx.EXPAND | wx.ALL, 10)
+        layout.Add(stats, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        layout.Add(progress_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        layout.Add(elapsed_row, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 4)
+        layout.Add(wx.StaticLine(self), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
+        layout.Add(actions, 0, wx.EXPAND | wx.ALL, 6)
         self.SetSizer(layout)
 
     def _stat(self, title, colour):
@@ -460,7 +460,7 @@ class CompactPanel(wx.Panel):
         value = wx.StaticText(panel, label="0")
         value.SetBackgroundColour(CARD_BACKGROUND)
         value.SetForegroundColour(colour)
-        value.SetFont(_bold_font(value, 12))
+        value.SetFont(_bold_font(value, 10))
 
         layout = wx.BoxSizer(wx.VERTICAL)
         layout.Add(label, 0, wx.ALIGN_CENTER_HORIZONTAL)
