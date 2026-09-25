@@ -126,3 +126,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Local dummy test configuration
+crawler/dummysite/test_settings.json
