@@ -46,8 +46,14 @@ class StatusTreeView(wx.TreeCtrl):
 
     def __init__(self, parent: wx.Window, _id: int):
         self.children = {}
-        super().__init__(parent=parent, id=_id, style=wx.TR_SINGLE|wx.TR_NO_BUTTONS)
+        super().__init__(
+            parent=parent,
+            id=_id,
+            style=wx.TR_SINGLE | wx.TR_NO_BUTTONS | wx.BORDER_SIMPLE
+        )
         self.app = wx.GetApp()
+        self.SetBackgroundColour(wx.Colour(255, 255, 255))
+        self.SetForegroundColour(wx.Colour(45, 49, 55))
         self._create_image_list()
         self.clear()
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self._on_right_click, self)
