@@ -36,6 +36,7 @@ _FILTER_SEARCH = [
     "imagevenue.com/",
     "imagebam.com/",
     "pixhost.to/",
+    "pixhost.cc/",
     "lulzimg",
     "pimpandhost",
     "imagetwist",
@@ -109,6 +110,18 @@ def load_settings() -> dict:
     settings.setdefault("user_agent", {})
     settings["user_agent"].setdefault("mode", "automatic")
     settings["user_agent"].setdefault("custom", "")
+
+    # Pixhost also serves forum thumbnails through pixhost.cc.
+    # Keep it in the default filter list and add it automatically to
+    # existing installations without disturbing the user's other filters.
+    settings.setdefault(
+        "filter-search",
+        {"enabled": True, "filters": list(_FILTER_SEARCH)}
+    )
+    settings["filter-search"].setdefault("enabled", True)
+    settings["filter-search"].setdefault("filters", list(_FILTER_SEARCH))
+    if "pixhost.cc/" not in settings["filter-search"]["filters"]:
+        settings["filter-search"]["filters"].append("pixhost.cc/")
 
     # Remove settings from retired UI features.
     settings.pop("detach-progress", None)
