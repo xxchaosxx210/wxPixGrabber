@@ -127,14 +127,17 @@ class MainWindow(wx.Frame):
                 self.dld_panel.treeview.child_complete(msg)
             # IMAGE ERROR
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_ERROR:
+                self.dld_panel.record_result("errors", msg)
                 self.dld_panel.treeview.add_url(msg)
                 self.dld_panel.errors.add_stat()
             # IMAGE SAVED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_OK:
+                self.dld_panel.record_result("saved", msg)
                 self.dld_panel.imgsaved.add_stat()
                 self.dld_panel.treeview.add_url(msg)
             # IMAGE IGNORED
             elif msg.event == const.EVENT_DOWNLOAD_IMAGE and msg.status == const.STATUS_IGNORED:
+                self.dld_panel.record_result("ignored", msg)
                 self.dld_panel.ignored.add_stat()
                 self.dld_panel.treeview.add_url(msg)
             # TASK HAS STARTED
@@ -154,7 +157,8 @@ class MainWindow(wx.Frame):
         # Start a new timer
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()
-        # Reset the stats on teh download panel
+        # Reset the stats and per-status result lists for the new run.
+        self.dld_panel.reset_result_details()
         self.dld_panel.errors.reset_stat()
         self.dld_panel.ignored.reset_stat()
         self.dld_panel.imgsaved.reset_stat()
