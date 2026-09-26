@@ -37,6 +37,7 @@ _FILTER_SEARCH = [
     "imagebam.com/",
     "pixhost.to/",
     "pixhost.cc/",
+    "pixho.st/",
     "lulzimg",
     "pimpandhost",
     "imagetwist",
@@ -120,8 +121,9 @@ def load_settings() -> dict:
     )
     settings["filter-search"].setdefault("enabled", True)
     settings["filter-search"].setdefault("filters", list(_FILTER_SEARCH))
-    if "pixhost.cc/" not in settings["filter-search"]["filters"]:
-        settings["filter-search"]["filters"].append("pixhost.cc/")
+    for pixhost_domain in ("pixhost.cc/", "pixho.st/"):
+        if pixhost_domain not in settings["filter-search"]["filters"]:
+            settings["filter-search"]["filters"].append(pixhost_domain)
 
     # Remove settings from retired UI features.
     settings.pop("detach-progress", None)
