@@ -62,8 +62,10 @@ class Bubble:
     def update(self, dt: float):
         self.position.y = self.position.y - self.velocity.y * dt
         self.position.x = self.position.x + self.velocity.x * dt
-        self.rect.x = self.position.x
-        self.rect.y = self.position.y
+        # wx.Rect coordinates must be integers. Bubble positions are floats
+        # while animating, so round them only when updating the drawing rect.
+        self.rect.x = int(round(self.position.x))
+        self.rect.y = int(round(self.position.y))
         self.check_bounds()
 
     def check_bounds(self):
@@ -146,8 +148,8 @@ class TextBox:
         for line in self.lines:
             line.update()
         self._define_size()
-        self.rect.x = (rect.width/2) - (self.rect.width/2)
-        self.rect.y = (rect.height/2) - (self.rect.height/2)
+        self.rect.x = int(round((rect.width / 2) - (self.rect.width / 2)))
+        self.rect.y = int(round((rect.height / 2) - (self.rect.height / 2)))
         self.centre_lines()
 
     def _define_size(self):
@@ -177,7 +179,9 @@ class TextBox:
         y_offset = self.rect.y + self.PADDING
         for line in self.lines:
             line.rect.y = y_offset
-            line.rect.x = self.rect.x + ((self.rect.width / 2) - (line.rect.width / 2))
+            line.rect.x = int(round(
+                self.rect.x + ((self.rect.width / 2) - (line.rect.width / 2))
+            ))
             y_offset = y_offset + self.PADDING + line.rect.height
 
     def __str__(self):
