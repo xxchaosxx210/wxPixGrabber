@@ -41,6 +41,11 @@ class DownloadPanel(wx.Panel):
         self._normal_was_maximized = False
         self._normal_title = "PixGrabber"
         self._normal_menu_bar = None
+        self.result_details = {
+            "saved": [],
+            "ignored": [],
+            "errors": [],
+        }
 
         self.addressbar = AddressBar(self, -1)
         self.results_panel = ResultsPanel(self, -1)
@@ -49,15 +54,18 @@ class DownloadPanel(wx.Panel):
 
         self.errors = StatsPanel(
             parent=self, stat_name="Errors", stat_value="0",
-            value_colour=ERROR_TEXT, on_change=self._sync_compact_stats
+            value_colour=ERROR_TEXT, on_change=self._sync_compact_stats,
+            on_click=lambda: self.show_result_details("errors")
         )
         self.ignored = StatsPanel(
             parent=self, stat_name="Ignored", stat_value="0",
-            value_colour=IGNORED_TEXT, on_change=self._sync_compact_stats
+            value_colour=IGNORED_TEXT, on_change=self._sync_compact_stats,
+            on_click=lambda: self.show_result_details("ignored")
         )
         self.imgsaved = StatsPanel(
             parent=self, stat_name="Saved", stat_value="0",
-            value_colour=SUCCESS, on_change=self._sync_compact_stats
+            value_colour=SUCCESS, on_change=self._sync_compact_stats,
+            on_click=lambda: self.show_result_details("saved")
         )
         self.progressbar = ProgressPanel(
             self, -1, on_change=self._sync_compact_progress
@@ -123,6 +131,48 @@ class DownloadPanel(wx.Panel):
             update_status=False,
             resize_frame=False
         )
+
+    def reset_result_details(self):
+        for rows in self.result_details.values():
+            rows.clear()
+
+    def record_result(self, category, msg):
+        rows = self.result_details.get(category)
+        if rows is None:
+            return
+
+        data = msg.data or {}
+        rows.append({
+            "url": str(data.get("url", "")),
+            "message": str(data.get("message", "")),
+            "path": str(data.get("path", "")),
+        })
+
+    def show_result_details(self, category):
+        rows = self.result_details.get(category, [])
+        labels = {
+            "saved": "Saved",
+            "ignored": "Ignored",
+            "errors": "Errors",
+        }
+        label = labels.get(category, "Results")
+
+        if not rows:
+            wx.MessageBox(
+                f"No {label.lower()} items in the current download.",
+                f"{label} details",
+                wx.OK | wx.ICON_INFORMATION,
+                parent=self.GetTopLevelParent(),
+            )
+            return
+
+        dialog = ResultDetailsDialog(
+            self.GetTopLevelParent(),
+            title=f"{label} images — {len(rows)}",
+            rows=rows,
+        )
+        dialog.ShowModal()
+        dialog.Destroy()
 
     def set_compact_mode(self, compact):
         compact = bool(compact)
@@ -388,6 +438,119 @@ class DownloadPanel(wx.Panel):
 
     def set_progress_determinate(self):
         self.progressbar.restore_state()
+
+
+class ResultDetailsDialog(wx.Dialog):
+
+    def __init__(self, parent, title, rows):
+        super().__init__(
+            parent,
+            title=title,
+            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+        )
+
+        self.rows = list(rows)
+        self.SetBackgroundColour(APP_BACKGROUND)
+
+        intro = wx.StaticText(
+            self,
+            label="Links recorded during the current download run."
+        )
+        intro.SetForegroundColour(NEUTRAL_TEXT)
+
+        self.list_ctrl = wx.ListCtrl(
+            self,
+            style=wx.LC_REPORT | wx.LC_HRULES | wx.LC_VRULES,
+        )
+        self.list_ctrl.InsertColumn(0, "URL", width=_dip(self, 430))
+        self.list_ctrl.InsertColumn(1, "Result", width=_dip(self, 240))
+        self.list_ctrl.InsertColumn(2, "Saved path", width=_dip(self, 330))
+
+        for row_index, row in enumerate(self.rows):
+            index = self.list_ctrl.InsertItem(row_index, row.get("url", ""))
+            self.list_ctrl.SetItem(index, 1, row.get("message", ""))
+            self.list_ctrl.SetItem(index, 2, row.get("path", ""))
+
+        copy_selected = _native_button(self, "Copy selected")
+        copy_all = _native_button(self, "Copy all")
+        close = _native_button(self, "Close")
+
+        copy_selected.Bind(
+            wx.EVT_BUTTON,
+            lambda _evt: self._copy_rows(self._selected_row_indexes())
+        )
+        copy_all.Bind(
+            wx.EVT_BUTTON,
+            lambda _evt: self._copy_rows(range(len(self.rows)))
+        )
+        close.Bind(wx.EVT_BUTTON, lambda _evt: self.EndModal(wx.ID_OK))
+
+        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons.AddStretchSpacer(1)
+        buttons.Add(copy_selected, 0)
+        buttons.AddSpacer(_dip(self, 6))
+        buttons.Add(copy_all, 0)
+        buttons.AddSpacer(_dip(self, 6))
+        buttons.Add(close, 0)
+
+        layout = wx.BoxSizer(wx.VERTICAL)
+        margin = _dip(self, 12)
+        layout.Add(intro, 0, wx.LEFT | wx.RIGHT | wx.TOP, margin)
+        layout.Add(
+            self.list_ctrl,
+            1,
+            wx.EXPAND | wx.ALL,
+            margin,
+        )
+        layout.Add(
+            buttons,
+            0,
+            wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM,
+            margin,
+        )
+        self.SetSizer(layout)
+
+        self.SetMinSize((_dip(self, 720), _dip(self, 360)))
+        self.SetSize((_dip(self, 1000), _dip(self, 520)))
+        self.CentreOnParent()
+
+    def _selected_row_indexes(self):
+        selected = []
+        index = self.list_ctrl.GetFirstSelected()
+        while index != -1:
+            selected.append(index)
+            index = self.list_ctrl.GetNextSelected(index)
+        return selected
+
+    def _copy_rows(self, indexes):
+        indexes = list(indexes)
+        if not indexes:
+            wx.MessageBox(
+                "Select one or more rows first.",
+                "Copy results",
+                wx.OK | wx.ICON_INFORMATION,
+                parent=self,
+            )
+            return
+
+        lines = ["URL\tResult\tSaved path"]
+        for index in indexes:
+            if 0 <= index < len(self.rows):
+                row = self.rows[index]
+                lines.append(
+                    "\t".join([
+                        row.get("url", ""),
+                        row.get("message", ""),
+                        row.get("path", ""),
+                    ])
+                )
+
+        if wx.TheClipboard.Open():
+            try:
+                wx.TheClipboard.SetData(wx.TextDataObject("\n".join(lines)))
+                wx.TheClipboard.Flush()
+            finally:
+                wx.TheClipboard.Close()
 
 
 class CompactPanel(wx.Panel):
@@ -690,18 +853,21 @@ class StatsPanel(wx.Panel):
 
     def __init__(
         self, stat_name, stat_value, value_colour=NEUTRAL_TEXT,
-        on_change=None, *args, **kw
+        on_change=None, on_click=None, *args, **kw
     ):
         kw.setdefault("style", wx.BORDER_SIMPLE)
         super().__init__(*args, **kw)
         self.on_change = on_change
-        self.SetBackgroundColour(CARD_BACKGROUND)
+        self.on_click = on_click
+        self._default_background = CARD_BACKGROUND
+        self._hover_background = wx.Colour(247, 250, 254)
+        self.SetBackgroundColour(self._default_background)
 
         lbl = wx.StaticText(self, -1, stat_name)
-        lbl.SetBackgroundColour(CARD_BACKGROUND)
+        lbl.SetBackgroundColour(self._default_background)
         lbl.SetForegroundColour(NEUTRAL_TEXT)
         self.value = wx.StaticText(self, -1, stat_value)
-        self.value.SetBackgroundColour(CARD_BACKGROUND)
+        self.value.SetBackgroundColour(self._default_background)
         self.value.SetForegroundColour(value_colour)
 
         self.value.SetFont(_bold_font(self.value))
@@ -716,6 +882,34 @@ class StatsPanel(wx.Panel):
         self.SetMinSize((_dip(self, 72), _dip(self, 44)))
 
         self.stat = 0
+
+        if self.on_click:
+            self.SetToolTip(f"Click to view {stat_name.lower()} links")
+            hand = wx.Cursor(wx.CURSOR_HAND)
+            for control in (self, lbl, self.value):
+                control.SetCursor(hand)
+                control.Bind(wx.EVT_LEFT_UP, self._on_click)
+                control.Bind(wx.EVT_ENTER_WINDOW, self._on_hover_enter)
+            self.Bind(wx.EVT_LEAVE_WINDOW, self._on_hover_leave)
+
+    def _set_background(self, colour):
+        self.SetBackgroundColour(colour)
+        for child in self.GetChildren():
+            if isinstance(child, wx.StaticText):
+                child.SetBackgroundColour(colour)
+        self.Refresh()
+
+    def _on_hover_enter(self, event):
+        self._set_background(self._hover_background)
+        event.Skip()
+
+    def _on_hover_leave(self, event):
+        self._set_background(self._default_background)
+        event.Skip()
+
+    def _on_click(self, _event):
+        if self.on_click:
+            self.on_click()
 
     def reset_stat(self):
         self.stat = 0
