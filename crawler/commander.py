@@ -246,7 +246,12 @@ class Commander(mp.Process):
                         if not task_running:
                             time_counter = 0.0
                             task_running = True
-                            self._init_start_tasks(tasks)
+                            try:
+                                self._init_start_tasks(tasks)
+                            except Exception as err:
+                                task_running = False
+                                self.message_main(f"Unable to load selected browser cookies: {err}")
+                                continue
                             for task_index, url_data in enumerate(self.scanned_urls.values()):
                                 tasks[task_index] = Task(task_index,
                                                          url_data,
@@ -273,10 +278,10 @@ class Commander(mp.Process):
                     elif msg.event == const.EVENT_FETCH:
                         if not task_running and not fetch_running:
                             self.test_run = testoptions.is_test_url(msg.data["url"])
-                            self._init_fetch(tasks, cancel_fetch)
                             url_data = UrlData(msg.data["url"], method="GET")
-                            self.message_main(f"Connecting to {msg.data['url']}...")
                             try:
+                                self._init_fetch(tasks, cancel_fetch)
+                                self.message_main(f"Connecting to {msg.data['url']}...")
                                 try:
                                     fetch_response = options.load_from_file(msg.data["url"])
                                 except FileNotFoundError:
@@ -314,12 +319,16 @@ class Commander(mp.Process):
                     if msg.event == const.EVENT_SERVER_READY:
                         if not task_running and not fetch_running:
                             self.test_run = False
-                            fetch_running = True
-                            self._init_fetch(tasks, cancel_fetch)
-                            threading.Thread(target=self._search_html,
-                                             kwargs={"html_doc": msg.data["html"],
-                                                     "url": "pixgrabber-extension",
-                                                     "cancel_flag": cancel_fetch}).start()
+                            try:
+                                self._init_fetch(tasks, cancel_fetch)
+                            except Exception as err:
+                                self.message_main(f"Unable to load selected browser cookies: {err}")
+                            else:
+                                fetch_running = True
+                                threading.Thread(target=self._search_html,
+                                                 kwargs={"html_doc": msg.data["html"],
+                                                         "url": "pixgrabber-extension",
+                                                         "cancel_flag": cancel_fetch}).start()
 
                 elif msg.thread == const.THREAD_TASK:
                     if msg.event == const.EVENT_FINISHED:
