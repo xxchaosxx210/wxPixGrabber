@@ -331,6 +331,12 @@ class NetworkPage(SettingsPage):
             self.cookie_radios[browser.lower()] = radio
             cookies.body.Add(radio, 0, wx.BOTTOM, 6)
 
+        self.allow_app_bound_cookies = wx.CheckBox(
+            cookies,
+            label="Allow Chrome/Edge secure cookie access (may trigger security software)",
+        )
+        cookies.body.Add(self.allow_app_bound_cookies, 0, wx.TOP, 4)
+
         user_agent = self.add_card("User-Agent")
         ua_intro = wx.StaticText(
             user_agent,
@@ -670,6 +676,9 @@ class SettingsDialog(wx.Dialog):
                 break
         for key, radio in self.network_page.cookie_radios.items():
             radio.SetValue(key == selected_cookie)
+        self.network_page.allow_app_bound_cookies.SetValue(
+            bool(cookies.get("app_bound", False))
+        )
 
         user_agent = settings.get("user_agent", {"mode": "automatic", "custom": ""})
         user_agent_mode = str(user_agent.get("mode", "automatic")).lower()
@@ -731,6 +740,9 @@ class SettingsDialog(wx.Dialog):
             key: radio.GetValue()
             for key, radio in self.network_page.cookie_radios.items()
         }
+        settings["cookies"]["app_bound"] = (
+            self.network_page.allow_app_bound_cookies.GetValue()
+        )
         settings["user_agent"] = {
             "mode": "custom" if self.network_page.user_agent_custom.GetValue() else "automatic",
             "custom": self.network_page.user_agent_text.GetValue().strip(),

@@ -155,7 +155,14 @@ _FILTER_SEARCH = [
 DEFAULT_SETTINGS = {
     "profile-name": "default",
     "app_version": VERSION,
-    "cookies": {"firefox": True, "chrome": False, "opera": False, "edge": False, "all": False},
+    "cookies": {
+        "firefox": True,
+        "chrome": False,
+        "opera": False,
+        "edge": False,
+        "all": False,
+        "app_bound": False,
+    },
     "user_agent": {"mode": "automatic", "custom": ""},
     "proxy": {"enable": False, "ip": "", "port": 0, "username": "", "password": ""},
     "max_connections": 10,

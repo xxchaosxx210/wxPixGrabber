@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 import requests
-import browser_cookie3
+import rookie_cookies
 from http.cookiejar import CookieJar
 from requests import Response
 from dataclasses import dataclass
@@ -128,18 +128,23 @@ def load_cookies(settings: dict) -> CookieJar:
     Returns:
         object: cookiejar. Default CookieJar is used by default
     """
-    cookies = settings["cookies"]
-    if cookies["firefox"]:
-        cj = browser_cookie3.firefox()
-    elif cookies["chrome"]:
-        cj = browser_cookie3.chrome()
-    elif cookies["opera"]:
-        cj = browser_cookie3.opera()
-    elif cookies["edge"]:
-        cj = browser_cookie3.edge()
-    else:
-        cj = CookieJar()
-    return cj
+    cookies = settings.get("cookies", {})
+    browser = next(
+        (name for name in ("firefox", "chrome", "opera", "edge") if cookies.get(name)),
+        None,
+    )
+    if browser is None:
+        return CookieJar()
+
+    options = {}
+    if browser == "firefox":
+        options["include_session"] = True
+    elif browser in ("chrome", "edge"):
+        options["app_bound"] = (
+            "injection_only" if cookies.get("app_bound", False) else "disabled"
+        )
+
+    return rookie_cookies.jar(browser=browser, **options)
 
 
 def _send_request(url_data: UrlData, cj: CookieJar, settings: dict) -> Response:
