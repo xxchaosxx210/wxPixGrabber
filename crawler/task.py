@@ -53,11 +53,11 @@ def stream_to_file(path: str, bytes_stream: BytesIO) -> Message:
 
 
 def _response_to_stream(response: Response) -> BytesIO:
-    # read from requests object
-    # store in memory
+    # Stream in larger chunks so large responses require fewer Python writes.
     byte_stream = BytesIO()
-    for buff in response.iter_content(1000):
-        byte_stream.write(buff)
+    for buff in response.iter_content(chunk_size=64 * 1024):
+        if buff:
+            byte_stream.write(buff)
     return byte_stream
 
 
@@ -106,6 +106,7 @@ def download_image(filename: str, response: Response, settings: dict) -> Message
                       data={"message": "unknown", "url": response.url})
 
     byte_stream = _response_to_stream(response)
+    image_bytes = None
     # check the image size is within our bounds
     minsize = settings["minimum_image_resolution"]
     image = Image.open(byte_stream)
@@ -114,30 +115,42 @@ def download_image(filename: str, response: Response, settings: dict) -> Message
         # create a new save path
         path = create_save_path(settings)
         full_path = os.path.join(path, filename)
-        # check byte duplicate
-        _duplicate = options.image_exists(path, response.content)
-        # check filename duplicate
-        if not _duplicate:
-            if os.path.exists(full_path):
-                # if file name exists then check user settings on what to do
-                if settings["file_exists"] == "rename":
-                    full_path = options.rename_file(full_path)
-                    message.data["message"] = "Renamed path"
-                    message.data["path"] = full_path
-                elif settings["file_exists"] == "skip":
-                    # close the stream and don't write to disk
-                    message.data["message"] = "Skipped file"
-                    message.data["path"] = full_path
-                    byte_stream.close()
-            # everything ok. write image to disk
-            message = stream_to_file(full_path, byte_stream)
-        else:
-            message.data["message"] = f"Bytes duplicate found locally with url {response.url} and {_duplicate}"
+        with options.image_save_lock(path):
+            # Requests is streamed, so use the existing download buffer instead
+            # of materializing another full copy through response.content.
+            image_bytes = byte_stream.getbuffer()
+            image_hash = options.image_digest(image_bytes)
+            _duplicate = options.image_exists(path, image_bytes, image_hash)
+            if not _duplicate:
+                skip_existing = False
+                # check filename duplicate
+                if os.path.exists(full_path):
+                    # if file name exists then check user settings on what to do
+                    if settings["file_exists"] == "rename":
+                        full_path = options.rename_file(full_path)
+                        message.data["message"] = "Renamed path"
+                        message.data["path"] = full_path
+                    elif settings["file_exists"] == "skip":
+                        skip_existing = True
+                        message.status = const.STATUS_IGNORED
+                        message.data["message"] = "Skipped file"
+                        message.data["path"] = full_path
+                if not skip_existing:
+                    # everything ok. write image to disk
+                    message = stream_to_file(full_path, byte_stream)
+                    if message.status == const.STATUS_OK:
+                        options.register_saved_image(path, full_path, image_bytes, image_hash)
+            else:
+                message.data["message"] = f"Bytes duplicate found locally with url {response.url} and {_duplicate}"
     else:
         # add the URl to the cache
         if not cache.query_ignore(response.url):
             cache.add_ignore(response.url, "small-image", width, height)
         message.data["message"] = f"Image too small ({width}x{height})"
+
+    # Release the zero-copy view before closing its BytesIO owner.
+    if image_bytes is not None:
+        image_bytes.release()
 
     # close the file handle
     byte_stream.close()
@@ -285,15 +298,14 @@ class Task(threading.Thread):
         if self.pause.is_set():
             self.wait()
         urls = {}
+        response = None
         try:
             self._network_io.set()
             response = request_from_url(url_data, cookie_jar, self.settings)
             self._network_io.clear()
             if self.cancel.is_set():
-                response.close()
                 raise Exception("Task has been Cancelled")
             urls = self.search_response(response, self.settings["form_search"]["enabled"])
-            response.close()
         except Exception as err:
             _Log.warning("TASK_REQUEST_FAILED url=%s error=%s", url_data.url, err)
             self.comm_queue.put_nowait(
@@ -301,6 +313,8 @@ class Task(threading.Thread):
                         data={"url": url_data.url, "message": err.__str__()},
                         id=self.task_index, status=const.STATUS_ERROR))
         finally:
+            if response is not None:
+                response.close()
             return urls
 
     def run(self):

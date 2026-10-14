@@ -10,6 +10,8 @@ import urllib.parse as parse
 import string
 import hashlib
 import mimetypes
+import threading
+from contextlib import contextmanager
 from collections import namedtuple
 
 from crawler.mime import IMAGE_EXTS
@@ -31,6 +33,109 @@ DEFAULT_PICTURE_PATH = "Pictures"
 PROFILES_PATH = os.path.join(PATH, "profiles")
 PROFILE_EXT = ".pro"
 SQL_PATH = os.path.join(PATH, "cache.db")
+
+_IMAGE_INDEX_LOCK = threading.Lock()
+_IMAGE_INDEX_LOCKS = {}
+_IMAGE_INDEXES = {}
+
+
+def _image_directory_key(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _image_directory_lock(path: str):
+    key = _image_directory_key(path)
+    with _IMAGE_INDEX_LOCK:
+        lock = _IMAGE_INDEX_LOCKS.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _IMAGE_INDEX_LOCKS[key] = lock
+        return lock
+
+
+@contextmanager
+def image_save_lock(path: str):
+    """Keep duplicate checks and saves to one folder consistent across workers."""
+    lock = _image_directory_lock(path)
+    lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+def _hash_file(path: str) -> bytes:
+    digest = hashlib.md5()
+    with open(path, "rb") as fp:
+        for chunk in iter(lambda: fp.read(64 * 1024), b""):
+            digest.update(chunk)
+    return digest.digest()
+
+
+def _build_image_index(path: str):
+    by_size_and_hash = {}
+    unhashed_by_size = {}
+    path_keys = {}
+    path_sizes = {}
+    try:
+        with os.scandir(path) as entries:
+            for entry in entries:
+                try:
+                    if not entry.is_file() or not entry.name.endswith(IMAGE_EXTS):
+                        continue
+                    size = entry.stat().st_size
+                except OSError:
+                    continue
+                unhashed_by_size.setdefault(size, []).append(entry.path)
+                normalized_path = os.path.normcase(os.path.abspath(entry.path))
+                path_keys[normalized_path] = None
+                path_sizes[normalized_path] = size
+        modified = os.stat(path).st_mtime_ns
+    except OSError:
+        modified = None
+
+    index = {
+        "modified": modified,
+        "files": by_size_and_hash,
+        "unhashed": unhashed_by_size,
+        "path_keys": path_keys,
+        "path_sizes": path_sizes,
+    }
+    _IMAGE_INDEXES[_image_directory_key(path)] = index
+    return index
+
+
+def _index_image_size(index, size: int):
+    """Hash only existing files that could match this image's byte length."""
+    paths = index["unhashed"].pop(size, ())
+    for file_path in paths:
+        normalized_path = os.path.normcase(os.path.abspath(file_path))
+        try:
+            if os.stat(file_path).st_size != size:
+                index["path_keys"].pop(normalized_path, None)
+                index["path_sizes"].pop(normalized_path, None)
+                continue
+            digest = _hash_file(file_path)
+        except OSError:
+            index["path_keys"].pop(normalized_path, None)
+            index["path_sizes"].pop(normalized_path, None)
+            continue
+        key = (size, digest)
+        index["files"].setdefault(key, []).append(file_path)
+        index["path_keys"][normalized_path] = key
+
+
+def _get_image_index(path: str):
+    key = _image_directory_key(path)
+    try:
+        modified = os.stat(path).st_mtime_ns
+    except OSError:
+        modified = None
+
+    index = _IMAGE_INDEXES.get(key)
+    if index is None or index["modified"] != modified:
+        return _build_image_index(path)
+    return index
 
 _FILTER_SEARCH = [
     "imagevenue.com/",
@@ -222,30 +327,66 @@ def rename_file(path: str) -> str:
     return path
 
 
-def image_exists(path: str, stream_bytes: bytes) -> str:
-    """scans the path for images and checks the checksum of the stream_bytes and file_bytes
+def image_exists(path: str, stream_bytes: bytes, digest=None) -> str:
+    """Check a cached size-and-hash index for a matching image.
 
     Args:
         path (str): The path to scan for images
-        stream_bytes (b): byte stream of image
+        stream_bytes (b): downloaded image bytes or a bytes-like view
 
     Returns:
         str: returns the file path if their is a match.
     """
-    with os.scandir(path) as it:
-        for entry in it:
-            # check entry is an image first
-            if entry.is_file() and entry.name.endswith(IMAGE_EXTS):
-                # improve performance, check the file size first from stats
-                if entry.stat().st_size == stream_bytes.__len__():
-                    # if sizes match then read file check the md5 hash
-                    with open(entry.path, "rb") as fp:
-                        hash1 = hashlib.md5(fp.read()).digest()
-                        hash2 = hashlib.md5(stream_bytes).digest()
-                        if hash1 == hash2:
-                            # we've got a duplicate return the pathname
-                            return entry.path
-    return ""
+    lock = _image_directory_lock(path)
+    with lock:
+        digest = digest or image_digest(stream_bytes)
+        index = _get_image_index(path)
+        _index_image_size(index, len(stream_bytes))
+        matches = index["files"].get((len(stream_bytes), digest), ())
+        return matches[0] if matches else ""
+
+
+def image_digest(stream_bytes: bytes) -> bytes:
+    """Return the checksum used by the duplicate image index."""
+    return hashlib.md5(stream_bytes).digest()
+
+
+def register_saved_image(directory: str, file_path: str, stream_bytes: bytes, digest=None):
+    """Add an image written by this run to the cached duplicate index."""
+    lock = _image_directory_lock(directory)
+    with lock:
+        index = _IMAGE_INDEXES.get(_image_directory_key(directory))
+        if index is None:
+            index = _build_image_index(directory)
+        key = (len(stream_bytes), digest or image_digest(stream_bytes))
+        absolute_path = os.path.abspath(file_path)
+        normalized_path = os.path.normcase(absolute_path)
+        had_previous = normalized_path in index["path_sizes"]
+        previous_size = index["path_sizes"].pop(normalized_path, None)
+        previous_key = index["path_keys"].pop(normalized_path, None)
+        if had_previous and previous_key is None:
+            previous_paths = index["unhashed"].get(previous_size, [])
+            index["unhashed"][previous_size] = [
+                existing for existing in previous_paths
+                if os.path.normcase(os.path.abspath(existing)) != normalized_path
+            ]
+            if not index["unhashed"][previous_size]:
+                del index["unhashed"][previous_size]
+        elif previous_key is not None:
+            previous_paths = index["files"].get(previous_key, [])
+            index["files"][previous_key] = [
+                existing for existing in previous_paths
+                if os.path.normcase(os.path.abspath(existing)) != normalized_path
+            ]
+            if not index["files"][previous_key]:
+                del index["files"][previous_key]
+        index["files"].setdefault(key, []).append(absolute_path)
+        index["path_keys"][normalized_path] = key
+        index["path_sizes"][normalized_path] = len(stream_bytes)
+        try:
+            index["modified"] = os.stat(directory).st_mtime_ns
+        except OSError:
+            index["modified"] = None
 
 
 def load_from_file(url: str) -> tuple:

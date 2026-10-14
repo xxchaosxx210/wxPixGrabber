@@ -144,6 +144,15 @@ class MainWindow(wx.Frame):
             elif msg.event == const.EVENT_SEARCHING and msg.status == const.STATUS_OK:
                 self.dld_panel.treeview.set_searching(msg.id)
 
+    def message_batch_from_thread(self, messages):
+        """Apply consecutive image results together to reduce GUI redraw work."""
+        self.Freeze()
+        try:
+            for msg in messages:
+                self.message_from_thread(msg)
+        finally:
+            self.Thaw()
+
     def _on_fetch_start(self, msg: const.Message):
         timer_quit.clear()
         create_timer_thread(self._on_timer_callback).start()

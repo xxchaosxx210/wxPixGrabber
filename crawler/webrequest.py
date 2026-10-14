@@ -153,7 +153,8 @@ def _send_request(url_data: UrlData, cj: CookieJar, settings: dict) -> Response:
         "cookies": cj,
         "headers": headers,
         "timeout": settings["connection_timeout"],
-        "data": url_data.data
+        "data": url_data.data,
+        "stream": True
     }
 
     if method == "get":

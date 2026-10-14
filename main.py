@@ -58,9 +58,26 @@ class PixGrabberApp(wx.App):
         """handles messages sent from the commander thread and task processes
         """
         _quit = mp.Event()
+        pending_results = []
+
+        def flush_results():
+            if pending_results:
+                batch = pending_results[:]
+                pending_results.clear()
+                wx.CallAfter(self.window.message_batch_from_thread, batch)
+
         while not _quit.is_set():
             try:
-                msg = self.queue.get()
+                msg = self.queue.get(timeout=0.05)
+                if (msg.thread == const.THREAD_TASK
+                        and msg.event == const.EVENT_DOWNLOAD_IMAGE):
+                    pending_results.append(msg)
+                    if len(pending_results) >= 64:
+                        flush_results()
+                    continue
+
+                # Keep result rows ahead of later status or completion events.
+                flush_results()
                 if msg.thread == const.THREAD_COMMANDER and msg.event == const.EVENT_QUIT:
                     if self.server is not None and self.server.is_alive():
                         self.server.terminate()
@@ -71,7 +88,7 @@ class PixGrabberApp(wx.App):
                     # Pass the message to the GUI Thread
                     wx.CallAfter(self.window.message_from_thread, msg)
             except queue.Empty:
-                pass
+                flush_results()
 
 
 def _main():
